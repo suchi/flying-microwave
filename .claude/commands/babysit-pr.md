@@ -3,37 +3,36 @@ description: PRを監視し、レビュー指摘の修正をNo New Commentまで
 argument-hint: <PR番号>
 ---
 
-PR #$ARGUMENTS の未解決レビュースレッドと最新レビューを確認し、対応する。
+PR #$ARGUMENTS のレビュー指摘とCIの状態を確認し、対応する。
+
+手順の正本は`docs/development/review-process.md`(共通ループ)。本リポジトリのレビュアーは敵対的レビューのエージェントで、GitHub Copilotのレビューは使わない(ADR-0007)。
 
 ## 手順
 
-1. 最新レビューを取得: `gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews`
-2. `gh api graphql`で未解決スレッド(`isResolved: false`)を一覧取得
+1. PRの状態を確認する: マージの可否、CIの結果、未解決のレビュースレッド、前回のレビュー以降の差分。
+2. 敵対的レビューを依頼する(`docs/development/review-process.md`の「敵対的レビューの手順」)。
+   - 作成者とは別の新しいコンテキストで、読み取り専用を指示したレビュー用エージェント(サブエージェントまたは`/code-review`)を起動する。
+   - 渡すのは差分の範囲と、関係する計画・設計・ADR・AGENTS.mdのルールだけ。作成者の結論や仮説は渡さない。
+   - 再レビューでは、前回の指摘とその対応の一覧も渡す。
 3. 各指摘について:
-   a. コードを修正し、AGENTS.mdの検証コマンドを実行する
-   b. コミット(形式はAGENTS.mdに従う)してプッシュする
-   c. スレッドに対応内容を日本語で返信する
-      (`gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments --method POST -f body="修正しました: ..." -F in_reply_to=COMMENT_ID`)
-   d. `resolveReviewThread` GraphQL mutationでスレッドを解決する
-4. Copilotに再レビューを依頼する: 必ず`gh pr edit $ARGUMENTS --add-reviewer @copilot`(gh 2.88.0以上が必要)。REST APIの`.../requested_reviewers`はレビュー済みPRの再レビューをトリガーしない。
-5. 下記「レビュー完了の判定」を満たすまで待ってから、未解決スレッドと新規コメントを確認する。未解決スレッドがなく新規コメントもなければ「No New Comment 達成」と報告する。マージはしない — マージには明示的なユーザー承認が必要(/merge-pr)。
-
-## レビュー完了の判定
-
-再レビュー依頼後、次の両方を満たすまでレビュー完了と判定しない(監視ループはこの2条件をポーリングする):
-
-- `gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/requested_reviewers`の`users`からCopilotが消えている。
-- 依頼時刻より後に提出された、本文が非空のCopilotレビュー(総評)が存在する。判定は本文長のみで行い、見出し文字列には依存しない(見出しはフォーマット変更・言語設定で変わりうるため)。
-
-注意: Copilotは1回のレビューで複数のレビューレコードを生成する。本文が空のCOMMENTEDレビューはインラインコメントの器(中間生成物)であり、完了シグナルとして扱わない。新しいレビューレコードが1件現れただけで完了と判定すると、総評レビュー到着前の中間レコードを「新規指摘なし」と誤読する。
+   a. 一次情報で検証し、「確認済み」「未確認・妥当」「不採用」に分ける。
+   b. 採用した指摘はコードやドキュメントを修正し、AGENTS.mdの検証コマンドを実行する(製品コードがない間のドキュメントだけの変更では不要)。
+   c. 1つの論理変更ごとにコミット(形式はAGENTS.mdに従う)してプッシュする。
+   d. 指摘と対応の一覧をPRに1件のコメントとしてまとめて投稿する。人間が付けたレビュースレッドには、対応内容を日本語で返信してから解決する。
+4. 修正を含めて再レビューを依頼し、新規指摘がなくなるまで2〜3を繰り返す。
+5. 新規指摘がなくなったら「No New Comment 達成」と報告する。マージはしない(マージには明示的なユーザー承認が必要。/merge-pr)。
 
 ## 環境への適応
 
-- ローカルのClaude Code(ghあり): 上記の手順をそのまま実行する。No New Commentになるまで修正のたびにループを回す。
-- claude.ai/code(Web、ghなし): 同じ手順をGitHub MCPツールで実行し、`subscribe_pr_activity`ツールでPRを購読してレビューコメント・CIイベントを自動で受け取る。再レビュー依頼は`request_copilot_review` MCPツールで行う(手順4のghコマンドはここでは使えず、REST `requested_reviewers`での代用は不可)。各イベントを上記ループで処理し、PRのマージ/クローズ時またはユーザーの停止指示で購読を解除する。
+- ローカルのClaude Code(ghあり): ghとサブエージェントで上記を実行する。
+- claude.ai/code(Web、ghなし): 同じ手順をGitHub MCPツールで実行し、`subscribe_pr_activity`ツールでPRを購読してレビューコメント・CIイベントを自動で受け取る。PRのマージ/クローズ時またはユーザーの停止指示で購読を解除する。
+
+## Copilotを使う場合
+
+本リポジトリでは使わない。将来使う場合の依頼方法・完了の判定・禁止事項は`docs/development/review-process.md`の「GitHub Copilotを使う場合の手順」に従い、上記と同じループで進める。
 
 ## 重要ルール
 
-- スレッドをresolveする前に返信を投稿する(Copilotが同じ指摘を繰り返すのを防ぐ)。
+- スレッドを解決する前に返信を投稿する(同じ指摘の繰り返しを防ぐ)。
 - 再レビュー目的でPRをクローズ/リオープン・再作成しない(効果がなく履歴が壊れる)。
-- `DELETE .../requested_reviewers`は絶対に使わない(レビュアー状態を壊す)。
+- セキュリティに関わる指摘は、ユーザーが判断するまで未解決のままにする。
