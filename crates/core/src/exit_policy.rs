@@ -24,15 +24,16 @@ pub struct WindowId(pub u64);
 /// A platform event, reduced to what the exit decision needs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
-    /// A key was pressed. `synthetic` is true for events that were not caused
-    /// by the user (for example key repeat or an injected event).
+    /// A key was pressed.
     KeyPressed {
-        /// Whether the event was synthesized rather than typed.
+        /// winit's `is_synthetic`: the event was generated for a key that was
+        /// already held while focus moved to one of our windows, not typed.
+        /// Key repeat and injected input are not synthetic.
         synthetic: bool,
     },
     /// A key was released.
     KeyReleased {
-        /// Whether the event was synthesized rather than typed.
+        /// winit's `is_synthetic`, as for [`Event::KeyPressed`].
         synthetic: bool,
     },
     /// A mouse button was pressed.
@@ -86,7 +87,7 @@ pub struct ExitPolicy {
 }
 
 impl ExitPolicy {
-    /// Default length of the grace period after start.
+    /// Default length of the grace period (see [`ExitPolicy::handle`] for when it starts).
     pub const DEFAULT_GRACE: Duration = Duration::from_millis(500);
     /// Default cursor travel, in physical pixels, that ends the screensaver.
     pub const DEFAULT_THRESHOLD_PX: u32 = 16;
@@ -95,9 +96,9 @@ impl ExitPolicy {
     ///
     /// The screensaver exits when the cursor moves at least `threshold_px`
     /// pixels away from its reference position; a threshold of 0 is raised to 1.
-    /// Cursor movement during the first `grace` after start only moves the
-    /// reference position (the window system may report a stray move when the
-    /// window appears).
+    /// Cursor movement and focus changes during the first `grace` only move the
+    /// reference position or are recorded (the window system may report a
+    /// stray move or focus change when the windows appear).
     pub fn new(mode: Mode, threshold_px: u32, grace: Duration) -> Self {
         Self {
             mode,
@@ -111,7 +112,13 @@ impl ExitPolicy {
 
     /// Handles one event and returns whether to exit.
     ///
-    /// `now` is the time since the process started (monotonic).
+    /// `now` is the monotonic time since the grace period started. The caller
+    /// starts it once every window has been created and GPU initialization
+    /// has finished or failed: events queued while those ran are delivered
+    /// afterwards and must still fall inside the grace period. The caller also
+    /// wakes its event loop when the grace period ends, so that
+    /// [`Event::EventsProcessed`] checks a focus loss from the grace period
+    /// even if no further event arrives.
     pub fn handle(&mut self, event: Event, now: Duration) -> Decision {
         match (self.mode, event) {
             (_, Event::CloseRequested | Event::WindowDestroyed) => Decision::Exit,
