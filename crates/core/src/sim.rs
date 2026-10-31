@@ -189,20 +189,21 @@ fn random_velocity(rng: &mut Rng, speed: f32) -> (f32, f32) {
 /// Moves `flyer` to a new entry point on the top or right edge with a fresh
 /// velocity.
 ///
-/// `half` is half the flyer size. The entry line runs along the top edge from
-/// x = 0 to the corner (aspect + half, -half) just outside the top-right of the
-/// screen, then down the right edge to y = 1. The two parts meet at that
-/// corner, so every track that crosses the screen is fed and no empty band
-/// appears. The entry point is drawn along the combined line, each part
-/// weighted by the flyer's motion across it: the top part is crossed at rate 1
-/// (down) and the right part at rate 2 (left). This keeps the flyer density
-/// uniform over the screen.
+/// `half` is half the flyer size. A sprite touches the screen while its center
+/// is within x in [-half, aspect + half] and y in [-half, 1 + half]. The entry
+/// line runs along the top of that area from x = -half to the corner
+/// (aspect + half, -half), then down its right side to y = 1 + half. The two
+/// parts meet at that corner, so every track whose sprite can touch the screen
+/// is fed, corners included, and no empty band appears. The entry point is
+/// drawn along the combined line, each part weighted by the flyer's motion
+/// across it: the top part is crossed at rate 1 (down) and the right part at
+/// rate 2 (left). This keeps the flyer density uniform over the screen.
 fn respawn(flyer: &mut Flyer, rng: &mut Rng, aspect: f32, half: f32, speed: f32) {
-    let top = aspect + half;
-    let right = 1.0 + half;
+    let top = aspect + 2.0 * half;
+    let right = 1.0 + 2.0 * half;
     let u = rng.range_f32(0.0, top + 2.0 * right);
     let (x, y) = if u < top {
-        (u, -half)
+        (u - half, -half)
     } else {
         (aspect + half, (u - top) / 2.0 - half)
     };
@@ -510,19 +511,20 @@ mod tests {
                     let mut w = world_with(seed, exiting);
                     // What the respawn must draw, in order: u, then the speed factor.
                     let mut probe = w.rng.clone();
-                    let u = probe.range_f32(0.0, ASPECT + half + 2.0 * (1.0 + half));
+                    let top = ASPECT + 2.0 * half;
+                    let u = probe.range_f32(0.0, top + 2.0 * (1.0 + 2.0 * half));
                     let factor = probe.range_f32(0.8, 1.2);
 
                     // One step runs, leaving quarter/4 of a step in the accumulator.
                     w.advance(TIME_STEP + TIME_STEP * quarter / 4);
 
                     let f = w.flyers[0];
-                    let (want_x, want_y) = if u < ASPECT + half {
+                    let (want_x, want_y) = if u < top {
                         tops += 1;
-                        (u, -half)
+                        (u - half, -half)
                     } else {
                         rights += 1;
-                        (ASPECT + half, (u - (ASPECT + half)) / 2.0 - half)
+                        (ASPECT + half, (u - top) / 2.0 - half)
                     };
                     assert_eq!((f.x, f.y), (want_x, want_y));
                     assert_eq!((f.prev_x, f.prev_y), (f.x, f.y), "no streak");
@@ -558,9 +560,11 @@ mod tests {
         let widest_gap = tracks.windows(2).map(|w| w[1] - w[0]).fold(0.0, f32::max);
         assert!(widest_gap < 0.01, "widest gap between tracks: {widest_gap}");
 
-        // The tracks span from the top edge at x = 0 to the bottom of the right edge.
+        // The tracks span from the top-left corner to the bottom-right corner.
         let (first, last) = (tracks[0], tracks[tracks.len() - 1]);
-        let (low, high) = (-half, 1.0 + (ASPECT + half) / 2.0);
+        // Every track whose sprite can touch the screen: centers range over
+        // x in [-half, ASPECT + half] and y in [-half, 1 + half].
+        let (low, high) = (-1.5 * half, 1.0 + half + (ASPECT + half) / 2.0);
         assert!(
             (first - low).abs() < 0.01,
             "first track {first}, expected {low}"
