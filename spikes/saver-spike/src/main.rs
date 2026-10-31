@@ -168,9 +168,19 @@ mod windows_main {
 
         // Why: a bare "reg" would be searched for in the application's own
         // directory first, where a planted reg.exe could sit next to the .scr.
-        let system_root = std::env::var_os("SystemRoot")
-            .map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
-        let reg = system_root.join("System32").join("reg.exe");
+        // The path is built from GetSystemDirectoryW and not from the inherited
+        // %SystemRoot%, which any parent process could have changed.
+        let system_dir = match win::system_directory() {
+            Ok(dir) => dir,
+            Err(code) => {
+                log!(
+                    "registry probe: GetSystemDirectoryW FAILED, GetLastError={code}; \
+                     skipping the probe"
+                );
+                return;
+            }
+        };
+        let reg = system_dir.join("reg.exe");
         log!("registry probe: running {reg:?} query HKCR\\scrfile\\shell /s");
         let output = Command::new(&reg)
             .args(["query", r"HKCR\scrfile\shell", "/s"])
@@ -180,6 +190,12 @@ mod windows_main {
         match output {
             Ok(output) => {
                 log!("registry probe: exit status {}", output.status);
+                // Known limitation: reg.exe writes to the pipe (stdout and
+                // stderr) in the OEM code page (for example CP932 on Japanese
+                // Windows), not UTF-8, so non-ASCII text such as "(既定)" for
+                // the default value name is garbled by from_utf8_lossy. The
+                // spike does not decode it; the verbs and commands it is after
+                // are ASCII.
                 for line in String::from_utf8_lossy(&output.stdout).lines() {
                     log!("reg: {line}");
                 }

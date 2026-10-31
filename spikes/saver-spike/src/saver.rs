@@ -4,8 +4,14 @@
 //!
 //! The spike logs every window event listed in the task so that the focus
 //! order, synthetic key events and cursor behavior can be read from the log.
+//!
+//! Exit rule (docs/design/architecture.md, section "入力と終了判定"): during the
+//! grace period only cursor movement and focus changes are ignored; a
+//! non-synthetic key press, mouse button press, wheel, touch or close request
+//! ends the screensaver at once.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use winit::application::ApplicationHandler;
@@ -16,6 +22,7 @@ use winit::window::{Fullscreen, Window, WindowId, WindowLevel};
 
 use crate::gpu::{self, Frame};
 use crate::log::log;
+use crate::policy::CursorDecision;
 use crate::{policy, win};
 
 /// How long to wait before retrying after a skipped frame (occluded surface and so on).
@@ -25,10 +32,17 @@ const FRAME_REPORT_INTERVAL: Duration = Duration::from_secs(10);
 /// Only the first CursorMoved events are logged; later ones would flood the log.
 const CURSOR_MOVES_LOGGED: u32 = 20;
 
+/// If GPU initialization has not finished after this long, the watchdog ends
+/// the process so that the black windows cannot cover the screen forever.
+const GPU_INIT_TIMEOUT: Duration = Duration::from_secs(15);
+
 /// Exit codes returned to `main`.
 const EXIT_OK: i32 = 0;
 const EXIT_EVENT_LOOP_FAILED: i32 = 1;
 const EXIT_NO_WINDOW: i32 = 5;
+/// The GPU init watchdog fired. The value 5 is shared with `EXIT_NO_WINDOW`
+/// (both mean "the screensaver could not get going"); the log line tells them apart.
+const EXIT_GPU_INIT_TIMEOUT: i32 = 5;
 
 struct SaverWindow {
     window: Arc<Window>,
@@ -53,8 +67,7 @@ struct SaverApp {
     // instance after the targets that were created from it.
     gpu: Option<gpu::Gpu>,
     instance: Option<wgpu::Instance>,
-    start_cursor: Option<(i32, i32)>,
-    grace_until: Option<Instant>,
+    exit_policy: policy::ExitPolicy,
     cursor_moves_logged: u32,
     exit_reason: Option<String>,
     exit_code: i32,
@@ -77,8 +90,7 @@ pub fn run(options: gpu::Options) -> i32 {
         windows: Vec::new(),
         gpu: None,
         instance: None,
-        start_cursor: None,
-        grace_until: None,
+        exit_policy: policy::ExitPolicy::new(None),
         cursor_moves_logged: 0,
         exit_reason: None,
         exit_code: EXIT_OK,
@@ -100,10 +112,6 @@ impl SaverApp {
         self.windows.iter().position(|w| w.window.id() == id)
     }
 
-    fn in_grace(&self) -> bool {
-        self.grace_until.is_some_and(|until| Instant::now() < until)
-    }
-
     /// Records the reason and stops the event loop (only the first request counts).
     fn request_exit(&mut self, event_loop: &ActiveEventLoop, reason: &str) {
         if self.exit_reason.is_some() {
@@ -114,15 +122,17 @@ impl SaverApp {
         event_loop.exit();
     }
 
-    /// Applies the exit rule to an input event: ignored during the grace
-    /// period, otherwise the screensaver ends.
+    /// Applies the exit rule to an input event that always ends the
+    /// screensaver (key press, mouse button press, wheel, touch, close
+    /// request). The grace period does not apply to these.
     fn input_decision(&mut self, event_loop: &ActiveEventLoop, what: &str) {
-        if self.in_grace() {
-            log!("decision: {what} ignored (grace period still running)");
+        let grace = if self.exit_policy.in_grace(Instant::now()) {
+            " (grace period running, but it only covers cursor movement and focus changes)"
         } else {
-            log!("decision: {what} ends the screensaver");
-            self.request_exit(event_loop, what);
-        }
+            ""
+        };
+        log!("decision: {what} ends the screensaver{grace}");
+        self.request_exit(event_loop, what);
     }
 
     fn create_windows(&mut self, event_loop: &ActiveEventLoop) {
@@ -193,6 +203,10 @@ impl SaverApp {
     /// Initializes wgpu for all windows. On failure the windows stay black (W-9).
     fn init_gpu(&mut self) {
         let started = Instant::now();
+        // Why: a hung driver call would block this thread, and the black
+        // windows would cover the screen with no way to leave. The watchdog is
+        // disarmed when this function returns, whatever the outcome.
+        let _watchdog = GpuInitWatchdog::start(GPU_INIT_TIMEOUT);
         let result = gpu::guarded("GPU initialization", || {
             let instance = gpu::create_instance(&self.options);
             let mut surfaces = Vec::new();
@@ -243,12 +257,14 @@ impl SaverApp {
         }
     }
 
+    /// Logs the first few CursorMoved events. Returns true if this event was
+    /// logged (the caller then also logs its decision).
     fn log_cursor_moved(
         &mut self,
         index: usize,
         window_position: (f64, f64),
         screen: Option<(i32, i32)>,
-    ) {
+    ) -> bool {
         if self.cursor_moves_logged < CURSOR_MOVES_LOGGED {
             self.cursor_moves_logged += 1;
             log!(
@@ -257,9 +273,13 @@ impl SaverApp {
                 window_position.0,
                 window_position.1,
             );
-        } else if self.cursor_moves_logged == CURSOR_MOVES_LOGGED {
-            self.cursor_moves_logged += 1;
-            log!("further CursorMoved events are not logged (exit checks continue)");
+            true
+        } else {
+            if self.cursor_moves_logged == CURSOR_MOVES_LOGGED {
+                self.cursor_moves_logged += 1;
+                log!("further CursorMoved events are not logged (exit checks continue)");
+            }
+            false
         }
     }
 
@@ -270,19 +290,27 @@ impl SaverApp {
         window_position: (f64, f64),
     ) {
         let screen = win::cursor_pos();
-        self.log_cursor_moved(index, window_position, screen);
+        let logged = self.log_cursor_moved(index, window_position, screen);
         let Some(now) = screen else { return };
-        let Some(start) = self.start_cursor else {
-            log!("start cursor position was unknown; using {now:?} as the reference");
-            self.start_cursor = Some(now);
-            return;
-        };
-        if policy::cursor_moved_enough(start, now, policy::CURSOR_EXIT_DISTANCE) {
-            let what = format!(
-                "cursor moved from {start:?} to {now:?} (at least {} px)",
-                policy::CURSOR_EXIT_DISTANCE
-            );
-            self.input_decision(event_loop, &what);
+        match self.exit_policy.cursor_moved(Instant::now(), now) {
+            CursorDecision::IgnoredInGrace => {
+                if logged {
+                    log!(
+                        "decision: cursor move ignored (grace period); reference re-based to {now:?}"
+                    );
+                }
+            }
+            CursorDecision::ReferenceSet => {
+                log!("start cursor position was unknown; using {now:?} as the reference");
+            }
+            CursorDecision::BelowThreshold => {}
+            CursorDecision::Exit { from } => {
+                let what = format!(
+                    "cursor moved from {from:?} to {now:?} (at least {} px)",
+                    policy::CURSOR_EXIT_DISTANCE
+                );
+                self.input_decision(event_loop, &what);
+            }
         }
     }
 
@@ -328,6 +356,43 @@ impl SaverApp {
     }
 }
 
+/// Ends the process if GPU initialization takes too long. Dropping the value
+/// disarms it.
+struct GpuInitWatchdog {
+    finished: Arc<AtomicBool>,
+}
+
+impl GpuInitWatchdog {
+    fn start(timeout: Duration) -> Self {
+        let finished = Arc::new(AtomicBool::new(false));
+        let thread_finished = Arc::clone(&finished);
+        // The watchdog is a thread because a hung driver call also blocks the
+        // event loop, so a timer inside the loop could never fire.
+        let spawned = std::thread::Builder::new()
+            .name("gpu-init-watchdog".to_owned())
+            .spawn(move || {
+                std::thread::sleep(timeout);
+                if !thread_finished.load(Ordering::SeqCst) {
+                    log!(
+                        "GPU init watchdog fired after {} s; exiting",
+                        timeout.as_secs()
+                    );
+                    crate::win::terminate_now(EXIT_GPU_INIT_TIMEOUT as u32);
+                }
+            });
+        if let Err(e) = spawned {
+            log!("GPU init watchdog: could not start the thread: {e}");
+        }
+        Self { finished }
+    }
+}
+
+impl Drop for GpuInitWatchdog {
+    fn drop(&mut self) {
+        self.finished.store(true, Ordering::SeqCst);
+    }
+}
+
 impl ApplicationHandler for SaverApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.created {
@@ -336,11 +401,9 @@ impl ApplicationHandler for SaverApp {
         }
         self.created = true;
         let begin = Instant::now();
-        self.start_cursor = win::cursor_pos();
-        log!(
-            "resumed: cursor position at startup (screen) = {:?}",
-            self.start_cursor
-        );
+        let start_cursor = win::cursor_pos();
+        self.exit_policy = policy::ExitPolicy::new(start_cursor);
+        log!("resumed: cursor position at startup (screen) = {start_cursor:?}");
 
         self.create_windows(event_loop);
         if self.windows.is_empty() {
@@ -351,11 +414,15 @@ impl ApplicationHandler for SaverApp {
         }
         self.init_gpu();
 
-        // Start the grace period only now: events that queued up while the
-        // windows and the GPU were being created are delivered inside it.
-        self.grace_until = Some(Instant::now() + policy::GRACE_PERIOD);
+        // Start the grace period only now: cursor movement and focus changes
+        // that queued up while the windows and the GPU were being created are
+        // delivered inside it. The reference cursor position is re-based by
+        // each movement in it and re-taken when it ends (see `about_to_wait`).
+        self.exit_policy
+            .start_grace(Instant::now(), policy::GRACE_PERIOD);
         log!(
-            "startup took {} ms; grace period of {} ms starts now",
+            "startup took {} ms; grace period of {} ms (cursor movement and focus changes only) \
+             starts now",
             begin.elapsed().as_millis(),
             policy::GRACE_PERIOD.as_millis()
         );
@@ -392,7 +459,8 @@ impl ApplicationHandler for SaverApp {
                     event.logical_key,
                     event.physical_key,
                 );
-                if event.state == ElementState::Pressed && !is_synthetic {
+                if policy::key_ends_screensaver(event.state == ElementState::Pressed, is_synthetic)
+                {
                     let what = format!("key press {:?}", event.logical_key);
                     self.input_decision(event_loop, &what);
                 } else {
@@ -446,9 +514,19 @@ impl ApplicationHandler for SaverApp {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        // Retry skipped frames after a short delay instead of spinning.
         let now = Instant::now();
-        let mut next: Option<Instant> = None;
+        if self.exit_policy.grace_end_due(now) {
+            // The cursor reference is taken at the moment the grace period ends.
+            let cursor = win::cursor_pos();
+            self.exit_policy.finish_grace(cursor);
+            log!(
+                "grace period ended; cursor reference re-taken: {:?}",
+                self.exit_policy.reference()
+            );
+        }
+        // Wake up when the grace period ends, and retry skipped frames after a
+        // short delay instead of spinning.
+        let mut next: Option<Instant> = self.exit_policy.pending_grace_end();
         for w in &mut self.windows {
             if let Some(at) = w.retry_at {
                 if at <= now {

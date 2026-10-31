@@ -1,13 +1,17 @@
 //! Thin wrappers over the few Win32 calls the spike needs. All `unsafe` is
 //! confined to this module.
 
-use std::ffi::c_void;
+use std::ffi::{OsString, c_void};
+use std::os::windows::ffi::OsStringExt;
+use std::path::PathBuf;
 
-use windows_sys::Win32::Foundation::{GetLastError, HWND, POINT, RECT};
+use windows_sys::Win32::Foundation::{ERROR_INSUFFICIENT_BUFFER, GetLastError, HWND, POINT, RECT};
 use windows_sys::Win32::Graphics::Gdi::{BLACK_BRUSH, FillRect, GetDC, GetStockObject, ReleaseDC};
 use windows_sys::Win32::System::LibraryLoader::{
     LOAD_LIBRARY_SEARCH_SYSTEM32, SetDefaultDllDirectories,
 };
+use windows_sys::Win32::System::SystemInformation::GetSystemDirectoryW;
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, TerminateProcess};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetCursorPos, IsWindow, MB_ICONINFORMATION, MB_ICONWARNING, MB_OK, MessageBoxW,
 };
@@ -34,6 +38,47 @@ pub fn restrict_dll_search_path() -> Result<(), u32> {
         // SAFETY: GetLastError has no preconditions.
         Err(unsafe { GetLastError() })
     }
+}
+
+/// The Windows system directory (normally `C:\Windows\System32`) from
+/// `GetSystemDirectoryW`. Unlike `%SystemRoot%`, it does not come from the
+/// environment that this process inherited. Returns the Win32 error code on failure.
+pub fn system_directory() -> Result<PathBuf, u32> {
+    // MAX_PATH is normally enough; the loop handles a longer path once.
+    let mut buffer: Vec<u16> = vec![0; 260];
+    for _ in 0..2 {
+        let capacity = u32::try_from(buffer.len()).map_err(|_| ERROR_INSUFFICIENT_BUFFER)?;
+        // SAFETY: `buffer` is valid for writes of `capacity` UTF-16 units.
+        let len = unsafe { GetSystemDirectoryW(buffer.as_mut_ptr(), capacity) } as usize;
+        if len == 0 {
+            // SAFETY: GetLastError has no preconditions.
+            return Err(unsafe { GetLastError() });
+        }
+        if len < buffer.len() {
+            // `len` excludes the terminating NUL.
+            return Ok(PathBuf::from(OsString::from_wide(&buffer[..len])));
+        }
+        // Too small: `len` is the required size including the terminating NUL.
+        buffer.resize(len + 1, 0);
+    }
+    Err(ERROR_INSUFFICIENT_BUFFER)
+}
+
+/// Ends the process immediately with `code`, without running exit handlers.
+///
+/// Used by the GPU-init watchdog: if the hung call holds a lock that normal
+/// process exit also needs (for example the loader lock), `std::process::exit`
+/// could block as well, leaving the screen covered. TerminateProcess does not
+/// wait for other threads or DLL detach routines.
+pub fn terminate_now(code: u32) -> ! {
+    // SAFETY: GetCurrentProcess returns a pseudo handle that is always valid
+    // for the calling process; TerminateProcess on it does not return on
+    // success.
+    unsafe {
+        TerminateProcess(GetCurrentProcess(), code);
+    }
+    // Only reached if TerminateProcess failed; fall back to a normal exit.
+    std::process::exit(code as i32)
 }
 
 /// Converts the unsigned decimal handle from the command line into an HWND.

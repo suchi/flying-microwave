@@ -2,15 +2,18 @@
 //! are unit tested on any host.
 
 use std::f64::consts::TAU;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-/// Grace period after the windows appear during which input is logged but
-/// does not end the screensaver (the key release of the Enter key that started
-/// a preview, a cursor jitter caused by window creation, and so on).
+/// Grace period after the windows appear during which only cursor movement and
+/// focus changes are ignored (a cursor jitter caused by window creation, focus
+/// moving from window to window, and so on). Every other exit trigger (key
+/// press, mouse button press, wheel, touch, close request) ends the
+/// screensaver immediately, even during this period (docs/design/architecture.md,
+/// section "入力と終了判定").
 pub const GRACE_PERIOD: Duration = Duration::from_millis(500);
 
-/// Physical pixels the cursor must travel from its position at startup
-/// before the screensaver exits.
+/// Physical pixels the cursor must travel from the reference position (the
+/// position when the grace period ended) before the screensaver exits.
 pub const CURSOR_EXIT_DISTANCE: i32 = 16;
 
 /// Length of one full color cycle. Guideline G-3 asks for no flashing, so the
@@ -25,6 +28,117 @@ pub fn cursor_moved_enough(start: (i32, i32), now: (i32, i32), threshold: i32) -
     let dy = i128::from(now.1) - i128::from(start.1);
     let limit = i128::from(threshold);
     dx * dx + dy * dy >= limit * limit
+}
+
+/// Returns true if a keyboard event ends the screensaver: only a press that is
+/// not synthetic. Releases can belong to the key that started a preview, and
+/// winit generates synthetic events for keys that are held while the focus
+/// moves between windows. Not subject to the grace period.
+pub fn key_ends_screensaver(pressed: bool, synthetic: bool) -> bool {
+    pressed && !synthetic
+}
+
+/// What [`ExitPolicy::cursor_moved`] decided about one cursor position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CursorDecision {
+    /// The grace period is running: the movement is ignored and the position
+    /// became the new reference.
+    IgnoredInGrace,
+    /// No reference position was known, so this position became the reference.
+    ReferenceSet,
+    /// The cursor is less than the threshold away from the reference.
+    BelowThreshold,
+    /// The cursor is at least the threshold away from `from`: exit.
+    Exit { from: (i32, i32) },
+}
+
+/// Cursor and grace period part of the `/s` exit rule. Pure state: the caller
+/// passes the current time and the cursor position (screen coordinates), so it
+/// is unit tested on any host.
+///
+/// Rules (docs/design/architecture.md): cursor movement during the grace
+/// period is ignored and re-bases the reference position; the reference is
+/// re-taken once more when the grace period ends; afterwards a movement of at
+/// least [`CURSOR_EXIT_DISTANCE`] from the reference ends the screensaver.
+#[derive(Debug)]
+pub struct ExitPolicy {
+    reference: Option<(i32, i32)>,
+    grace_until: Option<Instant>,
+    /// True from `start_grace` until the end of the grace period was handled.
+    grace_end_pending: bool,
+}
+
+impl ExitPolicy {
+    /// `reference` is the cursor position at startup (`None` if unknown). No
+    /// grace period is running until [`ExitPolicy::start_grace`] is called.
+    pub fn new(reference: Option<(i32, i32)>) -> Self {
+        Self {
+            reference,
+            grace_until: None,
+            grace_end_pending: false,
+        }
+    }
+
+    /// Starts the grace period at `now`.
+    pub fn start_grace(&mut self, now: Instant, grace: Duration) {
+        self.grace_until = Some(now + grace);
+        self.grace_end_pending = true;
+    }
+
+    /// The reference position the cursor distance is measured from.
+    pub fn reference(&self) -> Option<(i32, i32)> {
+        self.reference
+    }
+
+    /// True while the grace period is running.
+    pub fn in_grace(&self, now: Instant) -> bool {
+        self.grace_until.is_some_and(|until| now < until)
+    }
+
+    /// When the end of the grace period has to be handled (so that the caller
+    /// can wake up then), or `None` if there is nothing pending.
+    pub fn pending_grace_end(&self) -> Option<Instant> {
+        self.grace_until.filter(|_| self.grace_end_pending)
+    }
+
+    /// True if the grace period is over but [`ExitPolicy::finish_grace`] has
+    /// not been called yet.
+    pub fn grace_end_due(&self, now: Instant) -> bool {
+        self.pending_grace_end().is_some_and(|until| now >= until)
+    }
+
+    /// Handles the end of the grace period: the reference is re-taken from the
+    /// current cursor position (kept unchanged if the position is unknown).
+    pub fn finish_grace(&mut self, cursor: Option<(i32, i32)>) {
+        self.grace_end_pending = false;
+        if cursor.is_some() {
+            self.reference = cursor;
+        }
+    }
+
+    /// Judges a cursor movement. `cursor` is the screen position from
+    /// `GetCursorPos`, not the window relative one.
+    pub fn cursor_moved(&mut self, now: Instant, cursor: (i32, i32)) -> CursorDecision {
+        if self.in_grace(now) {
+            self.reference = Some(cursor);
+            return CursorDecision::IgnoredInGrace;
+        }
+        // Why: if this event is the first one after the grace period and
+        // arrives before `finish_grace` ran, the reference stays what the last
+        // movement during the grace period set. Re-taking it here would swallow
+        // this very movement.
+        self.grace_end_pending = false;
+        match self.reference {
+            None => {
+                self.reference = Some(cursor);
+                CursorDecision::ReferenceSet
+            }
+            Some(from) if cursor_moved_enough(from, cursor, CURSOR_EXIT_DISTANCE) => {
+                CursorDecision::Exit { from }
+            }
+            Some(_) => CursorDecision::BelowThreshold,
+        }
+    }
 }
 
 /// A slowly changing, always dark RGB color (each channel stays within
@@ -61,6 +175,149 @@ mod tests {
         // negative coordinates.
         assert!(cursor_moved_enough((-1920, 0), (-1900, 0), 16));
         assert!(cursor_moved_enough((i32::MIN, 0), (i32::MAX, 0), 16));
+    }
+
+    const GRACE: Duration = Duration::from_millis(500);
+
+    fn ms(base: Instant, millis: u64) -> Instant {
+        base + Duration::from_millis(millis)
+    }
+
+    #[test]
+    fn cursor_movement_in_grace_rebases_the_reference() {
+        let t0 = Instant::now();
+        let mut policy = ExitPolicy::new(Some((0, 0)));
+        policy.start_grace(t0, GRACE);
+        // A big jump during the grace period is ignored and becomes the reference.
+        assert_eq!(
+            policy.cursor_moved(ms(t0, 100), (1000, 1000)),
+            CursorDecision::IgnoredInGrace
+        );
+        assert_eq!(policy.reference(), Some((1000, 1000)));
+        // Last instant of the grace period: still ignored.
+        assert_eq!(
+            policy.cursor_moved(ms(t0, 499), (1005, 1000)),
+            CursorDecision::IgnoredInGrace
+        );
+        assert_eq!(policy.reference(), Some((1005, 1000)));
+        // After the grace period the distance is measured from the last position.
+        assert_eq!(
+            policy.cursor_moved(ms(t0, 500), (1020, 1000)),
+            CursorDecision::BelowThreshold
+        );
+        assert_eq!(
+            policy.cursor_moved(ms(t0, 501), (1021, 1000)),
+            CursorDecision::Exit { from: (1005, 1000) }
+        );
+    }
+
+    #[test]
+    fn grace_end_retakes_the_reference() {
+        let t0 = Instant::now();
+        let mut policy = ExitPolicy::new(Some((0, 0)));
+        policy.start_grace(t0, GRACE);
+        assert_eq!(policy.pending_grace_end(), Some(ms(t0, 500)));
+        assert!(!policy.grace_end_due(ms(t0, 499)));
+        assert!(policy.grace_end_due(ms(t0, 500)));
+
+        // The cursor was moved without any event; the reference is re-taken
+        // from the position at the end of the grace period.
+        policy.finish_grace(Some((200, 200)));
+        assert_eq!(policy.reference(), Some((200, 200)));
+        assert_eq!(policy.pending_grace_end(), None);
+        assert!(!policy.grace_end_due(ms(t0, 600)));
+
+        assert_eq!(
+            policy.cursor_moved(ms(t0, 600), (210, 200)),
+            CursorDecision::BelowThreshold
+        );
+        assert_eq!(
+            policy.cursor_moved(ms(t0, 601), (216, 200)),
+            CursorDecision::Exit { from: (200, 200) }
+        );
+    }
+
+    #[test]
+    fn finish_grace_with_unknown_cursor_keeps_the_reference() {
+        let t0 = Instant::now();
+        let mut policy = ExitPolicy::new(Some((5, 5)));
+        policy.start_grace(t0, GRACE);
+        policy.finish_grace(None);
+        assert_eq!(policy.reference(), Some((5, 5)));
+        assert_eq!(policy.pending_grace_end(), None);
+    }
+
+    #[test]
+    fn first_move_after_grace_does_not_rebase_the_reference() {
+        // The event arrives before the end of the grace period was handled:
+        // it is judged against the reference set during the grace period.
+        let t0 = Instant::now();
+        let mut policy = ExitPolicy::new(Some((0, 0)));
+        policy.start_grace(t0, GRACE);
+        assert_eq!(
+            policy.cursor_moved(ms(t0, 10), (100, 100)),
+            CursorDecision::IgnoredInGrace
+        );
+        assert!(policy.grace_end_due(ms(t0, 600)));
+        assert_eq!(
+            policy.cursor_moved(ms(t0, 600), (130, 100)),
+            CursorDecision::Exit { from: (100, 100) }
+        );
+        // The end of the grace period no longer needs handling afterwards.
+        assert!(!policy.grace_end_due(ms(t0, 601)));
+    }
+
+    #[test]
+    fn unknown_reference_is_set_by_the_first_move() {
+        let t0 = Instant::now();
+        let mut policy = ExitPolicy::new(None);
+        assert_eq!(
+            policy.cursor_moved(t0, (50, 50)),
+            CursorDecision::ReferenceSet
+        );
+        assert_eq!(policy.reference(), Some((50, 50)));
+        assert_eq!(
+            policy.cursor_moved(t0, (60, 50)),
+            CursorDecision::BelowThreshold
+        );
+        assert_eq!(
+            policy.cursor_moved(t0, (66, 50)),
+            CursorDecision::Exit { from: (50, 50) }
+        );
+    }
+
+    #[test]
+    fn unknown_reference_during_grace_is_rebased_too() {
+        let t0 = Instant::now();
+        let mut policy = ExitPolicy::new(None);
+        policy.start_grace(t0, GRACE);
+        assert_eq!(
+            policy.cursor_moved(ms(t0, 1), (10, 10)),
+            CursorDecision::IgnoredInGrace
+        );
+        assert_eq!(policy.reference(), Some((10, 10)));
+    }
+
+    #[test]
+    fn without_a_grace_period_movement_counts_at_once() {
+        let t0 = Instant::now();
+        let mut policy = ExitPolicy::new(Some((0, 0)));
+        assert!(!policy.in_grace(t0));
+        assert_eq!(policy.pending_grace_end(), None);
+        assert_eq!(
+            policy.cursor_moved(t0, (16, 0)),
+            CursorDecision::Exit { from: (0, 0) }
+        );
+    }
+
+    #[test]
+    fn only_non_synthetic_key_presses_end_the_screensaver() {
+        assert!(key_ends_screensaver(true, false));
+        // Release (the Enter key that started a preview may be released late).
+        assert!(!key_ends_screensaver(false, false));
+        // Synthetic events winit generates when the focus moves between windows.
+        assert!(!key_ends_screensaver(true, true));
+        assert!(!key_ends_screensaver(false, true));
     }
 
     #[test]
