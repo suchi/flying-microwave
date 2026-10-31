@@ -6,9 +6,18 @@ GitHub Copilot・Claude Code・Codexすべてに対する指示の単一ソー�
 
 ## プロジェクト概要
 
-<!-- TODO(project): 目的・技術スタック・対象環境を2〜5行で書く -->
-
-(未設定)
+- 機能
+  - 昔Macintoshにあった、Flying Toasterのような空飛ぶ電子レンジWindowsスクリーンセーバー
+  - スクリーンセーバー設定画面から各種パラメーターを設定できる
+  - 将来実装したいオプションのアイデアも出してください
+    - 時間的に変化する項目や、イースターエッグのような隠し要素
+- 実装    
+  - 利用する言語およびエコシステムは2026/10現在で一般的で信頼できかつオープンソースであること
+  - 配布やインストールが容易であること
+- プロセス  
+  - 基本機能から段階的に実装していく
+  - 敵対的レビューを行い、GitHub Copilotは利用しない
+  - 実行できるタイミングごとにGitHub Releaseでバージョンを付けリリースする(semantic versioningで)
 
 ## 検証コマンド
 
@@ -124,8 +133,8 @@ feat: add todo filter feature      ← 1行目: 英語・命令形・50文字以
 
 ## エージェント別の設定ファイル
 
-| ツール         | 読み込み                              | 補足                                                                            |
-| -------------- | ------------------------------------- | ------------------------------------------------------------------------------- |
-| Claude Code    | `CLAUDE.md`(`@AGENTS.md`でインポート) | commands・hooksは`.claude/`配下。skillsは`.agents/skills/`を参照する            |
+| ツール         | 読み込み                              | 補足                                                                           |
+| -------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| Claude Code    | `CLAUDE.md`(`@AGENTS.md`でインポート) | commands・hooksは`.claude/`配下。skillsは`.agents/skills/`を参照する           |
 | GitHub Copilot | `AGENTS.md`をネイティブサポート       | `.github/copilot-instructions.md`は薄いポインタ。共有スキルは`.agents/skills/` |
-| OpenAI Codex   | `AGENTS.md`をネイティブサポート       | グローバル設定は`~/.codex/AGENTS.md`。共有スキルは`.agents/skills/`             |
+| OpenAI Codex   | `AGENTS.md`をネイティブサポート       | グローバル設定は`~/.codex/AGENTS.md`。共有スキルは`.agents/skills/`            |
