@@ -33,7 +33,7 @@
 
 | ID | 内容 | 対応 |
 | --- | --- | --- |
-| I-1 | AGENTS.mdのプロジェクト概要は「GitHub Copilotは利用しない」とする一方、PR手順や`.claude/commands/babysit-pr.md`はCopilotのレビューを前提にしていた | 解決: Copilotのレビューは使わず、敵対的レビューを既定とした([ADR-0007](../adr/0007-adversarial-review-without-copilot.md))。AGENTS.mdとコマンドを更新し、Copilotを使う場合の手順は[PRのレビュー手順](../development/review-process.md)に参考として残した |
+| I-1 | AGENTS.mdのプロジェクト概要は「GitHub Copilotは利用しない」とする一方、PR手順や`.claude/commands/babysit-pr.md`はCopilotのレビューを前提にしていた | 解決: Copilotは利用せず(レビューを含む)、敵対的レビューを既定とした([ADR-0007](../adr/0007-adversarial-review-without-copilot.md))。AGENTS.mdとコマンドを更新し、Copilotを使う場合の手順は[PRのレビュー手順](../development/review-process.md)に参考として残した |
 | I-2 | `.github/dependabot.yml`の`assignees`がテンプレート由来の値で、本リポジトリの所有者と異なっていた | 解決: 本リポジトリの所有者に変更した |
 | I-3 | テンプレートの個人設定用フォルダ(`personal/`)が残っていた | 解決: 削除した |
 | I-4 | AGENTS.mdのブランチ名の規則と、Claude Code on the Webが指定するブランチ名(`claude/`で始まる)が異なっていた | 解決: ツールが指定するブランチ名を使ってよいことをAGENTS.mdに明記した |
@@ -353,7 +353,7 @@ flowchart LR
 2. 重要な変更(アーキテクチャ、セキュリティ、リリース関連)では、別系統のモデル(OpenAI Codexなど)による2回目のレビューを任意で行う。
 3. レビューの指摘は検証すべき主張として扱い、一次情報やソースで確かめてから対応する。指摘と対応はPR上に残し、計画・設計のレビューは`docs/reviews/`に記録する。
 4. 最終判断とマージの承認はメンテナーが行う。
-5. GitHub Copilotのレビューは使わない。Copilotを使う場合の手順はレビュー手順に参考として残しており、同じループで進める。
+5. GitHub Copilotは、プロジェクト概要のとおり利用しない(レビューにも使わない)。Copilotでレビューする場合の手順はレビュー手順に参考として残しており、同じループで進める。
 
 本計画自体も、別コンテキストのエージェントによる敵対的レビューを行い、[敵対的レビュー記録](../reviews/0001-plan-adversarial-review.md)に記録した。
 
@@ -391,7 +391,7 @@ flowchart LR
 | D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。米国では同じ文字列のフレーズ検索で該当なし(空白なしの表記や類似の商標は未確認)。メンテナーによる残りの確認(日本を含む)で問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認) |
 | D-6 | 本プロジェクトのライセンス | MIT(著作権者の表記は「Flying Microwave contributors」) | [ADR-0005](../adr/0005-license-mit.md)、`LICENSE` |
 | D-7 | 対象のWindowsとCPUアーキテクチャ | Windows 11のx64とarm64 | [ADR-0006](../adr/0006-target-windows-11-x64-arm64.md) |
-| D-8 | レビューの方法 | 別コンテキストのエージェントによる敵対的レビュー。Copilotのレビューは使わず、その手順は参考として残す | [ADR-0007](../adr/0007-adversarial-review-without-copilot.md)、[PRのレビュー手順](../development/review-process.md) |
+| D-8 | レビューの方法 | 別コンテキストのエージェントによる敵対的レビュー。Copilotは利用せず(レビューを含む)、Copilotでレビューする場合の手順は参考として残す | [ADR-0007](../adr/0007-adversarial-review-without-copilot.md)、[PRのレビュー手順](../development/review-process.md) |
 | D-9 | 飛行表現 | 案A(ドアの羽ばたき)で進め、Phase 3の素材作成時に見え方を確認する | [ビジュアルデザイン方針](../design/visual-design.md) |
 | D-10 | リポジトリの整理 | `personal/`は削除済み。Dependabotの担当者を本リポジトリの所有者に変更 | `.github/dependabot.yml` |
 | D-11 | ブランチ運用 | ツールが指定するブランチ名を使ってよい | AGENTS.md |

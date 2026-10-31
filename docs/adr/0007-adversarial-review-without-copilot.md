@@ -23,7 +23,7 @@ PRごとに、作成者とは別のコンテキストを持つレビュー用エ
 
 ### Copilotのレビューの扱い
 
-本リポジトリではGitHub Copilotのレビューを使わない。ただしCopilotを使う場合の手順は代替手段として[docs/development/review-process.md](../development/review-process.md)に残す。どちらの方法でも、「指摘への対応、スレッドへの返信、再レビュー、新規指摘ゼロまで繰り返す」という同じループに従う。
+本リポジトリではGitHub Copilotのレビューを使わない。Copilotそのものを利用しないことはプロジェクト概要の方針であり、本ADRはそのうちレビューの方法を決める。ただしCopilotを使う場合の手順は代替手段として[docs/development/review-process.md](../development/review-process.md)に残す。どちらの方法でも、「指摘への対応、スレッドへの返信、再レビュー、新規指摘ゼロまで繰り返す」という同じループに従う。
 
 この決定に合わせて、AGENTS.mdの「PR・レビュー・マージ」節と`.claude/commands/babysit-pr.md`・`.claude/commands/merge-pr.md`を更新した。Copilot向けの設定ファイル(Copilot全般向けの薄いポインタでレビューを日本語で書く指示を含む`.github/copilot-instructions.md`と、レビューの言語設定の`.github/copilot-code-review.yml`)は、Copilotを使う場合に備えて残す。Copilotを使わない間は影響しない。
 
