@@ -62,11 +62,19 @@ pub fn release_owner(why: &str) {
 /// Builds the wgpu configuration with the hardening of SEC-2: DX12 only and
 /// the Fxc shader compiler (so that no `dxcompiler.dll` is ever searched).
 pub fn wgpu_configuration() -> eframe::egui_wgpu::WgpuConfiguration {
-    use eframe::wgpu::{Backends, Dx12Compiler, PowerPreference};
+    use eframe::wgpu::{Backends, Dx12Compiler, InstanceDescriptor, PowerPreference};
 
+    // Why: `without_display_handle()` fills its defaults from WGPU_* environment
+    // variables (backends, instance flags, backend options, power preference;
+    // egui-wgpu 0.37 setup.rs). Everything it read is replaced below: the
+    // instance descriptor wholesale by one built from fixed defaults
+    // (`new_without_display_handle()` reads no environment variables in
+    // wgpu-types 30.0.1), then backends and compiler are set explicitly, and so
+    // is the power preference. The device descriptor is not affected by the
+    // environment. So no WGPU_* variable of the process environment can change
+    // the backend, the shader compiler or the adapter choice.
     let mut setup = eframe::egui_wgpu::WgpuSetupCreateNew::without_display_handle();
-    // These assignments replace values that `without_display_handle` read from
-    // WGPU_* environment variables.
+    setup.instance_descriptor = InstanceDescriptor::new_without_display_handle();
     setup.instance_descriptor.backends = Backends::DX12;
     setup
         .instance_descriptor
