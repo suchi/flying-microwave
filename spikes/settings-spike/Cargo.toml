@@ -1,0 +1,44 @@
+# Throwaway technical spike for S2 (see spikes/README.md).
+# It is not product code: it lives outside the root workspace and nothing
+# in the product may depend on it.
+[package]
+name = "settings-spike"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.99"
+publish = false
+description = "Throwaway spike: eframe settings window made modal to a foreign owner window"
+
+# Why: the root workspace excludes spikes/, so this empty table makes the
+# crate its own workspace root (and keeps its own Cargo.lock).
+[workspace]
+
+# Everything below is Windows-only. On other hosts the crate has no
+# dependencies and main only prints "Windows only".
+[target.'cfg(windows)'.dependencies]
+# Why: exact pins, because 0.x crates can break on minor updates.
+# Why these eframe features (everything else of the default set is off):
+# - wgpu_no_default_features: the wgpu renderer (ADR-0002/0003) with the
+#   winit glue that is always part of eframe. The full "wgpu" feature would
+#   also enable the Vulkan, Metal, GLES and WebGPU backends.
+# - not default_fonts: its fonts (Ubuntu Font Licence) are not OSI approved;
+#   a system font is loaded at runtime instead.
+# - not system_fonts: only a fallback for missing glyphs, and it needs an
+#   extra crate; the spike loads the font itself.
+# - not accesskit, clipboard, links, wayland, x11, web_screen_reader: not
+#   needed for the spike (and wayland/x11 do not exist on Windows).
+eframe = { version = "=0.37.0", default-features = false, features = ["wgpu_no_default_features"] }
+# Why: only to switch on the DX12 backend. With default features off,
+# egui-wgpu enables no backend at all, and wgpu panics without one.
+wgpu = { version = "=30.0.1", default-features = false, features = ["dx12"] }
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+# Keep the artifact small; the spike does not need debug info.
+opt-level = 2
+strip = true
