@@ -25,6 +25,36 @@ updates:
         update-types:
           - "minor"
           - "patch"
+  # Rust (Cargo workspace). The spikes/ projects are throwaway and not listed.
+  - package-ecosystem: "cargo"
+    directory: "/"
+    open-pull-requests-limit: 8
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    assignees:
+      - "suchi"
+    labels:
+      - "dependencies"
+    groups:
+      # winit, wgpu and the egui family must be upgraded together because
+      # eframe pins the winit and wgpu series it supports (R-05). In 0.x
+      # crates a minor bump can be breaking, so group them by name, not by
+      # update type. A dependency joins the first group that matches.
+      gui-stack:
+        patterns:
+          - "winit"
+          - "wgpu*"
+          - "egui*"
+          - "eframe"
+          - "epaint*"
+          - "emath"
+          - "ecolor"
+      non-majors:
+        update-types:
+          - "minor"
+          - "patch"
   # TODO(project): uncomment the ecosystems this repository actually uses.
   #
   # - package-ecosystem: "npm"
