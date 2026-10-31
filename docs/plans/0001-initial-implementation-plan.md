@@ -415,7 +415,11 @@ flowchart LR
 ## 13. 次のアクション
 
 1. Phase 0に着手する。最初に商標の確認(D-5)と、Cargoワークスペースの雛形を作る。
-2. 調査環境から接続できないWebサイトのうち、今後の作業で必要なもの(USPTO、J-PlatPat、docs.rs、doc.rust-lang.org、docs.github.comなど)は、ネットワーク設定に追加するか、メンテナーが確認する。
+2. 調査環境(2026-10-31時点)から接続できなかったホストのうち、今後の作業で必要なものはネットワーク設定のAllowed domainsに追加する。
+   - 実装で必要: `docs.rs`(crateのAPIドキュメント)、`doc.rust-lang.org`(Rustの公式ドキュメント)、`docs.github.com`(GitHub ActionsとRelease・アーティファクト証明の公式ドキュメント)
+   - 確認に必要: `opensource.org`(OSIの承認ライセンスの一覧)、`www.w3.org`(WCAGの本文。ガイドラインG-3の根拠)
+   - 参考情報: `blog.rust-lang.org`、`releases.rs`、`rust-lang.github.io`、`www.libsdl.org`、`www.uspto.gov`、`en.wikipedia.org`、`archive.seattletimes.com`、`www.jwz.org`
+   - 追加済み: `tmsearch.uspto.gov`、`www.j-platpat.inpit.go.jp`(J-PlatPatは自動化したブラウザからの接続を拒否するため、確認はメンテナーが行う)
 
 ## 参考資料
 
