@@ -11,6 +11,8 @@ on:
     paths:
       - "spikes/**"
       - ".github/workflows/spikes.yml"
+      - "rust-toolchain.toml"
+      - ".cargo/config.toml"
   workflow_dispatch:
 
 permissions:
@@ -76,6 +78,7 @@ jobs:
       - name: Self-test on the hosted runner (feasibility check)
         if: matrix.target == 'x86_64-pc-windows-msvc'
         continue-on-error: true
+        timeout-minutes: 3
         shell: pwsh
         run: |
           $p = Start-Process -FilePath dist/saver-spike.exe -ArgumentList '--self-test' -PassThru -Wait
