@@ -1,5 +1,8 @@
 Flying Microwave <version>
 
+[Draft. These instructions are finalized before the first release,
+after they are checked on Windows 11. Remove this note at that time.]
+
 ----------------------------------------------------------------------
 ENGLISH
 ----------------------------------------------------------------------
@@ -23,12 +26,19 @@ INSTALL
 
        Get-FileHash <path to the zip file> -Algorithm SHA256
 
-2. Extract the zip file to a folder of your choice.
-3. Right-click FlyingMicrowave.scr and choose Install.
+2. Create a folder that you will keep, for example
+   %LOCALAPPDATA%\Programs\FlyingMicrowave, and extract the zip file
+   there. Avoid temporary places such as the Downloads folder. If you
+   move or delete the file later, the screen saver may stop working.
+3. Right-click FlyingMicrowave.scr and choose Install. On Windows 11,
+   you may need to choose "Show more options" first.
+
+In Screen Saver Settings, the screen saver is listed as
+"FlyingMicrowave" (the name of the file).
 
 SETTINGS
 
-Open Screen Saver Settings, select Flying Microwave, and click
+Open Screen Saver Settings, select FlyingMicrowave, and click
 Settings. In v0.1.0 this only shows a message. The full settings
 dialog arrives in v0.2.0.
 
@@ -36,7 +46,7 @@ UNINSTALL
 
 1. Open Screen Saver Settings and select another screen saver (or
    "(None)").
-2. Delete FlyingMicrowave.scr.
+2. Delete the folder that contains FlyingMicrowave.scr.
 
 The location of the settings file will be documented here when
 settings are added.
@@ -44,7 +54,7 @@ settings are added.
 KNOWN LIMITATIONS
 
 - The file is not code-signed. Windows SmartScreen may show a warning,
-  and Smart App Control in enforcement mode may block it.
+  and Smart App Control in enforcement mode is likely to block it.
 - Group Policy on managed PCs may prevent you from choosing a screen
   saver.
 - The arm64 build may be untested on real hardware. See the release
@@ -57,9 +67,9 @@ any data (no telemetry).
 
 LICENSE
 
-Flying Microwave is released under the MIT License (see the file
-LICENSE). The licenses of third-party components are listed in the
-file THIRD-PARTY-LICENSES. Both files are included in the zip.
+Flying Microwave is released under the MIT License (see
+LICENSE.txt). The licenses of third-party components are listed in
+THIRD-PARTY-LICENSES.txt. Both files are included in the zip.
 
 HELP
 
@@ -88,12 +98,20 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
        Get-FileHash <zip ファイルのパス> -Algorithm SHA256
 
-2. zip ファイルを任意のフォルダーに展開します。
+2. 置き続けるフォルダー(例: %LOCALAPPDATA%\Programs\FlyingMicrowave)
+   を作り、そこに zip ファイルを展開します。ダウンロード フォルダーなどの
+   一時的な場所は避けてください。後でファイルを移動・削除すると、
+   スクリーン セーバーが動かなくなることがあります。
 3. FlyingMicrowave.scr を右クリックして [インストール] を選びます。
+   Windows 11 では、先に [その他のオプションを確認] を選ぶ必要がある
+   場合があります。
+
+スクリーン セーバーの設定では、ファイル名のとおり「FlyingMicrowave」と
+表示されます。
 
 設定
 
-スクリーン セーバーの設定を開き、Flying Microwave を選んで [設定] を
+スクリーン セーバーの設定を開き、FlyingMicrowave を選んで [設定] を
 クリックします。v0.1.0 ではメッセージが表示されるだけです。設定画面は
 v0.2.0 で追加されます。
 
@@ -101,7 +119,7 @@ v0.2.0 で追加されます。
 
 1. スクリーン セーバーの設定を開き、別のスクリーン セーバー(または
    「(なし)」)を選びます。
-2. FlyingMicrowave.scr を削除します。
+2. FlyingMicrowave.scr を置いたフォルダーを削除します。
 
 設定ファイルの場所は、設定機能の追加時にここに記載します。
 
@@ -109,7 +127,7 @@ v0.2.0 で追加されます。
 
 - このファイルにはコード署名がありません。Windows の SmartScreen が
   警告を表示することがあり、Smart App Control が強制モードの環境では
-  ブロックされることがあります。
+  ブロックされる可能性が高いです。
 - 管理されている PC では、グループ ポリシーによってスクリーン セーバーを
   選べない場合があります。
 - arm64 版は実機で未検証の場合があります。リリースノートを参照して
@@ -122,9 +140,9 @@ v0.2.0 で追加されます。
 
 ライセンス
 
-Flying Microwave は MIT ライセンスで公開されています(LICENSE ファイル
-を参照)。第三者のコンポーネントのライセンスは THIRD-PARTY-LICENSES
-ファイルに記載しています。どちらも zip に同梱しています。
+Flying Microwave は MIT ライセンスで公開されています(LICENSE.txt を
+参照)。第三者のコンポーネントのライセンスは THIRD-PARTY-LICENSES.txt
+に記載しています。どちらも zip に同梱しています。
 
 ヘルプ
 

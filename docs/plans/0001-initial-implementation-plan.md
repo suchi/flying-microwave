@@ -211,7 +211,7 @@ flowchart LR
 8. 引数なし(拡張子が`.scr`)・`/c`・`--settings`: 「設定は今後のバージョンで追加する」旨のメッセージボックス(UIラベルは英語)。
 9. セキュリティ: SEC-1(DLL検索パスの制限とリンカ設定)、SEC-3(HWNDの検証)。
 10. Windowsリソースの埋め込み(アイコン、バージョン情報、String Tableの序数1)、`.scr`へのリネーム、VC++ランタイムを静的リンクしていることのCIでの確認。
-11. 依存crateのライセンス表記ファイル(`THIRD-PARTY-LICENSES`)の生成(ADR-0011)。フォントなどcrateのメタデータ外のライセンスも確認する。
+11. 依存crateのライセンス表記ファイル(`THIRD-PARTY-LICENSES.txt`)の生成(ADR-0011)。Windowsで開きやすいよう、拡張子を付けたテキスト形式にする。フォントなどcrateのメタデータ外のライセンスも確認する。
 12. リリースワークフロー(要承認): タグのプッシュでビルドし、zip・チェックサム・(利用できれば)アーティファクト証明を作り、GitHub Releaseの下書きを作る。
 13. 利用者向けREADME(`packaging/windows/README.txt`)を確定する。インストール手順はスパイクS5の結果に合わせ、既知の制限(SmartScreenの警告、Smart App Controlによるブロック、グループポリシーで固定された環境)を書く。ルートのREADMEの「状況」と「利用者の方へ」を更新する。
 14. Phase 0で実行可能と分かった場合は、Windowsランナーでのスモークテストを追加する。
@@ -336,7 +336,7 @@ flowchart LR
     draft --> publish["maintainer publishes the release"]
 ```
 
-- 配布物(案): `FlyingMicrowave-<version>-windows-x64.zip`、`FlyingMicrowave-<version>-windows-arm64.zip`、`SHA256SUMS.txt`。zipには`FlyingMicrowave.scr`、利用者向けの`README.txt`(`packaging/windows/README.txt`)、`LICENSE`、`THIRD-PARTY-LICENSES`を入れる。単独アプリとしての実行を実装したら、`.exe`の同梱方法を決める(ADR-0012)。
+- 配布物(案): `FlyingMicrowave-<version>-windows-x64.zip`、`FlyingMicrowave-<version>-windows-arm64.zip`、`SHA256SUMS.txt`。zipには`FlyingMicrowave.scr`、利用者向けの`README.txt`(`packaging/windows/README.txt`)、`LICENSE.txt`(ルートの`LICENSE`の写し)、`THIRD-PARTY-LICENSES.txt`を入れる。単独アプリとしての実行を実装したら、`.exe`の同梱方法を決める(ADR-0012)。
 - `.scr`単体はメールやブラウザで危険なファイルとして扱われやすいため、zipで配布する。
 - ワークフローの安全対策: ActionsはコミットSHAで固定する、ジョブごとの`permissions`を最小にする、`--locked`でビルドする、リリース用のタグを保護する。
 - ビルドの出所を検証できるよう、GitHubのアーティファクト証明(artifact attestations)を付ける。非公開リポジトリで利用できるプランは限られるとレビューで指摘されており(GitHubのドキュメントは調査環境から接続できず未確認)、利用できない間は付けない。利用するActionは実装時に公式ドキュメントで確認する[GH-1]。
