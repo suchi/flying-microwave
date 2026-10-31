@@ -31,3 +31,4 @@
 | [0001](0001-use-rust.md) | 言語・エコシステムにRustを採用する | 採用 | 2026-10-31 |
 | [0002](0002-render-with-wgpu.md) | 描画にwgpu(GPU)を採用する | 採用 | 2026-10-31 |
 | [0003](0003-settings-ui-with-eframe.md) | 設定画面にeframe/eguiを採用する | 採用 | 2026-10-31 |
+| [0004](0004-store-settings-as-toml.md) | 設定をTOMLファイルで保存する | 採用 | 2026-10-31 |
