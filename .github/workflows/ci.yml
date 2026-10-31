@@ -86,7 +86,8 @@ jobs:
           $exe = 'target/${{ matrix.target }}/release/flying-microwave.exe'
           $out = & $dumpbin /nologo /dependents $exe
           $out | Write-Output
-          $bad = $out | Select-String -Pattern '(?i)\b(vcruntime\d*|msvcp\d*|ucrtbase|api-ms-win-crt-[a-z0-9-]+)\.dll\b'
+          if (-not ($out | Select-String -Pattern '(?i)\bKERNEL32\.dll\b')) { throw 'dumpbin output does not list KERNEL32.dll' }
+          $bad = $out | Select-String -Pattern '(?i)\b(vcruntime|msvcp|concrt|vccorlib|ucrtbase)\w*\.dll\b|\bapi-ms-win-crt-'
           if ($bad) { throw "Dynamic C runtime dependency found: $bad" }
 
       # winit, wgpu and the egui family must be upgraded together (R-05).
@@ -95,5 +96,5 @@ jobs:
         run: |
           $dups = cargo tree --locked --duplicates --depth 0 --edges normal --prefix none --target ${{ matrix.target }} 2>$null
           $dups | Write-Output
-          $gui = $dups | Select-String -Pattern '^(winit|wgpu[a-z-]*|egui[a-z-]*|eframe|epaint[a-z-]*) v'
+          $gui = $dups | Select-String -Pattern '^(winit|wgpu[\w-]*|egui[\w-]*|eframe|epaint[\w-]*|emath|ecolor) v'
           if ($gui) { throw "Duplicate GUI crates found: $gui" }
