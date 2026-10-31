@@ -33,7 +33,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
+        # Why: pull requests build x64 only to keep feedback fast. The arm64
+        # build is needed only for testing on an arm64 device, so it runs when
+        # the workflow is started by hand (workflow_dispatch). See ADR-0015.
+        target: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]' || '["x86_64-pc-windows-msvc"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -47,8 +47,8 @@ cargo build --release --locked
 
 ## CIのビルドと成果物
 
-- ワークフロー: `.github/workflows/spikes.yml`。`spikes/`を変更するすべてのPR(このワークフロー自身の変更を含む)と、手動実行(`workflow_dispatch`)で、両スパイクをWindowsランナー(`windows-2025`)でx64とarm64の両方向けにビルドする。
-- 成果物: `spikes-x86_64-pc-windows-msvc`と`spikes-aarch64-pc-windows-msvc`の2つ。それぞれに`saver-spike.exe`・`saver-spike.scr`・`settings-spike.exe`・`settings-spike.scr`・`README.md`が入る。`.scr`は`.exe`と同じファイルを拡張子だけ変えて同梱しているため、後述の「.scrの作成とインストール」の手順1の名前の変更は不要である(任意のフォルダへの展開は必要)。保持期間は14日で、過ぎると取得できなくなる。同梱の`README.md`はこのファイルのコピーなので、リポジトリ内への相対リンクはたどれない。
+- ワークフロー: `.github/workflows/spikes.yml`。`spikes/`を変更するすべてのPR(このワークフロー自身の変更を含む)で、両スパイクをWindowsランナー(`windows-2025`)でx64向けにビルドする。手動実行(`workflow_dispatch`)では、x64とarm64の両方向けにビルドする(ADR-0015)。手動実行は、GitHubのActionsタブで「Spikes」を選び、「Run workflow」で対象のブランチを指定して行う。
+- 成果物: x64向けの`spikes-x86_64-pc-windows-msvc`と、手動実行のときだけ作られるarm64向けの`spikes-aarch64-pc-windows-msvc`。それぞれに`saver-spike.exe`・`saver-spike.scr`・`settings-spike.exe`・`settings-spike.scr`・`README.md`が入る。`.scr`は`.exe`と同じファイルを拡張子だけ変えて同梱しているため、後述の「.scrの作成とインストール」の手順1の名前の変更は不要である(任意のフォルダへの展開は必要)。保持期間は14日で、過ぎると取得できなくなる。同梱の`README.md`はこのファイルのコピーなので、リポジトリ内への相対リンクはたどれない。
 - 取得: GitHubのActionsタブで該当するワークフローの実行を開き、Artifactsから環境に合うもの(x64のWindowsなら`x86_64`、arm64のWindowsなら`aarch64`)をダウンロードして展開する。
 - 自己テスト: x64のビルドのあとに、ランナー上で`--self-test`を実行する。確かめるのはウィンドウの作成とWARPでの描画だけで、失敗してもビルドは止めない(後述の「自己テスト」)。
 - スモークテストの可否確認: CIの自己テストで確かめるのは、ウィンドウの作成とWARPでの描画だけである。`/s`への入力の注入、テスト用の親ウィンドウを使った`/p`、不正な引数、プロセスの残留は、Phase 1でスモークテストを作るときに確かめる(計画のPhase 1の作業14)。
