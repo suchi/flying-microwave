@@ -35,7 +35,7 @@ updates:
   #  cooldown:
   #    default-days: 7
   #  assignees:
-  #    - "ej-uchiyama"
+  #    - "suchi"
   #  labels:
   #    - "dependencies"
   #  groups:
@@ -51,7 +51,7 @@ updates:
   #  cooldown:
   #    default-days: 7
   #  assignees:
-  #    - "ej-uchiyama"
+  #    - "suchi"
   #  labels:
   #    - "dependencies"
   #  groups:
@@ -67,7 +67,7 @@ updates:
   #  cooldown:
   #    default-days: 7
   #  assignees:
-  #    - "ej-uchiyama"
+  #    - "suchi"
   #  labels:
   #    - "dependencies"
   #  groups:
@@ -83,7 +83,7 @@ updates:
   #  cooldown:
   #    default-days: 7
   #  assignees:
-  #    - "ej-uchiyama"
+  #    - "suchi"
   #  labels:
   #    - "dependencies"
   #  groups:
@@ -99,7 +99,7 @@ updates:
   #  cooldown:
   #    default-days: 7
   #  assignees:
-  #    - "ej-uchiyama"
+  #    - "suchi"
   #  labels:
   #    - "dependencies"
   #  groups:
