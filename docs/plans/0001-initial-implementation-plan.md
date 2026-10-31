@@ -169,7 +169,7 @@ flowchart LR
 
 作業:
 
-1. 製品名「Flying Microwave」の商標の確認(D-5)。米国(USPTO)は2026-10-31に確認し、候補名の登録・出願はなく、着想元に関係する第9類の登録は失効していた([先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認))。日本(J-PlatPat)は自動化したブラウザからの接続を拒否されるため、メンテナーが通常のブラウザで確認し、結果を同じ文書に追記する。
+1. 製品名「Flying Microwave」の商標の確認(D-5)。米国(USPTO)は2026-10-31に同じ文字列のフレーズ検索を行い、製品名の登録・出願はなく、着想元に関係する第9類の登録は失効していた([先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認))。空白なしの表記や類似の商標、日本(J-PlatPat。自動化したブラウザからの接続を拒否される)は、メンテナーが通常のブラウザで確認し、結果を同じ文書に追記する。
 2. Cargoワークスペースの雛形(`crates/core`・`crates/app`)、`rust-toolchain.toml`、`.cargo/config.toml`(Windowsターゲットの`+crt-static`)、lint設定を作る。crate名は`flying-microwave-core`・`flying-microwave`とする。
 3. AGENTS.mdの検証コマンド表を確定する(下表の案)。
 4. CIワークフローを追加する(`.github/workflows/`の変更はセキュリティ設定のため要承認)。Windowsランナーでfmt・clippy・テスト・x64/arm64ビルド・依存DLLの確認(システムDLLだけか)・依存crateの重複検出(`cargo tree -d`)を行う。Linuxランナーでワークスペース全体のビルド・clippy・テストを行う(アーキテクチャのA-7)。ActionsはコミットSHAで固定し、ジョブごとの権限を最小にする。非公開リポジトリではWindowsランナーが無料枠を消費することに留意する。
@@ -388,7 +388,7 @@ flowchart LR
 | D-2 | 描画方式 | GPU(wgpu) | [ADR-0002](../adr/0002-render-with-wgpu.md) |
 | D-3 | 設定画面の方式 | eframe/egui | [ADR-0003](../adr/0003-settings-ui-with-eframe.md) |
 | D-4 | 設定の保存形式 | 利用者ごとの設定ディレクトリのTOMLファイル(具体的な場所はPhase 2で決める) | [ADR-0004](../adr/0004-store-settings-as-toml.md) |
-| D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。米国の商標は確認済み(候補名の登録・出願なし)。日本の確認後に問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認) |
+| D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。米国では同じ文字列のフレーズ検索で該当なし(空白なしの表記や類似の商標は未確認)。メンテナーによる残りの確認(日本を含む)で問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認) |
 | D-6 | 本プロジェクトのライセンス | MIT(著作権者の表記は「Flying Microwave contributors」) | [ADR-0005](../adr/0005-license-mit.md)、`LICENSE` |
 | D-7 | 対象のWindowsとCPUアーキテクチャ | Windows 11のx64とarm64 | [ADR-0006](../adr/0006-target-windows-11-x64-arm64.md) |
 | D-8 | レビューの方法 | 別コンテキストのエージェントによる敵対的レビュー。Copilotのレビューは使わず、その手順は参考として残す | [ADR-0007](../adr/0007-adversarial-review-without-copilot.md)、[PRのレビュー手順](../development/review-process.md) |
@@ -414,7 +414,7 @@ flowchart LR
 
 ## 13. 次のアクション
 
-1. Phase 0に着手する。最初に商標の確認(D-5)と、Cargoワークスペースの雛形を作る。
+1. Phase 0に着手する。最初にCargoワークスペースの雛形を作る。商標の残りの確認(D-5)はメンテナーが行う。
 2. 調査環境(2026-10-31時点)から接続できなかったホストのうち、今後の作業で必要なものはネットワーク設定のAllowed domainsに追加する。
    - 実装で必要: `docs.rs`(crateのAPIドキュメント)、`doc.rust-lang.org`(Rustの公式ドキュメント)、`docs.github.com`(GitHub ActionsとRelease・アーティファクト証明の公式ドキュメント)
    - 確認に必要: `opensource.org`(OSIの承認ライセンスの一覧)、`www.w3.org`(WCAGの本文。ガイドラインG-3の根拠)
