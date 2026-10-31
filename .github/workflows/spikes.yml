@@ -1,5 +1,8 @@
-# Builds the Phase 0 technical spikes on Windows and publishes them as build
-# artifacts, so the maintainer can run them on Windows 11 (spikes/README.md).
+# Builds the Phase 0 technical spikes on Windows. Pull requests build x64
+# only, with a build cache, to check that the spikes still build. Manual runs
+# (workflow_dispatch) build x64 and arm64 from scratch and publish them as
+# build artifacts, so the maintainer can run them on Windows 11
+# (spikes/README.md, ADR-0015).
 #
 # Security: same rules as ci.yml (actions pinned by commit SHA, read-only
 # token, no persisted credentials, --locked).
@@ -33,7 +36,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
+        # Why: pull requests build x64 only to keep feedback fast. The arm64
+        # build is needed only for testing on an arm64 device, so it runs when
+        # the workflow is started by hand (workflow_dispatch). See ADR-0015.
+        target: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]' || '["x86_64-pc-windows-msvc"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,6 +47,21 @@ jobs:
 
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
+
+      # Caches ~/.cargo and the build artifacts of dependencies (ADR-0015).
+      # Must come after the toolchain install: the rustc version is part of the key.
+      # Pull requests only: manual runs build from scratch, because their
+      # artifacts are run by hand on real hardware and cache contents are not
+      # verified. The matrix target is not part of the default key, so add it.
+      # Each spike's own Cargo.toml (its workspace root and only member) is
+      # already hashed into the default key, [profile] included.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        if: github.event_name == 'pull_request'
+        with:
+          key: ${{ matrix.target }}
+          workspaces: |
+            spikes/saver-spike -> target
+            spikes/settings-spike -> target
 
       - name: Build
         shell: pwsh
@@ -62,10 +83,10 @@ jobs:
           Copy-Item spikes/README.md dist/README.md
 
       # Security: artifacts are unsigned executables that the maintainer runs
-      # by hand, so publish them only for this repository's own branches,
-      # never for pull requests from forks.
+      # by hand, so publish them only from manual runs (which need write
+      # access and do not restore caches), never from pull requests.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name == 'workflow_dispatch'
         with:
           name: spikes-${{ matrix.target }}
           path: dist/
