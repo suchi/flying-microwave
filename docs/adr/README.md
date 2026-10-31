@@ -40,3 +40,4 @@
 | [0010](0010-deterministic-core-simulation.md) | シミュレーションを決定的にする | 採用 | 2026-10-31 |
 | [0011](0011-license-notices-with-cargo-about.md) | 依存crateのライセンス表記をcargo-aboutで生成する | 採用 | 2026-10-31 |
 | [0012](0012-standalone-app-mode.md) | 単独アプリとしてウィンドウ・全画面でも実行できる設計にする | 採用 | 2026-10-31 |
+| [0013](0013-no-code-signing-for-v0.md) | v0.x系はコード署名せずに配布し、v1.0.0までに再判断する | 採用 | 2026-10-31 |
