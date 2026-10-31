@@ -39,3 +39,4 @@
 | [0009](0009-cargo-workspace-core-and-app.md) | Cargoワークスペースをcoreとappの2つのcrateに分ける | 採用 | 2026-10-31 |
 | [0010](0010-deterministic-core-simulation.md) | シミュレーションを決定的にする | 採用 | 2026-10-31 |
 | [0011](0011-license-notices-with-cargo-about.md) | 依存crateのライセンス表記をcargo-aboutで生成する | 採用 | 2026-10-31 |
+| [0012](0012-standalone-app-mode.md) | 単独アプリとしてウィンドウ・全画面でも実行できる設計にする | 採用 | 2026-10-31 |
