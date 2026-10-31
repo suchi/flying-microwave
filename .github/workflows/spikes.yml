@@ -59,7 +59,11 @@ jobs:
           }
           Copy-Item spikes/README.md dist/README.md
 
+      # Security: artifacts are unsigned executables that the maintainer runs
+      # by hand, so publish them only for this repository's own branches,
+      # never for pull requests from forks.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
         with:
           name: spikes-${{ matrix.target }}
           path: dist/
