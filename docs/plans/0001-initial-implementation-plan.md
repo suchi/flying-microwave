@@ -169,7 +169,7 @@ flowchart LR
 
 作業:
 
-1. 製品名「Flying Microwave」の商標の確認(D-5)。米国(USPTO)は2026-10-31に同じ文字列のフレーズ検索を行い、製品名の登録・出願はなく、着想元に関係する第9類の登録は失効していた([先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認))。空白なしの表記や類似の商標、日本(J-PlatPat。自動化したブラウザからの接続を拒否される)は、メンテナーが通常のブラウザで確認し、結果を同じ文書に追記する。
+1. 製品名「Flying Microwave」の商標の確認(D-5)。米国(USPTO)は2026-10-31に同じ文字列のフレーズ検索を行い、同じ文字列の登録・出願は見当たらず、着想元に関係する第9類の登録は失効していた([先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認))。空白なしの表記や類似の商標、日本(J-PlatPat。自動化したブラウザからの接続を拒否される)は、メンテナーが通常のブラウザで確認し、結果を同じ文書に追記する。
 2. Cargoワークスペースの雛形(`crates/core`・`crates/app`)、`rust-toolchain.toml`、`.cargo/config.toml`(Windowsターゲットの`+crt-static`)、lint設定を作る。crate名は`flying-microwave-core`・`flying-microwave`とする。
 3. AGENTS.mdの検証コマンド表を確定する(下表の案)。
 4. CIワークフローを追加する(`.github/workflows/`の変更はセキュリティ設定のため要承認)。Windowsランナーでfmt・clippy・テスト・x64/arm64ビルド・依存DLLの確認(システムDLLだけか)・依存crateの重複検出(`cargo tree -d`)を行う。Linuxランナーでワークスペース全体のビルド・clippy・テストを行う(アーキテクチャのA-7)。ActionsはコミットSHAで固定し、ジョブごとの権限を最小にする。非公開リポジトリではWindowsランナーが無料枠を消費することに留意する。
