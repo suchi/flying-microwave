@@ -338,7 +338,7 @@ flowchart LR
 
 - 配布物(案): `FlyingMicrowave-<version>-windows-x64.zip`、`FlyingMicrowave-<version>-windows-arm64.zip`、`SHA256SUMS.txt`。zipには`FlyingMicrowave.scr`、利用者向けの`README.txt`(`packaging/windows/README.txt`)、`LICENSE.txt`(ルートの`LICENSE`の写し)、`THIRD-PARTY-LICENSES.txt`を入れる。単独アプリとしての実行を実装したら、`.exe`の同梱方法を決める(ADR-0012)。
 - `.scr`単体はメールやブラウザで危険なファイルとして扱われやすいため、zipで配布する。
-- ワークフローの安全対策: ActionsはコミットSHAで固定する、ジョブごとの`permissions`を最小にする、`--locked`でビルドする、リリース用のタグを保護する。
+- ワークフローの安全対策: ActionsはコミットSHAで固定する、ジョブごとの`permissions`を最小にする、`--locked`でビルドする、リリース用のタグを保護する。リリースのワークフローではビルドのキャッシュを復元せず、毎回最初からビルドする(CIのキャッシュは[ADR-0015](../adr/0015-ci-build-cache-and-spike-targets.md))。
 - ビルドの出所を検証できるよう、GitHubのアーティファクト証明(artifact attestations)を付ける。非公開リポジトリで利用できるプランは限られるとレビューで指摘されており(GitHubのドキュメントは調査環境から接続できず未確認)、利用できない間は付けない。利用するActionは実装時に公式ドキュメントで確認する[GH-1]。
 - v0.x系は署名せずに配布し、SmartScreenの警告と、Smart App Controlの強制モードでのブロック[MS-6]を既知の制限として明記する([ADR-0013](../adr/0013-no-code-signing-for-v0.md))。v1.0.0の前に再判断する(Issue #2)。
 - SignPath Foundationの無償署名の条件(原文で確認)[SP-1]: すべての構成要素がOSIの承認したライセンスであること(商用のデュアルライセンス不可)、独自(非OSS)コンポーネントを含まないこと、署名する形で既にリリースされていること、アンインストールの手順または仕組みを提供すること、検証可能な方法でソースからビルドすること、全メンバーの多要素認証、リリースごとの手動承認、コード署名ポリシーの公開など。加えて「a certain verifiable reputation」が求められるため、新しいプロジェクトは申請が通らない可能性がある。証明書の発行先(発行者表示)はSignPath Foundationになる。条件の原文に「public」という語はないが、署名するソースと検証可能なビルドを第三者が確かめられる必要があることから、実際には公開リポジトリが必要になると推測されるため、公開の時期とあわせて検討する。
