@@ -1,7 +1,7 @@
 # アーキテクチャ(提案)
 
 - 作成日: 2026-10-31
-- ステータス: 提案。[言語・エコシステムの比較検討](../research/tech-stack.md)の推奨案(Rust + winit + wgpu + eframe)を前提とする。技術選定の承認後に確定し、主要な判断はADRに記録する。
+- ステータス: 採用(2026-10-31)。主要な判断は[ADR](../adr/README.md)に記録した(ADR-0001〜0004、0009、0010、0012)。技術スパイクの結果によって更新することがある。
 - 関連: [実装計画](../plans/0001-initial-implementation-plan.md)、[設定項目仕様](settings.md)、[ビジュアルデザイン方針](visual-design.md)
 
 ## 設計原則
@@ -15,6 +15,7 @@
 | A-5 | `/s`・`/p`の実行中は設定ファイルに書き込まない | 放置中に動くプロセスの副作用を最小にする |
 | A-6 | 外部入力(引数・設定ファイル)は検証し、不正でもクラッシュせず既定値で動く | AGENTS.mdのセキュリティ方針、仕様調査のW-6・W-7 |
 | A-7 | `app`クレートもLinuxでビルドできる状態を保つ(Windows固有部分は`cfg`で分岐する) | エージェントのLinux環境でもコミット前にビルド・リントを実行できるようにするため。将来の移植の準備にもなる |
+| A-8 | 実行モードごとの振る舞い(作るウィンドウ、全モニタを黒で覆うか、カーソル、終了判定)を「表示ポリシー」として分け、シミュレーションと描画は全モードで共有する | スクリーンセーバー以外に、単独アプリ(ウィンドウ・全画面)としても実行できるようにするため([ADR-0012](../adr/0012-standalone-app-mode.md)) |
 
 ## 構成要素
 
@@ -25,6 +26,8 @@ flowchart TB
         saver["mode::screensaver"]
         preview["mode::preview"]
         settingsui["mode::settings (eframe)"]
+        standalone["mode::standalone (planned)"]
+        policy["presentation: per-mode policy"]
         render["render: wgpu sprite renderer"]
         storage["storage: config file I/O"]
         platform["platform::windows (windows-sys)"]
@@ -39,6 +42,12 @@ flowchart TB
     cli --> saver
     cli --> preview
     cli --> settingsui
+    cli --> standalone
+    saver --> policy
+    preview --> policy
+    standalone --> policy
+    standalone --> sim
+    standalone --> render
     saver --> sim
     saver --> exitpolicy
     saver --> render
@@ -86,20 +95,27 @@ flowchart TD
     parse -->|"/p HWND"| valid{"HWND is a valid window?"}
     valid -->|"yes"| preview["Preview: child window of HWND"]
     valid -->|"no"| quit2["exit quietly with an error code"]
-    parse -->|"none, /c, /c:HWND, unrecognized"| settings["Settings dialog"]
+    parse -->|"/c, /c:HWND, --settings, unrecognized"| settings["Settings dialog"]
+    parse -->|"--window, --fullscreen"| standalone["Standalone app (planned)"]
+    parse -->|"no arguments"| ext{"executable extension is .scr?"}
+    ext -->|"yes"| settings
+    ext -->|"no (.exe or non-Windows)"| standalone
 ```
 
 引数解析の規則(Phase 1でテストから先に書く):
 
 | 入力例 | 結果 | 備考 |
 | --- | --- | --- |
-| (なし) | Settings(オーナーなし) | [MS-1] |
+| (なし)、実行ファイルの拡張子が`.scr` | Settings(オーナーなし) | [MS-1] |
+| (なし)、実行ファイルの拡張子が`.exe`、またはWindows以外 | Standalone(ウィンドウ) | 単体アプリとして実行するには`.exe`拡張子が必要とされる[MS-2]。実装は後のフェーズ([ADR-0012](../adr/0012-standalone-app-mode.md)) |
+| `--window`、`--fullscreen` | Standalone(ウィンドウ、全画面) | 実行ファイルの名前によらず有効。実装は後のフェーズ |
+| `--settings` | Settings(オーナーなし) | 実行ファイルの名前によらず有効 |
 | `/c` | Settings(前面のウィンドウをオーナーにする) | [MS-1]。前面のウィンドウは取得後に有効なウィンドウか検証する |
 | `/c:1234`、`/c 1234` | Settings(オーナーHWND 1234) | 形式はスパイクS3で確認 |
 | `/p 1234`、`/p:1234` | Preview(親HWND 1234) | [MS-1]。HWNDは符号なし10進数 |
 | `/p`(HWNDなし)、`/p abc` | Settings(オーナーなし) | 誤って全画面にしない |
 | `/s`、`/S`、`-s` | Screensaver | 大文字小文字・ハイフンを許容 |
-| 認識した引数の後に続く余分な引数(`/s extra`、`/p 1234 extra`など) | 余分な引数を無視する | 隠しの起動オプション(アイデアE-12)を採用する場合は、この表に追加する |
+| 認識した引数の後に続く余分な引数(`/s extra`、`/p 1234 extra`など) | 余分な引数を無視する。最初に認識した引数がモードを決める | 隠しの起動オプション(アイデアE-12)を採用する場合は、この表に追加する |
 | 上記以外 | Settings(オーナーなし) | 仕様調査のW-8 |
 
 多重起動: `/s`は名前付きミューテックスで単一起動にし、既に動いている場合は静かに終了する(「プレビュー」ボタンと待ち時間による起動が重なる場合など)。`/p`はプレビュー枠ごとに独立して動かす。
@@ -153,6 +169,7 @@ sequenceDiagram
 | Screensaver | キーの押下、マウスボタン、ホイール、タッチ・ペン、起動時の位置から閾値以上のカーソル移動、アプリ全体の非アクティブ化、ウィンドウを閉じる要求 | キーの解放、合成されたキーイベント、閾値未満のカーソル移動、自アプリのウィンドウ間のフォーカス移動、起動直後の猶予時間内の移動とフォーカス変化 |
 | Preview | 親ウィンドウが無効になった(定期的に確認する)、自ウィンドウが破棄された | すべての入力 |
 | Settings | 通常のウィンドウとして閉じたとき | - |
+| Standalone(計画) | ウィンドウを閉じたとき | キー・マウスの入力(F11で全画面の切り替え、Escで全画面の解除のみ行う) |
 
 複数モニタでの注意点(レビュー指摘を受けてwinit 0.30.13のソースで確認):
 
@@ -163,6 +180,24 @@ sequenceDiagram
 
 終了判定は`core::exit_policy`に純粋関数として実装し、イベントの列に対する判定結果をテストする。上の表と注意点の各項目をテストケースにする。
 
+## 単独アプリとしての実行(Standalone、計画)
+
+[ADR-0012](../adr/0012-standalone-app-mode.md)に基づく。実装は後のフェーズで行い、Phase 1からはこの形を前提に構造を作る(A-8)。
+
+| 項目 | スクリーンセーバー(`/s`) | 単独アプリ(Standalone) |
+| --- | --- | --- |
+| 起動 | Windowsが`/s`を付けて起動する | `--window`・`--fullscreen`、または拡張子が`.exe`の実行ファイルを引数なしで起動する |
+| ウィンドウ | 全モニタに全画面ウィンドウ | ウィンドウ1つ。全画面は現在のモニタだけを覆う |
+| 黒での即時被覆(W-9) | 行う | 行わない |
+| カーソル | 非表示 | ウィンドウでは表示する |
+| 終了 | 入力で終了する | ウィンドウを閉じたときだけ終了する |
+| 単一起動 | 行う | 行わない |
+| 設定の読み込み | 行う | 行う |
+
+- 配布の形(同じバイナリを`.scr`と`.exe`の両方の名前で同梱する、`.exe`だけを配布して手順を示すなど)は実装時に決める。
+- Linux版・macOS版では、OSのスクリーンセーバーとの連携より先に、単独アプリとして動かすことを最初の段階にできる。
+- 開発中の動作確認にも役立つため、必要になれば実装を前倒ししてよい。
+
 ## マルチモニタ
 
 - Phase 1では、モニタごとに全画面ウィンドウを作り、それぞれ独立したシミュレーションを動かす。どのウィンドウで終了条件を満たしても全体を終了する。
@@ -172,7 +207,7 @@ sequenceDiagram
 
 ## 設定の保存
 
-- 設定はTOMLファイルとしてユーザーごとの設定ディレクトリに保存する(推奨案。保存形式・場所はPhase 2の着手前にADRで決定する)。
+- 設定はTOMLファイルとして利用者ごとの設定ディレクトリに保存する([ADR-0004](../adr/0004-store-settings-as-toml.md))。具体的な保存場所はPhase 2の着手前に別のADRで決める。
 - 書き込みは一時ファイルに書いてから置き換える。`/s`が書きかけのファイルを読まないようにするため。
 - 項目・範囲・既定値・検証規則は[設定項目仕様](settings.md)に定める。
 
@@ -198,7 +233,7 @@ sequenceDiagram
 
 ## クロスプラットフォームの方針
 
-Windows版の実装中は、以下を「将来の移植を妨げない」ための確認材料として扱い、実装はしない。
+Windows版の実装中は、以下を「将来の移植を妨げない」ための確認材料として扱い、実装はしない。どのOSでも、単独アプリとしての実行(Standalone)を最初の段階にできる。
 
 | OS | スクリーンセーバーの仕組み | 想定する対応 |
 | --- | --- | --- |
@@ -210,9 +245,11 @@ Windows版の実装中は、以下を「将来の移植を妨げない」ため�
 ## 参考資料
 
 - [MS-1] Microsoft Learn「Command-line arguments for Screen Savers」(KB182383)
+- [MS-2] Microsoft Learn「Handling Screen Savers」
 - [XSS-1] XScreenSaver Manual(検索結果の要約で確認。本文の該当箇所は未取得)
 - [APL-1] Apple Developer Documentation「ScreenSaverView」(検索結果の要約で確認)
 
 [MS-1]: https://learn.microsoft.com/en-us/previous-versions/troubleshoot/windows/win32/screen-saver-command-line
+[MS-2]: https://learn.microsoft.com/en-us/windows/win32/lwef/screen-saver-library
 [XSS-1]: https://www.jwz.org/xscreensaver/man1.html
 [APL-1]: https://developer.apple.com/documentation/screensaver/screensaverview
