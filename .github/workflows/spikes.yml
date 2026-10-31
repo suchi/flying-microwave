@@ -42,6 +42,15 @@ jobs:
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
 
+      # Caches ~/.cargo and the build artifacts of dependencies (ADR-0015).
+      # Must come after the toolchain install: the rustc version is part of the key.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: ${{ matrix.target }}
+          workspaces: |
+            spikes/saver-spike -> target
+            spikes/settings-spike -> target
+
       - name: Build
         shell: pwsh
         run: |
