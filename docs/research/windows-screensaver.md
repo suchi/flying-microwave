@@ -77,7 +77,7 @@
 
 - Smart App Controlは、Microsoftのアプリインテリジェンスサービスが安全と判断したアプリか、Trusted Root Programに含まれる認証局の証明書で署名されたアプリだけを実行させる。「unknown, unsigned code are blocked by default」とある。[MS-6]
 - 強制モード(enforcement mode)では、認識されたアプリか信頼された証明書で署名されたアプリしか実行できない。評価モード(evaluation mode)ではブロックしない。[MS-6]
-- 本プロジェクトへの帰結: 署名なしで配布すると、Smart App Controlが強制モードの環境ではまったく動かない可能性が高い。署名の方針は[実装計画のユーザー確認事項](../plans/0001-initial-implementation-plan.md#12-ユーザー確認事項)で判断する。
+- 本プロジェクトへの帰結: 署名なしで配布すると、Smart App Controlが強制モードの環境ではまったく動かない可能性が高い。v0.x系は署名せず既知の制限として明記し、v1.0.0までに再判断する([ADR-0013](../adr/0013-no-code-signing-for-v0.md))。
 
 ## 本プロジェクトの要件への落とし込み
 

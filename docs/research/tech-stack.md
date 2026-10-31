@@ -1,7 +1,7 @@
 # 言語・エコシステムの比較検討
 
 - 調査日: 2026-10-31
-- ステータス: 提案(ユーザーの承認待ち)。承認後、決定内容をADRとして`docs/adr/`に記録する。
+- ステータス: 採用(2026-10-31)。決定内容は[ADR-0001](../adr/0001-use-rust.md)・[ADR-0002](../adr/0002-render-with-wgpu.md)・[ADR-0003](../adr/0003-settings-ui-with-eframe.md)・[ADR-0008](../adr/0008-svg-assets-with-resvg.md)・[ADR-0011](../adr/0011-license-notices-with-cargo-about.md)に記録した。
 - 関連: [実装計画](../plans/0001-initial-implementation-plan.md)、[Windowsスクリーンセーバーの仕様調査](windows-screensaver.md)
 
 ## 評価基準
@@ -40,7 +40,7 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 | C5 TDD | 適合: `cargo test`が標準、ロジックをcrateとして分離しやすい | 適合 | 一部適合: テスト基盤の選定・構築が必要 | 適合 | 一部適合 |
 | C6 安全性 | 適合: メモリ安全、`Cargo.lock`で依存を固定 | 適合: メモリ安全 | 課題あり: メモリ安全でない、ビルド構成(CMake・vcpkg等)が複雑 | 適合: メモリ安全 | 一部適合: 依存が大きい |
 
-## 推奨: A. Rust
+## 決定: A. Rust
 
 理由:
 
@@ -61,7 +61,7 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 
 - VC++ランタイム: `*-pc-windows-msvc`ターゲットは既定でCランタイムを動的リンクし、`VCRUNTIME140.dll`に依存するとされる(Rustの既知の挙動。調査時には公式ドキュメントを取得できず未確認)。VC++再頒布パッケージはWindowsに標準では入っていないため、`.cargo/config.toml`で`-C target-feature=+crt-static`を指定して静的リンクする。CIで依存DLLを確認し(`dumpbin /dependents`など)、システムDLLだけに依存していることを確かめる(Phase 0)。
 - MSVCツールチェーン: `*-pc-windows-msvc`ターゲットのリンクにはMicrosoftのビルドツール(MSVCリンカとWindows SDK)が必要で、これらはOSSではない。言語とライブラリはOSSで、CIのWindowsランナーで利用できる見込み(Phase 0で確認)。完全にOSSのツールチェーンが必要なら`*-windows-gnullvm`ターゲットを検討する(Rustでのサポート状況は要確認)。
-- ツールチェーンの導入: `rust-toolchain.toml`でバージョンを固定し、`rustup toolchain install`で導入する。rustup 1.28.0では有効なツールチェーンの自動インストールが廃止され、1.28.1で既定では復活したが環境変数で無効にできる、とレビューで指摘された(rustupのCHANGELOGによる。調査時には未確認)。自動インストールに頼らず、明示的に導入する。
+- ツールチェーンの導入: `rust-toolchain.toml`でバージョンを固定し、`rustup toolchain install`で導入する。rustup 1.28.0では有効なツールチェーンの自動インストールが廃止され(「rustup will no longer automatically install the active toolchain if it is not installed」)、1.28.1(2025-03-05)で既定では復活したが、環境変数`RUSTUP_AUTO_INSTALL`を`0`にすると無効になる(rustupのCHANGELOGで確認)[RUSTUP-1]。自動インストールに頼らず、明示的に導入する。
 
 ## 描画方式の比較
 
@@ -70,7 +70,7 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 | GPU(推奨) | wgpu 30.0.1 | 4K・複数モニタでもCPU負荷が低い。拡大縮小・回転・半透明がほぼ無償。将来の演出(パーティクル、背景のグラデーション)に余裕がある | シェーダ(WGSL)とスプライトバッチの実装が必要。GPUが使えない環境への対応が必要(スパイクS6)。DLLの読み込みに注意が必要(仕様調査のW-11) |
 | CPU | softbuffer 0.4.8 + tiny-skia 0.12.0 | 実装が単純。描画結果をテストで画素比較しやすい | 4K(3840x2160)の32bitフレームは約33MBで、60fpsで全面を描き直すと毎秒約2GBのメモリ書き込みになる(概算・未計測)。省電力性に不利 |
 
-推奨: GPU(wgpu)。スクリーンセーバーはPCの放置中に長時間動くため、CPU負荷と消費電力を抑えることを優先する。描画以外のロジックはcoreに分離して単体テストし、描画結果の自動テストは後回しにする(必要になればwgpuのオフスクリーン描画で行う)。
+決定: GPU(wgpu)。スクリーンセーバーはPCの放置中に長時間動くため、CPU負荷と消費電力を抑えることを優先する。描画以外のロジックはcoreに分離して単体テストし、描画結果の自動テストは後回しにする(必要になればwgpuのオフスクリーン描画で行う)。
 
 ## 設定画面の比較
 
@@ -118,6 +118,7 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 - [NET-1] .NET and .NET Core official support policy(2026-10-31取得)
 - [NUGET-1] NuGet API: Avalonia(2026-10-31取得)
 - [GO-1] Go module proxy: github.com/hajimehoshi/ebiten/v2(2026-10-31取得)
+- [RUSTUP-1] rustupのCHANGELOG(1.28.0・1.28.1の項、2026-10-31取得)
 - [WINIT-1] winit 0.30.13のソースコード(`src/window.rs`の`WindowAttributes::with_parent_window`、`src/event_loop.rs`の`EVENT_LOOP_CREATED`)。crates.ioから取得したソースパッケージで確認
 
 [RUST-1]: https://static.rust-lang.org/dist/channel-rust-stable.toml
@@ -125,4 +126,5 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 [NET-1]: https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core
 [NUGET-1]: https://www.nuget.org/packages/Avalonia
 [GO-1]: https://proxy.golang.org/github.com/hajimehoshi/ebiten/v2/@latest
+[RUSTUP-1]: https://github.com/rust-lang/rustup/blob/master/CHANGELOG.md
 [WINIT-1]: https://github.com/rust-windowing/winit/blob/v0.30.13/src/window.rs
