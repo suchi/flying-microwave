@@ -396,7 +396,7 @@ flowchart LR
 | D-10 | リポジトリの整理 | `personal/`は削除済み。Dependabotの担当者を本リポジトリの所有者に変更 | `.github/dependabot.yml` |
 | D-11 | ブランチ運用 | ツールが指定するブランチ名を使ってよい | AGENTS.md |
 | D-12 | Windows実機での検証体制 | メンテナーが、CIでビルドした成果物で、スパイクと各リリース前の手動テストを行う | 本計画 |
-| D-13 | リポジトリの公開 | 当面は非公開で進め、将来公開する。ドキュメントに個人を特定できる情報や会話のやり取りを残さない | AGENTS.md |
+| D-13 | リポジトリの公開 | 当面は非公開で進め、将来公開する。ドキュメントに個人を特定できる情報や会話のやり取りを残さない。公開前の確認はIssue #3で追跡する | AGENTS.md、Issue #3 |
 | D-14 | v0.x系のコード署名 | 署名せず既知の制限として明記し、v1.0.0までに再判断する | [ADR-0013](../adr/0013-no-code-signing-for-v0.md)、Issue #2 |
 | D-15 | 素材のデータ形式 | SVG + resvg | [ADR-0008](../adr/0008-svg-assets-with-resvg.md) |
 | D-16 | ワークスペースの構成 | `core`と`app`の2crate | [ADR-0009](../adr/0009-cargo-workspace-core-and-app.md) |
