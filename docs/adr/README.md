@@ -37,3 +37,4 @@
 | [0007](0007-adversarial-review-without-copilot.md) | 敵対的レビューを別コンテキストのエージェントで行い、GitHub Copilotのレビューは使わない | 採用 | 2026-10-31 |
 | [0008](0008-svg-assets-with-resvg.md) | 素材をSVGで作り、resvgでラスタライズする | 採用 | 2026-10-31 |
 | [0009](0009-cargo-workspace-core-and-app.md) | Cargoワークスペースをcoreとappの2つのcrateに分ける | 採用 | 2026-10-31 |
+| [0010](0010-deterministic-core-simulation.md) | シミュレーションを決定的にする | 採用 | 2026-10-31 |
