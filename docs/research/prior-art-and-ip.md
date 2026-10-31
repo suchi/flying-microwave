@@ -12,7 +12,7 @@
 
 ## 過去の紛争(二次情報)
 
-以下は検索結果に現れた二次情報(Wikipedia、当時の新聞記事の見出し・要約)に基づく。判決文などの一次情報は本セッションでは取得できていない(該当サイトへの接続が許可されていなかった)。
+以下は検索結果に現れた二次情報(Wikipedia、当時の新聞記事の見出し・要約)に基づく。判決文などの一次情報は調査時には取得できていない(調査環境から該当サイトに接続できなかった)。
 
 - 1993年、Berkeley Systems社はDelrina社を著作権侵害で提訴した。Delrina社のスクリーンセーバー「Opus 'n Bill」に、ペンギンのキャラクターが空飛ぶトースターを撃つモジュールが含まれていたため。[P-1][P-2]
 - 連邦地裁のEugene Lynch判事はBerkeley Systems社の主張を認め、Delrina社は製品の回収を命じられたと報じられている。[P-2]
@@ -37,8 +37,8 @@
 
 ## 参考資料
 
-- [P-1] Wikipedia「After Dark (software)」「Berkeley Systems」(二次情報。本セッションでは検索結果の要約のみ参照し、ページ本文は取得できなかった)
-- [P-2] The Seattle Times「Opus Screen Saver Recalled」(1993-10-14。本セッションでは検索結果の要約のみ参照し、記事本文は取得できなかった)
+- [P-1] Wikipedia「After Dark (software)」「Berkeley Systems」(二次情報。調査時には検索結果の要約のみ参照し、ページ本文は取得できなかった)
+- [P-2] The Seattle Times「Opus Screen Saver Recalled」(1993-10-14。調査時には検索結果の要約のみ参照し、記事本文は取得できなかった)
 
 [P-1]: https://en.wikipedia.org/wiki/After_Dark_(software)
 [P-2]: https://archive.seattletimes.com/archive/19931014/1726015/opus-screen-saver-recalled

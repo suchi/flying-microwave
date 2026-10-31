@@ -97,7 +97,7 @@
 
 ## 未確認事項と検証方法(技術スパイク)
 
-開発環境(Claude Code on the Web)はLinuxコンテナで、Windowsの画面を伴う動作は確認できない。以下はユーザーのWindows 11実機で確認し、結果を`docs/research/spike-results.md`(Phase 0で作成)に記録する。
+開発環境(Claude Code on the Web)はLinuxコンテナで、Windowsの画面を伴う動作は確認できない。以下はメンテナーのWindows 11実機で確認し、結果を`docs/research/spike-results.md`(Phase 0で作成)に記録する。
 
 | ID | 確認内容 | 確認方法 |
 | --- | --- | --- |

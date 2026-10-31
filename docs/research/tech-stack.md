@@ -25,7 +25,7 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 | --- | --- | --- | --- |
 | A. Rust | winit(ウィンドウ)+ wgpu(GPU描画)+ eframe/egui(設定画面) | Rust 1.99.1(2026-10-13)[RUST-1]、winit 0.30.13、wgpu 30.0.1、eframe 0.37.0 [CIO-1] | winit: Apache-2.0、wgpu・eframe: MIT OR Apache-2.0(eframeの既定フォントは別ライセンス。後述)[CIO-1] |
 | B. C#/.NET | .NET 10(LTS)+ WinForms/WPF(Windowsのみ)またはAvalonia(クロスプラットフォーム) | .NET 10 LTS(サポート終了 2028-11-14)[NET-1]、Avalonia 12.1.4 [NUGET-1] | MIT |
-| C. C++ | SDL3 + Dear ImGui(設定画面)またはWin32ダイアログ | SDL 3.4系(Rustバインディング`sdl3-sys` 0.7.2のバージョン表記「+SDL-3.4.18」による間接確認。SDL公式リリースページは本セッションで未取得)[CIO-1] | SDL: zlib |
+| C. C++ | SDL3 + Dear ImGui(設定画面)またはWin32ダイアログ | SDL 3.4系(Rustバインディング`sdl3-sys` 0.7.2のバージョン表記「+SDL-3.4.18」による間接確認。SDL公式リリースページは調査時に未取得)[CIO-1] | SDL: zlib |
 | D. Go | Ebitengine | v2.10.5(2026-10-06)[GO-1] | Apache-2.0 |
 | E. Web技術 | Tauri 2またはElectron | 未確認(早期に対象外と判断したため) | MIT等 |
 
@@ -59,9 +59,9 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 
 ## ツールチェーン・ビルド上の注意
 
-- VC++ランタイム: `*-pc-windows-msvc`ターゲットは既定でCランタイムを動的リンクし、`VCRUNTIME140.dll`に依存するとされる(Rustの既知の挙動。本セッションでは公式ドキュメントを取得できず未確認)。VC++再頒布パッケージはWindowsに標準では入っていないため、`.cargo/config.toml`で`-C target-feature=+crt-static`を指定して静的リンクする。CIで依存DLLを確認し(`dumpbin /dependents`など)、システムDLLだけに依存していることを確かめる(Phase 0)。
+- VC++ランタイム: `*-pc-windows-msvc`ターゲットは既定でCランタイムを動的リンクし、`VCRUNTIME140.dll`に依存するとされる(Rustの既知の挙動。調査時には公式ドキュメントを取得できず未確認)。VC++再頒布パッケージはWindowsに標準では入っていないため、`.cargo/config.toml`で`-C target-feature=+crt-static`を指定して静的リンクする。CIで依存DLLを確認し(`dumpbin /dependents`など)、システムDLLだけに依存していることを確かめる(Phase 0)。
 - MSVCツールチェーン: `*-pc-windows-msvc`ターゲットのリンクにはMicrosoftのビルドツール(MSVCリンカとWindows SDK)が必要で、これらはOSSではない。言語とライブラリはOSSで、CIのWindowsランナーで利用できる見込み(Phase 0で確認)。完全にOSSのツールチェーンが必要なら`*-windows-gnullvm`ターゲットを検討する(Rustでのサポート状況は要確認)。
-- ツールチェーンの導入: `rust-toolchain.toml`でバージョンを固定し、`rustup toolchain install`で導入する。rustup 1.28.0では有効なツールチェーンの自動インストールが廃止され、1.28.1で既定では復活したが環境変数で無効にできる、とレビューで指摘された(rustupのCHANGELOGによる。本セッションでは未確認)。自動インストールに頼らず、明示的に導入する。
+- ツールチェーンの導入: `rust-toolchain.toml`でバージョンを固定し、`rustup toolchain install`で導入する。rustup 1.28.0では有効なツールチェーンの自動インストールが廃止され、1.28.1で既定では復活したが環境変数で無効にできる、とレビューで指摘された(rustupのCHANGELOGによる。調査時には未確認)。自動インストールに頼らず、明示的に導入する。
 
 ## 描画方式の比較
 
@@ -76,7 +76,7 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 
 | 方式 | 確認したバージョン・ライセンス [CIO-1] | 長所 | 短所 |
 | --- | --- | --- | --- |
-| eframe/egui(推奨) | 0.37.0、MIT OR Apache-2.0 | クロスプラットフォーム。本体とwinit・wgpuを共有できる。実装量が少ない | ネイティブの見た目ではない。オーナーウィンドウを指定する手段がなく、モーダル化にはWin32 APIの追加処理が必要(スパイクS2)。既定機能`default_fonts`が取り込む`epaint_default_fonts` 0.37.0のライセンスは`(MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0`で、Ubuntu Font LicenceはOSIの承認ライセンスではないとされる(OSIの一覧は本セッションで未確認)。`default-features = false`で必要な機能だけを有効にし、フォントはシステムフォントかOFLのフォントにする |
+| eframe/egui(推奨) | 0.37.0、MIT OR Apache-2.0 | クロスプラットフォーム。本体とwinit・wgpuを共有できる。実装量が少ない | ネイティブの見た目ではない。オーナーウィンドウを指定する手段がなく、モーダル化にはWin32 APIの追加処理が必要(スパイクS2)。既定機能`default_fonts`が取り込む`epaint_default_fonts` 0.37.0のライセンスは`(MIT OR Apache-2.0) AND OFL-1.1 AND Ubuntu-font-1.0`で、Ubuntu Font LicenceはOSIの承認ライセンスではないとされる(OSIの一覧は調査時に未確認)。`default-features = false`で必要な機能だけを有効にし、フォントはシステムフォントかOFLのフォントにする |
 | Win32ネイティブダイアログ | `windows-sys` 0.61.2、MIT OR Apache-2.0 | 見た目がWindows標準。モーダル化が容易 | Windows専用。将来OSごとに作り直しが必要。コード量が多い |
 | Slint | 1.18.1、GPL-3.0-only OR ロイヤリティフリー OR 商用 | 宣言的UI。見た目の自由度が高い | ライセンス体系が複雑で、本プロジェクトのライセンス選択に影響する |
 | iced | 0.14.0、MIT | クロスプラットフォーム | eframeと比べて本体とのwinit/wgpuバージョン整合を別途管理する必要がある(要確認) |
