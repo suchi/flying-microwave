@@ -46,7 +46,8 @@ UNINSTALL
 
 1. Open Screen Saver Settings and select another screen saver (or
    "(None)").
-2. Delete the folder that contains FlyingMicrowave.scr.
+2. Delete the folder you created in step 2 of INSTALL (or, if you used
+   an existing folder, only the files extracted from the zip).
 
 The location of the settings file will be documented here when
 settings are added.
@@ -119,7 +120,8 @@ v0.2.0 で追加されます。
 
 1. スクリーン セーバーの設定を開き、別のスクリーン セーバー(または
    「(なし)」)を選びます。
-2. FlyingMicrowave.scr を置いたフォルダーを削除します。
+2. インストールの手順2で作ったフォルダーを削除します(既存のフォルダーに
+   展開した場合は、zip から展開したファイルだけを削除します)。
 
 設定ファイルの場所は、設定機能の追加時にここに記載します。
 
