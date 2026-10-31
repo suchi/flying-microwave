@@ -34,3 +34,4 @@
 | [0004](0004-store-settings-as-toml.md) | 設定をTOMLファイルで保存する | 採用 | 2026-10-31 |
 | [0005](0005-license-mit.md) | ライセンスにMITを採用する | 採用 | 2026-10-31 |
 | [0006](0006-target-windows-11-x64-arm64.md) | 対象環境をWindows 11のx64とarm64にする | 採用 | 2026-10-31 |
+| [0007](0007-adversarial-review-without-copilot.md) | 敵対的レビューを別コンテキストのエージェントで行い、GitHub Copilotのレビューは使わない | 採用 | 2026-10-31 |
