@@ -81,7 +81,7 @@ Cargoワークスペースで2つのcrateに分ける。描画モジュールも
 | `assets/sprites/` | SVG素材と、作者・ライセンスを記録する`README.md`(Phase 3から) |
 | `spikes/` | Phase 0の技術スパイク。ワークスペースには含めず、製品コードから参照しない(Phase 0の終了時に削除するか残すかを決める) |
 
-crate名はPhase 0で作るため、製品名(実装計画のD-5)をPhase 0の開始前に決める。
+crate名は製品名(実装計画のD-5)に合わせて`flying-microwave-core`・`flying-microwave`とする。
 
 ## 起動モードの判定
 

@@ -169,7 +169,7 @@ flowchart LR
 
 作業:
 
-1. 製品名「Flying Microwave」の商標の確認(D-5)。米国特許商標庁(USPTO)と特許情報プラットフォーム(J-PlatPat)で確認し、結果を[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md)に追記する。調査環境から接続できない場合は、ネットワーク設定への追加を依頼するか、メンテナーが確認する。
+1. 製品名「Flying Microwave」の商標の確認(D-5)。米国(USPTO)は2026-10-31に確認し、候補名の登録・出願はなく、着想元に関係する第9類の登録は失効していた([先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認))。日本(J-PlatPat)は自動化したブラウザからの接続を拒否されるため、メンテナーが通常のブラウザで確認し、結果を同じ文書に追記する。
 2. Cargoワークスペースの雛形(`crates/core`・`crates/app`)、`rust-toolchain.toml`、`.cargo/config.toml`(Windowsターゲットの`+crt-static`)、lint設定を作る。crate名は`flying-microwave-core`・`flying-microwave`とする。
 3. AGENTS.mdの検証コマンド表を確定する(下表の案)。
 4. CIワークフローを追加する(`.github/workflows/`の変更はセキュリティ設定のため要承認)。Windowsランナーでfmt・clippy・テスト・x64/arm64ビルド・依存DLLの確認(システムDLLだけか)・依存crateの重複検出(`cargo tree -d`)を行う。Linuxランナーでワークスペース全体のビルド・clippy・テストを行う(アーキテクチャのA-7)。ActionsはコミットSHAで固定し、ジョブごとの権限を最小にする。非公開リポジトリではWindowsランナーが無料枠を消費することに留意する。
@@ -388,7 +388,7 @@ flowchart LR
 | D-2 | 描画方式 | GPU(wgpu) | [ADR-0002](../adr/0002-render-with-wgpu.md) |
 | D-3 | 設定画面の方式 | eframe/egui | [ADR-0003](../adr/0003-settings-ui-with-eframe.md) |
 | D-4 | 設定の保存形式 | 利用者ごとの設定ディレクトリのTOMLファイル(具体的な場所はPhase 2で決める) | [ADR-0004](../adr/0004-store-settings-as-toml.md) |
-| D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。商標の確認をPhase 0で行い、問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md) |
+| D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。米国の商標は確認済み(候補名の登録・出願なし)。日本の確認後に問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認) |
 | D-6 | 本プロジェクトのライセンス | MIT(著作権者の表記は「Flying Microwave contributors」) | [ADR-0005](../adr/0005-license-mit.md)、`LICENSE` |
 | D-7 | 対象のWindowsとCPUアーキテクチャ | Windows 11のx64とarm64 | [ADR-0006](../adr/0006-target-windows-11-x64-arm64.md) |
 | D-8 | レビューの方法 | 別コンテキストのエージェントによる敵対的レビュー。Copilotのレビューは使わず、その手順は参考として残す | [ADR-0007](../adr/0007-adversarial-review-without-copilot.md)、[PRのレビュー手順](../development/review-process.md) |
