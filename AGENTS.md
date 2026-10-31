@@ -103,8 +103,8 @@ feat: add todo filter feature      ← 1行目: 英語・命令形・50文字以
 ## PR・レビュー・マージ
 
 1. フィーチャーブランチからPRを作成する(タイトル英語・本文日本語。本文に`\n`リテラルを書かず実際の改行を使う。`--body-file`推奨)。
-2. Copilotにレビューを依頼する(`gh pr edit <番号> --add-reviewer @copilot`)。
-3. 指摘は修正コミットで対応し、各スレッドに対応内容を返信してからresolveする。
+2. 敵対的レビューを依頼する。作成者とは別のコンテキストを持つレビュー用エージェントに、差分と要件だけを渡す(作成者の結論は渡さない)。本リポジトリではGitHub Copilotのレビューは使わない([ADR-0007](docs/adr/0007-adversarial-review-without-copilot.md))。手順の詳細と、Copilotを使う場合の手順は[docs/development/review-process.md](docs/development/review-process.md)にある。どちらも同じループで進める。
+3. 指摘は検証すべき主張として扱い、一次情報で確かめてから修正コミットで対応する。各指摘に対応内容または対応しない理由を返信・記録してから解決する。
 4. 再レビューを依頼し、新規指摘ゼロ(No New Comment)になるまで3〜4を繰り返す。
 5. レビュー完了・CI全ジョブグリーン・ユーザー承認の3つがそろってからマージする。
 
@@ -142,5 +142,5 @@ feat: add todo filter feature      ← 1行目: 英語・命令形・50文字以
 | ツール         | 読み込み                              | 補足                                                                           |
 | -------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
 | Claude Code    | `CLAUDE.md`(`@AGENTS.md`でインポート) | commands・hooksは`.claude/`配下。skillsは`.agents/skills/`を参照する           |
-| GitHub Copilot | `AGENTS.md`をネイティブサポート       | `.github/copilot-instructions.md`は薄いポインタ。共有スキルは`.agents/skills/` |
+| GitHub Copilot | `AGENTS.md`をネイティブサポート       | `.github/copilot-instructions.md`は薄いポインタ。共有スキルは`.agents/skills/`。本リポジトリではCopilotのレビューは使わない |
 | OpenAI Codex   | `AGENTS.md`をネイティブサポート       | グローバル設定は`~/.codex/AGENTS.md`。共有スキルは`.agents/skills/`            |
