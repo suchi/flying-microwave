@@ -8,8 +8,8 @@ WHAT IT IS
 
 Flying Microwave is a Windows screen saver in which microwave ovens
 fly across your screen. It is inspired by the classic flying-toaster
-screen savers of the early 1990s, and is an independent work that is
-not affiliated with them.
+screen savers, and is an independent work that is not affiliated with
+or endorsed by their creators or rights holders.
 
 REQUIREMENTS
 
@@ -72,8 +72,9 @@ Questions, bug reports, and the latest release: <project URL>
 概要
 
 Flying Microwave は、電子レンジが画面を飛び回る Windows 用のスクリーン
-セーバーです。1990年代前半の古典的な「空飛ぶトースター」のスクリーン
-セーバーに着想を得た独自の作品で、それらとは無関係です。
+セーバーです。古典的な「空飛ぶトースター」のスクリーンセーバーに
+着想を得た独自の作品で、その作者や権利者とは提携・承認などの関係は
+ありません。
 
 動作環境
 
