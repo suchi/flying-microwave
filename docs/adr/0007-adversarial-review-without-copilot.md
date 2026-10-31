@@ -25,11 +25,7 @@ PRごとに、作成者とは別のコンテキストを持つレビュー用エ
 
 本リポジトリではGitHub Copilotのレビューを使わない。ただしCopilotを使う場合の手順は代替手段として[docs/development/review-process.md](../development/review-process.md)に残す。どちらの方法でも、「指摘への対応、スレッドへの返信、再レビュー、新規指摘ゼロまで繰り返す」という同じループに従う。
 
-この決定に合わせて、AGENTS.mdの「PR・レビュー・マージ」節と`.claude/commands/babysit-pr.md`・`.claude/commands/merge-pr.md`を更新した。Copilotのレビュー用の設定ファイル(`.github/copilot-instructions.md`、`.github/copilot-code-review.yml`)は、Copilotを使う場合に備えて残す。Copilotのレビューを依頼しない間は影響しない。
-
-### モデルの使い分け
-
-深い調査・レビュー・整合性チェックには最も高性能なモデルを使う。すでに決まった設計の実装には、より安価なモデルを使ってよい。
+この決定に合わせて、AGENTS.mdの「PR・レビュー・マージ」節と`.claude/commands/babysit-pr.md`・`.claude/commands/merge-pr.md`を更新した。Copilot向けの設定ファイル(Copilot全般向けの薄いポインタでレビューを日本語で書く指示を含む`.github/copilot-instructions.md`と、レビューの言語設定の`.github/copilot-code-review.yml`)は、Copilotを使う場合に備えて残す。Copilotを使わない間は影響しない。
 
 ### 検討した選択肢と採用しなかった理由
 

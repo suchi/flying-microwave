@@ -73,7 +73,7 @@ flowchart TD
 4. 再レビューを依頼し、新規指摘がなくなるまで繰り返す。
 5. 禁止事項: `DELETE .../requested_reviewers`を使わない(レビュアーの状態が壊れるとされる)。再レビューのためにPRを閉じて開き直したり作り直したりしない。
 
-Copilotのレビュー用の設定として、`.github/copilot-instructions.md`(レビューを日本語で書く指示)と`.github/copilot-code-review.yml`(言語設定。公式ドキュメントに記載がないとされる)を残している。Copilotを使わない間は影響しない。
+Copilot向けの設定として、`.github/copilot-instructions.md`(Copilot全般向けの薄いポインタで、レビューを日本語で書く指示を含む)と`.github/copilot-code-review.yml`(レビューの言語設定。公式ドキュメントに記載がないとされる)を残している。Copilotを使わない間は影響しない。
 
 ## 共通の禁止事項
 
