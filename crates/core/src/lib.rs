@@ -4,5 +4,6 @@
 
 #![forbid(unsafe_code)]
 
+pub mod exit_policy;
 pub mod rng;
 pub mod sim;
