@@ -48,6 +48,8 @@ flowchart TB
     standalone --> policy
     standalone --> sim
     standalone --> render
+    standalone --> exitpolicy
+    standalone --> storage
     saver --> sim
     saver --> exitpolicy
     saver --> render
@@ -197,6 +199,7 @@ sequenceDiagram
 | 設定の読み込み | 行う | 行う |
 
 - 配布の形(同じバイナリを`.scr`と`.exe`の両方の名前で同梱する、`.exe`だけを配布して手順を示すなど)は実装時に決める。
+- そのほか実装時に決めること([ADR-0012](../adr/0012-standalone-app-mode.md)): 全画面での実行中にディスプレイのスリープやスクリーンセーバーの起動を抑止するか、全画面でのカーソルの扱い、全画面にするモニタの選び方、GPUの初期化に失敗したときの動作、設定ファイルへの書き込みを許すか(A-5は`/s`・`/p`だけが対象)。
 - Linux版・macOS版では、OSのスクリーンセーバーとの連携より先に、単独アプリとして動かすことを最初の段階にできる。
 - 開発中の動作確認にも役立つため、必要になれば実装を前倒ししてよい。
 
