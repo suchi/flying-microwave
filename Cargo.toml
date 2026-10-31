@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/app"]
+# Technical spikes are throwaway programs and stay outside the workspace
+# (docs/plans/0001-initial-implementation-plan.md, Phase 0).
+exclude = ["spikes"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+publish = false
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"

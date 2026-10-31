@@ -33,6 +33,7 @@
 | [windows-screensaver.md](research/windows-screensaver.md) | Windowsスクリーンセーバーの仕様 |
 | [tech-stack.md](research/tech-stack.md) | 言語・エコシステムの比較検討 |
 | [prior-art-and-ip.md](research/prior-art-and-ip.md) | 先行作品と知的財産上の配慮 |
+| [spike-results.md](research/spike-results.md) | 技術スパイクの結果(記録待ち) |
 
 ## 設計
 

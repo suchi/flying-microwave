@@ -59,7 +59,7 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 
 ## ツールチェーン・ビルド上の注意
 
-- VC++ランタイム: `*-pc-windows-msvc`ターゲットは既定でCランタイムを動的リンクし、`VCRUNTIME140.dll`に依存するとされる(Rustの既知の挙動。調査時には公式ドキュメントを取得できず未確認)。VC++再頒布パッケージはWindowsに標準では入っていないため、`.cargo/config.toml`で`-C target-feature=+crt-static`を指定して静的リンクする。CIで依存DLLを確認し(`dumpbin /dependents`など)、システムDLLだけに依存していることを確かめる(Phase 0)。
+- VC++ランタイム: `*-pc-windows-msvc`ターゲットは既定でCランタイムを動的リンクし、`VCRUNTIME140.dll`に依存するとされる(Rustの既知の挙動。調査時には公式ドキュメントを取得できず未確認)。VC++再頒布パッケージはWindowsに標準では入っていないため、`.cargo/config.toml`で`-C target-feature=+crt-static`を指定して静的リンクする。CIで依存DLLを確認し(`dumpbin /dependents`など)、システムDLLだけに依存していることを確かめる。Phase 0のCI(2026-10-31)で、`+crt-static`を指定したx64・arm64のリリースビルドの依存DLLが`KERNEL32.dll`・`ntdll.dll`・APIセット(`api-ms-win-core-synch-l1-2-0.dll`)だけで、VC++ランタイムに依存しないことを確認した(`+crt-static`を指定しない場合の挙動は確認していない)。
 - MSVCツールチェーン: `*-pc-windows-msvc`ターゲットのリンクにはMicrosoftのビルドツール(MSVCリンカとWindows SDK)が必要で、これらはOSSではない。言語とライブラリはOSSで、CIのWindowsランナーで利用できる見込み(Phase 0で確認)。完全にOSSのツールチェーンが必要なら`*-windows-gnullvm`ターゲットを検討する(Rustでのサポート状況は要確認)。
 - ツールチェーンの導入: `rust-toolchain.toml`でバージョンを固定し、`rustup toolchain install`で導入する。rustup 1.28.0では有効なツールチェーンの自動インストールが廃止され(「rustup will no longer automatically install the active toolchain if it is not installed」)、1.28.1(2025-03-05)で既定では復活したが、環境変数`RUSTUP_AUTO_INSTALL`を`0`にすると無効になる(rustupのCHANGELOGで確認)[RUSTUP-1]。自動インストールに頼らず、明示的に導入する。
 

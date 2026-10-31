@@ -4,3 +4,7 @@ _work
 .env
 .env.*
 !.env.example
+
+# Cargo build output
+/target
+/spikes/*/target

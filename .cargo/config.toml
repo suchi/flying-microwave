@@ -1,0 +1,7 @@
+# Why: link the C runtime statically so the .scr runs without the
+# Visual C++ redistributable installed (ADR-0001).
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

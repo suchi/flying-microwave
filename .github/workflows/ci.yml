@@ -1,0 +1,101 @@
+# Continuous integration for the Flying Microwave workspace.
+#
+# Security (docs/plans/0001-initial-implementation-plan.md, R-08):
+# - third-party actions are pinned by full commit SHA (Dependabot updates them),
+# - the workflow token is read-only and checkout does not persist credentials,
+# - every cargo command uses --locked so Cargo.lock is not changed silently.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Cancel superseded runs on pull requests only, so every push to main keeps its result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    name: Linux (workspace)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+      - name: Type-check Windows targets
+        run: |
+          cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc
+          cargo check --workspace --all-targets --locked --target aarch64-pc-windows-msvc
+
+  windows:
+    name: Windows (${{ matrix.target }})
+    runs-on: windows-2025
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-pc-windows-msvc, aarch64-pc-windows-msvc]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked --target ${{ matrix.target }} -- -D warnings
+
+      # The x64 runner cannot execute arm64 binaries, so tests run on x64 only.
+      - name: Test
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: cargo test --workspace --locked --target ${{ matrix.target }}
+
+      - name: Build release
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      # The executable must not depend on the Visual C++ runtime (ADR-0001, R-16).
+      - name: Check DLL dependencies
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $dumpbin = & $vswhere -latest -products * -find 'VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe' | Select-Object -First 1
+          if (-not $dumpbin) { throw 'dumpbin.exe was not found' }
+          $exe = 'target/${{ matrix.target }}/release/flying-microwave.exe'
+          $out = & $dumpbin /nologo /dependents $exe
+          $out | Write-Output
+          if (-not ($out | Select-String -Pattern '(?i)\bKERNEL32\.dll\b')) { throw 'dumpbin output does not list KERNEL32.dll' }
+          $bad = $out | Select-String -Pattern '(?i)\b(vcruntime|msvcp|concrt|vccorlib|ucrtbase)\w*\.dll\b|\bapi-ms-win-crt-'
+          if ($bad) { throw "Dynamic C runtime dependency found: $bad" }
+
+      # winit, wgpu and the egui family must be upgraded together (R-05).
+      - name: Check duplicate GUI crates
+        shell: pwsh
+        run: |
+          $dups = cargo tree --locked --duplicates --depth 0 --edges normal --prefix none --target ${{ matrix.target }} 2>$null
+          $dups | Write-Output
+          $gui = $dups | Select-String -Pattern '^(winit|wgpu[\w-]*|egui[\w-]*|eframe|epaint[\w-]*|emath|ecolor) v'
+          if ($gui) { throw "Duplicate GUI crates found: $gui" }
