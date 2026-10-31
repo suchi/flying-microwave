@@ -35,10 +35,11 @@
 | [0004](0004-store-settings-as-toml.md) | 設定をTOMLファイルで保存する | 採用 | 2026-10-31 |
 | [0005](0005-license-mit.md) | ライセンスにMITを採用する | 採用 | 2026-10-31 |
 | [0006](0006-target-windows-11-x64-arm64.md) | 対象環境をWindows 11のx64とarm64にする | 採用 | 2026-10-31 |
-| [0007](0007-adversarial-review-without-copilot.md) | 敵対的レビューを別コンテキストのエージェントで行い、GitHub Copilotのレビューは使わない | 採用 | 2026-10-31 |
+| [0007](0007-adversarial-review-without-copilot.md) | 敵対的レビューを別コンテキストのエージェントで行い、GitHub Copilotのレビューは使わない | 非推奨(ADR-0014に置き換え) | 2026-10-31 |
 | [0008](0008-svg-assets-with-resvg.md) | 素材をSVGで作り、resvgでラスタライズする | 採用 | 2026-10-31 |
 | [0009](0009-cargo-workspace-core-and-app.md) | Cargoワークスペースをcoreとappの2つのcrateに分ける | 採用 | 2026-10-31 |
 | [0010](0010-deterministic-core-simulation.md) | シミュレーションを決定的にする | 採用 | 2026-10-31 |
 | [0011](0011-license-notices-with-cargo-about.md) | 依存crateのライセンス表記をcargo-aboutで生成する | 採用 | 2026-10-31 |
 | [0012](0012-standalone-app-mode.md) | 単独アプリとしてウィンドウ・全画面でも実行できる設計にする | 採用 | 2026-10-31 |
 | [0013](0013-no-code-signing-for-v0.md) | v0.x系はコード署名せずに配布し、v1.0.0までに再判断する | 採用 | 2026-10-31 |
+| [0014](0014-risk-based-review-depth.md) | 敵対的レビューの深さを変更の種類で決める | 採用 | 2026-10-31 |
