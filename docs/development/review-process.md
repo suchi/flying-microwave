@@ -70,7 +70,7 @@ flowchart TD
 確認の方法(マージの前):
 
 1. `git fetch origin`を実行し、PRのhead SHAを取得する(ghでは`gh pr view <番号> --json headRefOid -q .headRefOid`、GitHub MCPではPRの情報の`head.sha`)。ローカルの`HEAD`は古い場合があるため使わない。
-2. `git diff --name-only <レビューしたSHA> <PRのhead SHA>`の出力のすべての行が、`docs/reviews/`で始まるか`docs/README.md`であることを確かめる。
+2. `git diff --no-renames --name-only <レビューしたSHA> <PRのhead SHA>`の出力のすべての行が、`docs/reviews/`で始まるか`docs/README.md`であることを確かめる。
 3. `docs/README.md`を含む場合は、差分がレビュー記録の表への行の追加だけであることを確かめる。
 
 ## GitHub Copilotを使う場合の手順(参考。本リポジトリでは使わない)
