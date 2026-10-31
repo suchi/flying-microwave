@@ -93,7 +93,7 @@ flowchart LR
 
 ## 5. 開発環境
 
-Phase 0で確定する予定の構成である。確定したら本節とAGENTS.mdの検証コマンド表を更新する。
+Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証コマンド表を更新する。
 
 | 項目 | 内容 |
 | --- | --- |
@@ -101,9 +101,9 @@ Phase 0で確定する予定の構成である。確定したら本節とAGENTS.
 | Windows向けターゲット | `x86_64-pc-windows-msvc`と`aarch64-pc-windows-msvc`。Microsoftが提供するMSVCビルドツールとWindows SDKが必要 |
 | Linuxでのビルド | `core`と`app`の両crateがLinuxでもビルドできる状態を保つ。Windows固有のコードは`cfg`で分岐させる。Linuxではコンパイルされない部分は、WindowsのCIで確認する |
 | 手動確認 | Windows 11が必要。エージェントの開発環境はLinuxなので、Windowsの画面を伴う動作は確認できない([8. Windows実機での確認](#8-windows実機での確認)) |
-| 検証コマンド | AGENTS.mdの表は現在すべて未設定。Phase 0で確定する(案は[実装計画のPhase 0](../plans/0001-initial-implementation-plan.md#phase-0-基盤整備リリースなし)にある) |
+| 検証コマンド | AGENTS.mdの「検証コマンド」の表に従う(fmt・clippy・テスト・型チェック・ビルド)。どれもLinuxでも実行できる |
 
-製品コードができるまでは、ドキュメントだけの変更にテストとリントは必要ない。代わりに、リンク切れや記載の食い違いがないかを`/consistency-check`で確認する。製品コードを書き始める前に、検証コマンドの表が埋まっていることを確認する(未設定ならメンテナーに設定を促す)。
+ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では、テストとリントは必要ない。代わりに、リンク切れや記載の食い違いがないかを`/consistency-check`で確認する。
 
 ## 6. AIエージェントとの協働
 
