@@ -388,7 +388,7 @@ flowchart LR
 | D-2 | 描画方式 | GPU(wgpu) | [ADR-0002](../adr/0002-render-with-wgpu.md) |
 | D-3 | 設定画面の方式 | eframe/egui | [ADR-0003](../adr/0003-settings-ui-with-eframe.md) |
 | D-4 | 設定の保存形式 | 利用者ごとの設定ディレクトリのTOMLファイル(具体的な場所はPhase 2で決める) | [ADR-0004](../adr/0004-store-settings-as-toml.md) |
-| D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。米国では同じ文字列のフレーズ検索で該当なし(空白なしの表記や類似の商標は未確認)。メンテナーによる残りの確認(日本を含む)で問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認) |
+| D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。米国では同じ文字列のフレーズ検索で該当なし(結果はメンテナーが通常のブラウザで再確認する。空白なしの表記や類似の商標は未確認)。メンテナーによる残りの確認(日本を含む)で問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認) |
 | D-6 | 本プロジェクトのライセンス | MIT(著作権者の表記は「Flying Microwave contributors」) | [ADR-0005](../adr/0005-license-mit.md)、`LICENSE` |
 | D-7 | 対象のWindowsとCPUアーキテクチャ | Windows 11のx64とarm64 | [ADR-0006](../adr/0006-target-windows-11-x64-arm64.md) |
 | D-8 | レビューの方法 | 別コンテキストのエージェントによる敵対的レビュー。Copilotは利用せず(レビューを含む)、Copilotでレビューする場合の手順は参考として残す | [ADR-0007](../adr/0007-adversarial-review-without-copilot.md)、[PRのレビュー手順](../development/review-process.md) |
