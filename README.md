@@ -1,5 +1,35 @@
-# プロジェクト名
+# Flying Microwave
 
-<!-- TODO(project): プロジェクトの内容にこのREADMEを書き換える -->
+電子レンジが画面を飛び回るWindows用のスクリーンセーバー。昔の、家電が空を飛ぶスクリーンセーバーに着想を得た独自の作品で、それらの再現や移植ではない。
 
-AIコーディングエージェントへの指示は`AGENTS.md`にある。GitHub Copilot、Claude Code、Codexの共有スキルは`.agents/skills/`にある。
+## 状況
+
+計画段階で、製品コードはまだない。[初期実装計画](docs/plans/0001-initial-implementation-plan.md)は合意済みで、次はPhase 0(基盤整備)に着手する。
+
+## 予定している機能
+
+- スクリーンセーバーとしての全画面表示、設定画面のプレビュー枠への表示、設定画面からのパラメーターの変更
+- 電子レンジらしい飛び方(ドアの開閉、回るターンテーブル、LED表示の時計)と、一緒に飛ぶ食べ物
+- 時刻や季節で変わる演出と、まれに起こる隠し要素([アイデア集](docs/ideas/future-options.md))
+- スクリーンセーバーとしてだけでなく、単独のアプリとしてウィンドウ・全画面で動かす機能(後のフェーズ)
+- 対象はWindows 11(x64・arm64)。将来のLinux版・macOS版を見据えた設計にしている
+
+段階的に実装し、動かせる段階ごとにGitHub Releaseでバージョンを付けて公開する(最初はv0.1.0)。
+
+## 利用者の方へ
+
+まだリリースはない。リリース後は、配布するzipに同梱する[利用者向けREADME](packaging/windows/README.txt)にインストール手順と既知の制限を書く。
+
+## ドキュメント
+
+計画・調査・設計・判断の記録(ADR)・レビュー記録は[docs/](docs/README.md)にある。
+
+## 開発に参加する方へ
+
+- [開発参加者向けオンボーディング](docs/development/onboarding.md): 最初に読むもの、進め方、開発環境
+- [AGENTS.md](AGENTS.md): 人とAIコーディングエージェントが従う指示とルールの単一ソース
+- [PRのレビュー手順](docs/development/review-process.md): 敵対的レビューの進め方
+
+## ライセンス
+
+[MIT](LICENSE)
