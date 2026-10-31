@@ -138,7 +138,7 @@ Phase 0で確定する予定の構成である。確定したら本節とAGENTS.
 
 - block-dangerous-git.sh: Bashの実行前に、危険なgit操作を止める。`main`への直接プッシュ、`main`へのforce push、`--no-verify`付きのコミットとプッシュ、ルートやホームの再帰削除は拒否する。force push、`git reset --hard`、`git clean -f`、`git branch -D`、`main`上でのコミット、ダウンロードしたスクリプトを直接シェルに渡す操作、`.env`のステージは、実行前に確認を求める
 - protect-config.sh: セキュリティ設定のファイルを編集する前に確認を求める。対象は`.claude/settings.json`、`.claude/settings.local.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`
-- jqが必要: どちらのフックも`jq`で入力を解析する。`jq`がない環境では、判断を保留して確認を求める動作になるため、事前に`jq`を導入しておく
+- jqが必要: どちらのフックも`jq`で入力を解析する。`jq`がない環境では、判断を保留して毎回確認を求める動作になるため、事前に`jq`を導入しておく。パッケージマネージャーは問わない(例: Windowsでは`winget install jqlang.jq`または`scoop install jq`、Ubuntu・WSL2では`sudo apt-get install jq`)
 
 `.claude/settings.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`の変更は、メンテナーの承認を得てから行う。Dependabotの`cooldown`はサプライチェーン攻撃への対策なので、承認なしに削除・無効化しない。
 
