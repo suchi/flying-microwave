@@ -21,7 +21,7 @@
 | --- | --- | --- | --- | --- |
 | S1 | `/p`のプレビュー枠に子ウィンドウで描画できるか。親が閉じたときに終了するか | 未実施 | | |
 | S2 | 設定ウィンドウを、オーナーに対してモーダル相当にできるか | 未実施 | | |
-| S3 | Windowsが渡す引数の形式、ダブルクリック・右クリックメニューで渡される引数 | 一部成立(CIのみ) | CIのランナーで`HKEY_CLASSES_ROOT\scrfile\shell`を記録した(下の「CIでの観察」)。「テスト」は`"%1" /S`(大文字)、「構成」は`"%1"`(引数なし)、「インストール」は`rundll32.exe desk.cpl,InstallScreenSaver %l`。設定画面の「設定」「プレビュー」から渡される引数と、Windows 11の実機での値は未確認 | 大文字の`/S`を受け付ける引数解析の規則(アーキテクチャ)と一致する |
+| S3 | Windowsが渡す引数の形式、ダブルクリック・右クリックメニューで渡される引数 | 一部成立(CIのみ) | CIのランナーで`HKEY_CLASSES_ROOT\scrfile\shell`を記録した(下の「CIでの観察」)。動詞`open`は`"%1" /S`(大文字)、`config`は`"%1"`(引数なし)、`install`は`rundll32.exe desk.cpl,InstallScreenSaver %l`。日本語のWindowsで右クリックメニューに出る表示名、設定画面の「設定」「プレビュー」から渡される引数、Windows 11の実機での値は未確認 | 大文字の`/S`を受け付ける引数解析の規則(アーキテクチャ)と一致する |
 | S4 | 複数モニタ(DPI混在を含む)での全画面、最前面、カーソル非表示、フォーカスイベントの順序 | 未実施 | | |
 | S5 | インストールの方法と一覧への表示、空白・日本語を含む名前、別のスクリーンセーバーを選んだあとの一覧 | 未実施 | | |
 | S6 | GPUが使えない環境での挙動、WARPへのフォールバック | 未実施 | | |
@@ -34,13 +34,13 @@
 GitHubのWindowsランナー(`windows-2025`)で、スパイクのビルド用ワークフローの自己テストのログから得た結果。実機での確認の代わりにはならないが、実機で確かめる項目の見当を付けるために記録する。
 
 - 対象: PR #4のコミット`d472a09`のワークフローの実行(2026-10-31)
-- 環境: Windows Server 2025(ドライバのバージョン`10.0.26100.33648`からビルド26100と推測)、GPUなし
+- 環境: Windows Server 2025(ドライバのバージョン`10.0.26100.33648`からビルド26100と推測)。表示言語は英語。GPUの有無は確かめていない
 - `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32)`は成功した。
-- 選ばれたアダプタは「Microsoft Basic Render Driver」(種類Cpu、DX12)。サーフェスの形式は`Bgra8Unorm`、表示モードは`Fifo`で設定できた。
-- `HKEY_CLASSES_ROOT\scrfile\shell`の値:
+- 自己テストはソフトウェアのアダプタ(WARP)を明示して要求する(`force_fallback: true`)。得られたアダプタは「Microsoft Basic Render Driver」(種類Cpu、DX12)。サーフェスの形式は`Bgra8Unorm`、表示モードは`Fifo`で設定できた。WARPを明示して要求したため、GPUが使えない環境で自動的にWARPへ切り替わるか(S6)の確認にはならない。
+- `HKEY_CLASSES_ROOT\scrfile\shell`の値(ランナーの表示言語は英語。日本語の表示名は観測していないため、実機で確かめる):
 
-| 動詞 | 表示名 | コマンド |
-| --- | --- | --- |
-| `open` | テスト(`T&est`) | `"%1" /S` |
-| `config` | 構成(`C&onfigure`) | `"%1"` |
-| `install` | インストール(`&Install`) | `rundll32.exe desk.cpl,InstallScreenSaver %l` |
+| 動詞 | 既定値(表示名) | `MUIVerb` | コマンド |
+| --- | --- | --- | --- |
+| `open` | `T&est` | なし | `"%1" /S` |
+| `config` | `C&onfigure` | `@shell32.dll,-10209` | `"%1"` |
+| `install` | `&Install` | `@shell32.dll,-10210` | `rundll32.exe desk.cpl,InstallScreenSaver %l` |
