@@ -97,9 +97,9 @@ flowchart TD
     valid -->|"no"| quit2["exit quietly with an error code"]
     parse -->|"/c, /c:HWND, --settings, unrecognized"| settings["Settings dialog"]
     parse -->|"--window, --fullscreen"| standalone["Standalone app (planned)"]
-    parse -->|"no arguments"| ext{"executable extension is .scr?"}
-    ext -->|"yes"| settings
-    ext -->|"no (.exe or non-Windows)"| standalone
+    parse -->|"no arguments"| ext{"executable extension (case-insensitive)"}
+    ext -->|".scr, other, or unknown"| settings
+    ext -->|".exe"| standalone
 ```
 
 引数解析の規則(Phase 1でテストから先に書く):
@@ -107,15 +107,17 @@ flowchart TD
 | 入力例 | 結果 | 備考 |
 | --- | --- | --- |
 | (なし)、実行ファイルの拡張子が`.scr` | Settings(オーナーなし) | [MS-1] |
-| (なし)、実行ファイルの拡張子が`.exe`、またはWindows以外 | Standalone(ウィンドウ) | 単体アプリとして実行するには`.exe`拡張子が必要とされる[MS-2]。実装は後のフェーズ([ADR-0012](../adr/0012-standalone-app-mode.md)) |
+| (なし)、実行ファイルの拡張子が`.exe` | Standalone(ウィンドウ) | 単体アプリとして実行するには`.exe`拡張子が必要とされる[MS-2]。拡張子は大文字小文字を区別せずに比べる。実装は後のフェーズ([ADR-0012](../adr/0012-standalone-app-mode.md)) |
+| (なし)、拡張子を取得できない、またはそれ以外の拡張子 | Settings(オーナーなし) | 安全側に倒す。Windows以外での扱いは移植時に決める |
 | `--window`、`--fullscreen` | Standalone(ウィンドウ、全画面) | 実行ファイルの名前によらず有効。実装は後のフェーズ |
-| `--settings` | Settings(オーナーなし) | 実行ファイルの名前によらず有効 |
+| `--settings` | Settings(オーナーなし) | 実行ファイルの名前によらず有効。長いオプションは完全一致で判定し、`/s`・`-s`と取り違えない(テストケースにする) |
 | `/c` | Settings(前面のウィンドウをオーナーにする) | [MS-1]。前面のウィンドウは取得後に有効なウィンドウか検証する |
 | `/c:1234`、`/c 1234` | Settings(オーナーHWND 1234) | 形式はスパイクS3で確認 |
 | `/p 1234`、`/p:1234` | Preview(親HWND 1234) | [MS-1]。HWNDは符号なし10進数 |
 | `/p`(HWNDなし)、`/p abc` | Settings(オーナーなし) | 誤って全画面にしない |
 | `/s`、`/S`、`-s` | Screensaver | 大文字小文字・ハイフンを許容 |
-| 認識した引数の後に続く余分な引数(`/s extra`、`/p 1234 extra`など) | 余分な引数を無視する。最初に認識した引数がモードを決める | 隠しの起動オプション(アイデアE-12)を採用する場合は、この表に追加する |
+| 2番目以降の余分な引数(`/s extra`、`/p 1234 extra`など) | 余分な引数を無視する。最初の引数がモードを決める | 隠しの起動オプション(アイデアE-12)を採用する場合は、この表に追加する |
+| 最初の引数を認識できない(`foo /s`、`.exe`に`foo`を付けた場合など) | Settings(オーナーなし) | 2番目以降に`/s`があっても全画面にしない(W-8) |
 | 上記以外 | Settings(オーナーなし) | 仕様調査のW-8 |
 
 多重起動: `/s`は名前付きミューテックスで単一起動にし、既に動いている場合は静かに終了する(「プレビュー」ボタンと待ち時間による起動が重なる場合など)。`/p`はプレビュー枠ごとに独立して動かす。

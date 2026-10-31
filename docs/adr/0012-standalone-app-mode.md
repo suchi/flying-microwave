@@ -19,21 +19,24 @@
 
 起動モードは、Screensaver(`/s`)、Preview(`/p`)、Settings(`/c`または引数なし)、Standalone(ウィンドウまたは全画面)の4つとする。
 
-- 長いオプション: `--window`、`--fullscreen`、`--settings`を用意する。実行ファイルの名前によらず動作する。
-- 判定の順序: 最初に認識できた引数がモードを決める。引数解析の詳細な規則(認識できない引数の扱いなど)は[アーキテクチャの起動モードの判定](../design/architecture.md#起動モードの判定)に従う。
-- 引数なしの場合: 実行ファイルの拡張子が`.scr`ならSettingsを表示する(Microsoftのスクリーンセーバーの規約に従う)。それ以外(`.exe`、またはWindows以外のプラットフォーム)ならStandaloneのウィンドウ表示で起動する。
+- 長いオプション: `--window`、`--fullscreen`、`--settings`を用意する。実行ファイルの名前によらず動作する。長いオプションは完全一致で判定し、`/s`・`-s`などの短いスイッチと取り違えない。
+- 判定の順序: 最初の引数がモードを決める。2番目以降の余分な引数は無視する。最初の引数を認識できない場合は、拡張子に関係なくSettingsにする(誤って全画面やStandaloneで起動しない)。引数解析の詳細な規則は[アーキテクチャの起動モードの判定](../design/architecture.md#起動モードの判定)に従う。
+- 引数が1つもない場合(Windows): 実行ファイルの拡張子が`.scr`ならSettingsを表示する(Microsoftのスクリーンセーバーの規約に従う)。`.exe`ならStandaloneのウィンドウ表示で起動する。拡張子は大文字小文字を区別せずに比べる(8.3形式の短い名前では`.SCR`になりうる)。拡張子を取得できない場合や、それ以外の拡張子の場合はSettingsにする。
+- Windows以外: 引数がない場合の扱いは、各OSへの移植時に決める。XScreenSaverなど、各OSのスクリーンセーバーの起動方法と衝突しうるため、先に決めない。
 
 ```mermaid
 flowchart TD
-    start(["process start"]) --> first{"first recognized argument"}
+    start(["process start"]) --> first{"first argument"}
     first -->|"/s"| saver["Screensaver"]
     first -->|"/p HWND"| preview["Preview"]
     first -->|"/c or --settings"| settings["Settings"]
     first -->|"--window"| win["Standalone, windowed"]
     first -->|"--fullscreen"| full["Standalone, fullscreen"]
-    first -->|"none"| ext{"executable extension is .scr?"}
-    ext -->|"yes"| settings
-    ext -->|"no: .exe or non-Windows"| win
+    first -->|"unrecognized"| settings
+    first -->|"no arguments (Windows)"| ext{"executable extension, case-insensitive"}
+    ext -->|".scr"| settings
+    ext -->|".exe"| win
+    ext -->|"other or unknown"| settings
 ```
 
 ### Standaloneの動作
