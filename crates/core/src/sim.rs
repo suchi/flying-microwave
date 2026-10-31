@@ -189,17 +189,22 @@ fn random_velocity(rng: &mut Rng, speed: f32) -> (f32, f32) {
 /// Moves `flyer` to a new entry point on the top or right edge with a fresh
 /// velocity.
 ///
-/// `half` is half the flyer size. The entry point is drawn along the combined
-/// length of the two entry edges, each weighted by the flyer's motion across
-/// it: the top edge is `aspect` wide and crossed at rate 1 (down), the right
-/// edge is 1 high and crossed at rate 2 (left). This keeps the flyer density
+/// `half` is half the flyer size. The entry line runs along the top edge from
+/// x = 0 to the corner (aspect + half, -half) just outside the top-right of the
+/// screen, then down the right edge to y = 1. The two parts meet at that
+/// corner, so every track that crosses the screen is fed and no empty band
+/// appears. The entry point is drawn along the combined line, each part
+/// weighted by the flyer's motion across it: the top part is crossed at rate 1
+/// (down) and the right part at rate 2 (left). This keeps the flyer density
 /// uniform over the screen.
 fn respawn(flyer: &mut Flyer, rng: &mut Rng, aspect: f32, half: f32, speed: f32) {
-    let u = rng.range_f32(0.0, aspect + 2.0);
-    let (x, y) = if u < aspect {
+    let top = aspect + half;
+    let right = 1.0 + half;
+    let u = rng.range_f32(0.0, top + 2.0 * right);
+    let (x, y) = if u < top {
         (u, -half)
     } else {
-        (aspect + half, (u - aspect) / 2.0)
+        (aspect + half, (u - top) / 2.0 - half)
     };
     let (vx, vy) = random_velocity(rng, speed);
     *flyer = Flyer {
@@ -505,19 +510,19 @@ mod tests {
                     let mut w = world_with(seed, exiting);
                     // What the respawn must draw, in order: u, then the speed factor.
                     let mut probe = w.rng.clone();
-                    let u = probe.range_f32(0.0, ASPECT + 2.0);
+                    let u = probe.range_f32(0.0, ASPECT + half + 2.0 * (1.0 + half));
                     let factor = probe.range_f32(0.8, 1.2);
 
                     // One step runs, leaving quarter/4 of a step in the accumulator.
                     w.advance(TIME_STEP + TIME_STEP * quarter / 4);
 
                     let f = w.flyers[0];
-                    let (want_x, want_y) = if u < ASPECT {
+                    let (want_x, want_y) = if u < ASPECT + half {
                         tops += 1;
                         (u, -half)
                     } else {
                         rights += 1;
-                        (ASPECT + half, (u - ASPECT) / 2.0)
+                        (ASPECT + half, (u - (ASPECT + half)) / 2.0 - half)
                     };
                     assert_eq!((f.x, f.y), (want_x, want_y));
                     assert_eq!((f.prev_x, f.prev_y), (f.x, f.y), "no streak");
@@ -531,6 +536,52 @@ mod tests {
             }
         }
         assert!(tops > 0 && rights > 0, "tops = {tops}, rights = {rights}");
+    }
+
+    #[test]
+    fn respawn_tracks_cover_the_screen_without_gaps_at_uniform_density() {
+        // Along the flight direction (-2, 1) the value y + x / 2 stays constant,
+        // so it names the track a flyer follows. Entry points must cover every
+        // track from the top-left to the bottom-right corner evenly; a gap would
+        // leave an empty band crossing the screen.
+        let half = BASE_SIZE / 2.0;
+        let mut rng = Rng::new(7);
+        let mut tracks: Vec<f32> = (0..20_000)
+            .map(|_| {
+                let mut f = flyer_at(0.0, 0.0, 1.0);
+                respawn(&mut f, &mut rng, ASPECT, half, BASE_SPEED);
+                f.y + f.x / 2.0
+            })
+            .collect();
+        tracks.sort_by(f32::total_cmp);
+
+        let widest_gap = tracks.windows(2).map(|w| w[1] - w[0]).fold(0.0, f32::max);
+        assert!(widest_gap < 0.01, "widest gap between tracks: {widest_gap}");
+
+        // The tracks span from the top edge at x = 0 to the bottom of the right edge.
+        let (first, last) = (tracks[0], tracks[tracks.len() - 1]);
+        let (low, high) = (-half, 1.0 + (ASPECT + half) / 2.0);
+        assert!(
+            (first - low).abs() < 0.01,
+            "first track {first}, expected {low}"
+        );
+        assert!(
+            (last - high).abs() < 0.01,
+            "last track {last}, expected {high}"
+        );
+
+        // Uniform density: every tenth of the span gets about a tenth of the flyers.
+        let mut bins = [0_u32; 10];
+        for t in &tracks {
+            let i = (((t - low) / (high - low)) * 10.0) as usize;
+            bins[i.min(9)] += 1;
+        }
+        for (i, &n) in bins.iter().enumerate() {
+            assert!(
+                (1800..=2200).contains(&n),
+                "bin {i} has {n} of 20000: {bins:?}"
+            );
+        }
     }
 
     #[test]
