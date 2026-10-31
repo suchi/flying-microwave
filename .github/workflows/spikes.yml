@@ -52,12 +52,13 @@ jobs:
       # Must come after the toolchain install: the rustc version is part of the key.
       # Pull requests only: manual runs build from scratch, because their
       # artifacts are run by hand on real hardware and cache contents are not
-      # verified. The key adds the target and the spike manifests, whose
-      # [profile] sections the default key ignores.
+      # verified. The matrix target is not part of the default key, so add it.
+      # Each spike's own Cargo.toml (its workspace root and only member) is
+      # already hashed into the default key, [profile] included.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: github.event_name == 'pull_request'
         with:
-          key: ${{ matrix.target }}-${{ hashFiles('spikes/*/Cargo.toml') }}
+          key: ${{ matrix.target }}
           workspaces: |
             spikes/saver-spike -> target
             spikes/settings-spike -> target
