@@ -35,15 +35,11 @@ delta=$(field '.delta // ""') || exit 0
 final=$(field '.final // false') || exit 0
 
 # Why: the record is quoted back to Claude as the reason of a denial, so
-# nobody else may be able to write it. Prefer the per-session scratchpad;
-# otherwise use a per-user directory created with mode 700 and owned by us.
+# nobody else may be able to write it: a per-user directory created with
+# mode 700 and owned by us. Why not scratchpad_dir: it is not guaranteed in
+# every event's input, and both hooks must always agree on the place.
 umask 077
-scratch=$(printf '%s' "$input" | jq -r '.scratchpad_dir // empty' 2>/dev/null) || exit 0
-if [ -n "$scratch" ] && [ -d "$scratch" ]; then
-  dir="$scratch/japanese-check"
-else
-  dir="${TMPDIR:-/tmp}/claude-japanese-check-$(id -u)"
-fi
+dir="${TMPDIR:-/tmp}/claude-japanese-check-$(id -u)"
 mkdir -p "$dir" 2>/dev/null || exit 0
 [ -O "$dir" ] || exit 0
 prefix="$dir/$session.$message"
