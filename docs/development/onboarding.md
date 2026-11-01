@@ -117,7 +117,8 @@ CIと同じ形で、手元でビルドとテストを行う手順である。コ
 - rustup(Rustのツールチェーンの管理ツール)
 - Visual Studio Build Tools の「C++ によるデスクトップ開発」(MSVCのリンカとWindows SDK)
 - Git for Windows(フックを動かすGit Bashも入る。6.3)
-- Python 3(依存の7日の検査とフックの検査に使う)
+- Python 3(依存の7日の検査とフックの検査に使う。この節のコマンドはWindowsの`python`で書いている。LinuxとmacOSでは`python3`にする)
+- jq(フックが入力の解析に使い、フックの検査にも要る。導入の方法は6.3)
 
 手順:
 
@@ -128,7 +129,7 @@ CIと同じ形で、手元でビルドとテストを行う手順である。コ
 5. 依存の7日の検査: `python -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock`。`Cargo.lock`を変えたときは、コミットの前に必ず実行する(AGENTS.md)。
 6. フックの検査: `python -I scripts/check_hooks.py`。`sh`と`jq`を使うため、WindowsではGit Bashの中で実行する。
 
-Linuxでは、手順2・5・6と、型チェック(`cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc`)を実行できる。Windowsの実行ファイルは作れない。ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。スパイクのビルドは[spikes/README.md](../../spikes/README.md)を参照する。
+Linuxでは、手順2・5・6(`python3`で実行する。手順6には`jq`が要る)と、型チェック(`cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc`)を実行できる。Windowsの実行ファイルは作れない。ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。スパイクのビルドは[spikes/README.md](../../spikes/README.md)を参照する。
 
 ## 6. AIエージェントとの協働
 
