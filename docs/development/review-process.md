@@ -21,24 +21,25 @@
 
 ```mermaid
 flowchart TD
-    pr["create or update the pull request"] --> request["request a review"]
+    commit["commit locally (not pushed yet)"] --> request["request a review of the local branch"]
     request --> findings{"findings?"}
     findings -->|"yes"| verify["verify each finding against primary sources"]
     verify --> respond["fix with commits, or record why not"]
     respond --> again{"medium or higher fixed and no re-review yet?"}
     again -->|"yes"| request
-    again -->|"no"| gate{"CI green and maintainer approved?"}
-    findings -->|"no"| gate
+    again -->|"no"| push["push once and create the pull request"]
+    findings -->|"no"| push
+    push --> gate{"CI green and maintainer approved?"}
     gate -->|"yes"| merge["merge"]
-    gate -->|"no"| wait["fix CI or wait for approval"]
+    gate -->|"no"| wait["fix CI in one push, or wait for approval"]
     wait --> gate
 ```
 
 | 段階 | 内容 |
 | --- | --- |
-| レビュー依頼 | 差分の範囲と、関係する要件・計画・ADR・AGENTS.mdのルールを渡す。作成者の結論や仮説は渡さない(結論に引きずられないようにするため)。再レビューでは、例外として前回の指摘と対応の一覧も渡す |
+| レビュー依頼 | プッシュの前に依頼する([ADR-0018](../adr/0018-review-before-push.md))。ローカルのブランチと`main`との差分の範囲と、関係する要件・計画・ADR・AGENTS.mdのルールを渡す。作成者の結論や仮説は渡さない(結論に引きずられないようにするため)。再レビューでは、例外として前回の指摘と対応の一覧も渡す |
 | 指摘の検証 | 指摘は検証すべき主張として扱い、一次情報(公式ドキュメント、ソース、レジストリ)で確かめる。確かめた結果を「確認済み」「未確認・妥当」「不採用」に分ける |
-| 対応 | 採用した指摘は修正コミットで直す。修正は論理変更ごとにコミットし、検証を終えてからまとめて1回でプッシュする(重いCIの再実行を減らすため)。採用しない指摘は理由を記録する。セキュリティに関わる指摘は、メンテナーが判断するまで未解決のままにする |
+| 対応 | 採用した指摘は修正コミットで直す。修正は論理変更ごとにコミットする。レビューを終えてから、最初のプッシュとPRの作成を行う。PRを作ったあとの修正(CIの失敗、人間のレビュー)は、検証を終えてからまとめて1回でプッシュする(重いCIの再実行を減らすため)。採用しない指摘は理由を記録する。セキュリティに関わる指摘は、メンテナーが判断するまで未解決のままにする |
 | 返信と解決 | 人間が付けたレビュースレッドには、対応内容または対応しない理由を返信してから解決する |
 | 再レビュー | 「レビューの深さ」の条件を満たすときだけ、1回行う |
 | マージ | レビュー完了・CIの全ジョブがグリーン・メンテナーの承認の3つがそろってからマージする(「レビュー完了の判定」) |
@@ -46,7 +47,7 @@ flowchart TD
 ## 敵対的レビューの手順(既定)
 
 1. 依頼内容を準備する。
-   - 範囲: 対象のPRの差分(ベースブランチとの差分、または前回のレビュー以降の差分)。
+   - 範囲: プッシュする前のローカルのブランチと`main`との差分(`git diff main...<ブランチ>`)、または前回のレビュー以降の差分。別のworktreeのレビュー用エージェントも、同じリポジトリの参照を共有するため、プッシュしていないブランチを読める。
    - 根拠: 関係する計画(`docs/plans/`)、設計(`docs/design/`)、ADR(`docs/adr/`)、AGENTS.md。
    - 観点: 本格的なレビューでは、正しさ、セキュリティ、テストの不足、先回りの実装(YAGNI)、個人情報や会話の記録が含まれていないこと。軽いレビューでは「レビューの深さ」の範囲。
    - 出力形式: 重大な順に、重要度・箇所・問題・根拠・修正案を並べる。報告させる指摘の範囲(「レビューの深さ」)を依頼文に書く。
@@ -56,7 +57,7 @@ flowchart TD
    - 作成者と作業ツリーを共有しない。サブエージェントでも`/code-review`でも同じである。Claude Codeのサブエージェントは、別のworktreeで起動する(Agentツールの`isolation: "worktree"`)。`/code-review`を作成者の作業ツリーで使うときは、差分を対象にする(PRの番号やブランチを対象にしたときに作業ツリーを切り替えるかは、確かめていないため)。あわせて依頼文で、`git checkout`・`git switch`など作業ツリーやHEADを変えるコマンドを使わず、`git show <ref>:<path>`と`git diff`で読むよう指示する。共有した作業ツリーでレビュー用のエージェントがブランチを切り替えると、作成者のコミットが意図しないブランチの上にできてしまうためである(2026-11-01に起きた)。
 3. 結果を検証して対応する(共通ループの「指摘の検証」「対応」)。
 4. 記録する。
-   - PRでは、指摘の一覧と各指摘への対応を1件のコメントにまとめて投稿する(エージェントの指摘はGitHubのレビュースレッドにならないため)。冒頭に、レビューの対象(ベースのコミットとレビューしたhead SHA)と指摘の件数を書く。例: 「レビュー対象: `abc1234..def5678`、指摘: 3件(すべて修正済み)」。
+   - PRを作ったら、指摘の一覧と各指摘への対応を1件のコメントにまとめて投稿する(エージェントの指摘はGitHubのレビュースレッドにならないため)。冒頭に、レビューの対象(ベースのコミットとレビューしたhead SHA)と指摘の件数を書く。例: 「レビュー対象: `abc1234..def5678`、指摘: 3件(すべて修正済み)」。
    - 計画・設計の本格的なレビューは、`docs/reviews/NNNN-<対象>.md`にも記録する(例: [0001-plan-adversarial-review.md](../reviews/0001-plan-adversarial-review.md))。
 
 ## レビュー完了の判定

@@ -5,7 +5,7 @@ argument-hint: <PR番号>
 
 PR #$ARGUMENTS のレビュー指摘とCIの状態を確認し、対応する。
 
-手順の正本は`docs/development/review-process.md`(共通ループ)。本リポジトリのレビュアーは敵対的レビューのエージェントで、GitHub Copilotのレビューは使わない(ADR-0014)。
+手順の正本は`docs/development/review-process.md`(共通ループ)。最初の敵対的レビューは、PRを作る前(プッシュの前)に済ませておく(ADR-0018)。このコマンドは、PRを作ったあとの指摘とCIに対応する。本リポジトリのレビュアーは敵対的レビューのエージェントで、GitHub Copilotのレビューは使わない(ADR-0014)。
 
 ## 手順
 

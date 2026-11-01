@@ -76,15 +76,16 @@ feat: add exit policy for screensaver mode
 
 ```mermaid
 flowchart LR
-    pr["pull request"] --> review["adversarial review"]
+    commit["local commits"] --> review["adversarial review before push"]
+    review --> pr["push once and open the pull request"]
     pr --> ci["CI"]
-    review --> gate{"all three met?"}
+    pr --> gate{"all three met?"}
     ci --> gate
     approval["maintainer approval"] --> gate
     gate -->|"yes"| merge["merge"]
 ```
 
-- 敵対的レビュー: すべてのPRで、作成者とは別のコンテキストを持つエージェントに、差分と要件だけを渡して欠陥を探させる。作成者の結論や仮説は渡さない。再レビューでは、例外として前回の指摘と対応の一覧も渡す
+- 敵対的レビュー: すべての変更で、プッシュの前に、作成者とは別のコンテキストを持つエージェントに、差分と要件だけを渡して欠陥を探させる([ADR-0018](../adr/0018-review-before-push.md))。作成者の結論や仮説は渡さない。再レビューでは、例外として前回の指摘と対応の一覧も渡す
 - GitHub Copilot: このリポジトリでは、プロジェクト概要のとおりレビューを含めて利用しない(レビューの方法は[ADR-0007](../adr/0007-adversarial-review-without-copilot.md))。Copilotを使う場合の手順も、同じループの参考としてレビュー手順に残している
 - 手順の詳細: [PRのレビュー手順](review-process.md)に従う
 - 指摘への対応: 指摘は検証すべき主張として扱い、一次情報で確かめてから対応する。修正するか、しない理由を記録する。各指摘に返信してから解決する
