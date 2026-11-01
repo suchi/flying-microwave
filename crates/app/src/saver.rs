@@ -34,9 +34,14 @@ const EXIT_GPU_INIT_TIMEOUT: u32 = 6;
 
 struct SaverWindow {
     window: Arc<Window>,
+    index: usize,
+    /// Physical size of the monitor this window covers, if known.
+    monitor_size: Option<PhysicalSize<u32>>,
     /// `None` when the GPU failed: the window then stays black.
     target: Option<Target>,
     world: World,
+    /// The aspect `world` was created with.
+    aspect: f32,
     last_frame: Option<Instant>,
     retry_at: Option<Instant>,
 }
@@ -89,6 +94,15 @@ pub fn run() -> i32 {
     app.exit_code
 }
 
+/// Width divided by height (1.0 for an empty size).
+fn aspect_of(size: PhysicalSize<u32>) -> f32 {
+    if size.height == 0 {
+        1.0
+    } else {
+        size.width as f32 / size.height as f32
+    }
+}
+
 /// A seed that differs between runs and between monitors.
 fn seed(index: usize) -> u64 {
     let nanos = SystemTime::now()
@@ -119,6 +133,14 @@ impl SaverApp {
     fn create_windows(&mut self, event_loop: &ActiveEventLoop) {
         let monitors: Vec<_> = event_loop.available_monitors().collect();
         log!("monitors: {}", monitors.len());
+        for (i, m) in monitors.iter().enumerate() {
+            log!(
+                "monitor {i}: position {:?} size {:?} scale {}",
+                m.position(),
+                m.size(),
+                m.scale_factor()
+            );
+        }
         // Without monitor information, one maximized window.
         let targets: Vec<_> = if monitors.is_empty() {
             vec![None]
@@ -156,12 +178,18 @@ impl SaverApp {
                 win::fill_black(hwnd);
             }
             let size = window.inner_size();
-            let aspect = size.width as f32 / size.height.max(1) as f32;
-            log!("window {index}: {}x{}", size.width, size.height);
+            log!(
+                "window {index}: inner {size:?} outer position {:?} scale {}",
+                window.outer_position(),
+                window.scale_factor()
+            );
             self.windows.push(SaverWindow {
+                world: World::new(seed(index), aspect_of(size), SimParams::default()),
+                aspect: aspect_of(size),
                 window,
+                index,
+                monitor_size: monitor.as_ref().map(|m| m.size()),
                 target: None,
-                world: World::new(seed(index), aspect, SimParams::default()),
                 last_frame: None,
                 retry_at: None,
             });
@@ -319,11 +347,36 @@ impl ApplicationHandler for SaverApp {
             }),
             WindowEvent::CloseRequested => Some(Event::CloseRequested),
             WindowEvent::Destroyed => Some(Event::WindowDestroyed),
-            WindowEvent::Resized(size) => {
-                if let (Some(target), Some(gpu)) =
-                    (self.windows[index].target.as_mut(), self.gpu.as_ref())
+            // Why: when the window moves to a monitor with another scale
+            // factor, winit keeps its logical size, so it would no longer
+            // cover the monitor. Ask for the monitor's physical size instead
+            // (winit 0.30.13, WM_DPICHANGED in platform_impl/windows/event_loop.rs).
+            WindowEvent::ScaleFactorChanged {
+                scale_factor,
+                mut inner_size_writer,
+            } => {
+                let w = &self.windows[index];
+                log!("window {}: scale factor changed to {scale_factor}", w.index);
+                if let Some(size) = w.monitor_size
+                    && let Err(e) = inner_size_writer.request_inner_size(size)
                 {
+                    log!("window {}: keeping the monitor size failed: {e}", w.index);
+                }
+                None
+            }
+            WindowEvent::Resized(size) => {
+                let w = &mut self.windows[index];
+                log!("window {}: resized to {size:?}", w.index);
+                if let (Some(target), Some(gpu)) = (w.target.as_mut(), self.gpu.as_ref()) {
                     target.resize(gpu, size);
+                }
+                // The aspect only matters where flyers re-enter, and the size
+                // changes almost only right after start, so a new world is fine.
+                let aspect = aspect_of(size);
+                if size.height > 0 && (aspect - w.aspect).abs() > 1e-3 {
+                    w.world = World::new(seed(w.index), aspect, SimParams::default());
+                    w.aspect = aspect;
+                    w.last_frame = None;
                 }
                 None
             }
