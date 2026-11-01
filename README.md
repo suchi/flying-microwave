@@ -4,7 +4,7 @@
 
 ## 状況
 
-計画段階で、製品コードはまだない。[初期実装計画](docs/plans/0001-initial-implementation-plan.md)は合意済みで、次はPhase 0(基盤整備)に着手する。
+[初期実装計画](docs/plans/0001-initial-implementation-plan.md)に沿って、Phase 0(基盤整備)の仕上げと、Phase 1(最初のスクリーンセーバー、v0.1.0)の実装を進めている。まだリリースはない。
 
 ## 予定している機能
 
