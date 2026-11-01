@@ -108,6 +108,28 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 
 ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では、テストとリントは必要ない。代わりに、リンク切れや記載の食い違いがないかを`/consistency-check`で確認する。
 
+### 5.1 手でのビルドとテスト
+
+CIと同じ形で、手元でビルドとテストを行う手順である。コマンドは、リポジトリのルートで実行する。
+
+前提のツール(Windows):
+
+- rustup(Rustのツールチェーンの管理ツール)
+- Visual Studio Build Tools の「C++ によるデスクトップ開発」(MSVCのリンカとWindows SDK)
+- Git for Windows(フックを動かすGit Bashも入る。6.3)
+- Python 3(依存の7日の検査とフックの検査に使う)
+
+手順:
+
+1. ツールチェーンを入れる: `rustup toolchain install`。`rust-toolchain.toml`のとおり、版を固定したRustと、Windowsの2つのターゲット、rustfmt、clippyが入る。
+2. テストとリント: `cargo test --workspace --locked`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`。
+3. ビルド: `cargo build --release --locked --target x86_64-pc-windows-msvc`。CIと同じく、ターゲットを明示する。実行ファイルは`target\x86_64-pc-windows-msvc\release\flying-microwave.exe`にできる。VC++ランタイムは静的にリンクする(`.cargo/config.toml`の`+crt-static`)。
+4. スクリーンセーバーとして試す: 実行ファイルを`FlyingMicrowave.scr`という名前でコピーし、右クリックの「インストール」か「テスト」で動かす(Windows 11では、先に「その他のオプションを確認」を選ぶことがある)。ログは`%TEMP%\flying-microwave.log`に書かれる。
+5. 依存の7日の検査: `python -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock`。`Cargo.lock`を変えたときは、コミットの前に必ず実行する(AGENTS.md)。
+6. フックの検査: `python -I scripts/check_hooks.py`。`sh`と`jq`を使うため、WindowsではGit Bashの中で実行する。
+
+Linuxでは、手順2・5・6と、型チェック(`cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc`)を実行できる。Windowsの実行ファイルは作れない。ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。スパイクのビルドは[spikes/README.md](../../spikes/README.md)を参照する。
+
 ## 6. AIエージェントとの協働
 
 指示の単一ソースは[AGENTS.md](../../AGENTS.md)である。`CLAUDE.md`は`@AGENTS.md`でこれを取り込むだけの薄いポインタで、GitHub CopilotとOpenAI Codexは`AGENTS.md`をそのまま読む。指示の追加・変更は`AGENTS.md`に行い、エージェント固有のファイルには書かない。
