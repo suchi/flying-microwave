@@ -41,6 +41,32 @@ pub fn write(line: &str) {
     }
 }
 
+/// Forwards warnings and errors of the `log` crate (used by wgpu) to the
+/// diagnostic log. Lines start with `[LEVEL target]`.
+pub fn forward_log_crate() {
+    struct Forward;
+    impl ::log_crate::Log for Forward {
+        fn enabled(&self, metadata: &::log_crate::Metadata<'_>) -> bool {
+            metadata.level() <= ::log_crate::Level::Warn
+        }
+        fn log(&self, record: &::log_crate::Record<'_>) {
+            if self.enabled(record.metadata()) {
+                write(&format!(
+                    "[{} {}] {}",
+                    record.level(),
+                    record.target(),
+                    record.args()
+                ));
+            }
+        }
+        fn flush(&self) {}
+    }
+    static FORWARD: Forward = Forward;
+    if ::log_crate::set_logger(&FORWARD).is_ok() {
+        ::log_crate::set_max_level(::log_crate::LevelFilter::Warn);
+    }
+}
+
 /// `log!("...", args)`: formats and writes one line to the diagnostic log.
 macro_rules! log {
     ($($arg:tt)*) => {

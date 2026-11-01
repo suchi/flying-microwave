@@ -38,6 +38,7 @@ fn main() {
 
 #[cfg(windows)]
 fn run(mode: Mode) -> i32 {
+    log::forward_log_crate();
     log::write(&format!(
         "Flying Microwave {} started: {mode:?}",
         env!("CARGO_PKG_VERSION")

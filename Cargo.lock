@@ -300,6 +300,7 @@ name = "flying-microwave"
 version = "0.0.0"
 dependencies = [
  "flying-microwave-core",
+ "log",
  "pollster",
  "wgpu",
  "windows-sys 0.61.2",
