@@ -34,3 +34,5 @@
 | [0002](0002-extra-ci-run-after-review.md) | レビューの指摘の修正で、不要なCIが走った | 2026-11-01 |
 | [0003](0003-cancelled-maintainer-spike-run.md) | メンテナーのスパイクの手動実行を取り消した | 2026-11-01 |
 | [0004](0004-spike-output-not-visible.md) | 実機の確認で、描画が目に見えなかった | 2026-11-01 |
+| [0005](0005-english-notes-between-tool-calls.md) | 対策のあとも、ツール呼び出しの合間に英語の文を表示した | 2026-11-01 |
+| [0006](0006-plan-delayed-first-runnable-version.md) | 計画の順番が、最初に動く版を遅らせた | 2026-11-01 |
