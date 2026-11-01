@@ -1,0 +1,173 @@
+# Builds a tagged commit and creates a draft GitHub Release with the zip and
+# its checksum (plan 0001, Phase 1 task 12, and section 7.3). The maintainer
+# reviews the draft and publishes it; this workflow never publishes.
+#
+# Triggers: pushing a v* tag (only repository admins can create one, by the
+# release-tags ruleset), or a manual run for an existing tag (for example the
+# first release made with this workflow, or after a failed run).
+#
+# Security (same rules as ci.yml, plus):
+# - the check and build jobs have a read-only token; only the publish job can
+#   write, and it runs no code from this repository or its dependencies, so a
+#   compromised build dependency never gets a token that writes,
+# - the publish job uses the gh CLI of the runner image instead of another
+#   action (docs/incidents/0007: no new action whose publish date is unknown),
+# - the tag input is used only through the TAG environment variable in
+#   scripts, never expanded into a script with ${{ }}.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release (vX.Y.Z or vX.Y.Z-alpha.N)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+  # Keep in step with ci.yml. The cooldown check below checks this version.
+  CARGO_ABOUT_VERSION: 0.9.2
+
+concurrency:
+  group: release-${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The tag format, the Cargo.toml version and the CHANGELOG section.
+      - name: Check the tag and write the release notes
+        run: |
+          python3 -I -m unittest discover -s scripts
+          python3 -I scripts/prepare_release.py "$TAG" --notes "$RUNNER_TEMP/release-notes.md"
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "$TAG はmainの上にない" >&2
+            exit 1
+          fi
+
+      # Same check as ci.yml (docs/incidents/0007).
+      - name: Check dependency cooldown
+        run: |
+          tool="cargo-about-${CARGO_ABOUT_VERSION}"
+          curl -sSfL -o "$RUNNER_TEMP/$tool.crate" "https://static.crates.io/crates/cargo-about/$tool.crate"
+          tar -xzf "$RUNNER_TEMP/$tool.crate" -C "$RUNNER_TEMP" "$tool/Cargo.lock"
+          python3 -I scripts/check_publish_age.py \
+            --crate "cargo-about@${CARGO_ABOUT_VERSION}" \
+            Cargo.lock "$RUNNER_TEMP/$tool/Cargo.lock"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  build:
+    name: Build (x86_64-pc-windows-msvc)
+    needs: check
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+
+      # Why no cache: a release is built from scratch (plan 0001, chapter 9).
+      - name: Test
+        run: cargo test --workspace --locked --target x86_64-pc-windows-msvc
+
+      - name: Build release
+        run: cargo build --release --locked --target x86_64-pc-windows-msvc
+
+      # Same check as ci.yml (ADR-0001, R-16).
+      - name: Check DLL dependencies
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $dumpbin = & $vswhere -latest -products * -find 'VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe' | Select-Object -First 1
+          if (-not $dumpbin) { throw 'dumpbin.exe was not found' }
+          $exe = 'target/x86_64-pc-windows-msvc/release/flying-microwave.exe'
+          $out = & $dumpbin /nologo /dependents $exe
+          $out | Write-Output
+          if (-not ($out | Select-String -Pattern '(?i)\bKERNEL32\.dll\b')) { throw 'dumpbin output does not list KERNEL32.dll' }
+          $bad = $out | Select-String -Pattern '(?i)\b(vcruntime|msvcp|concrt|vccorlib|ucrtbase)\w*\.dll\b|\bapi-ms-win-crt-'
+          if ($bad) { throw "Dynamic C runtime dependency found: $bad" }
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path package | Out-Null
+          Copy-Item 'target/x86_64-pc-windows-msvc/release/flying-microwave.exe' package/FlyingMicrowave.scr
+          Copy-Item LICENSE package/LICENSE.txt
+
+      # Same steps as the manual run of ci.yml (plan 0002, T-2).
+      - name: License notices
+        shell: pwsh
+        run: |
+          cargo install --locked --features cli --version $env:CARGO_ABOUT_VERSION cargo-about
+          cargo about generate --locked --fail -o package/THIRD-PARTY-LICENSES.txt about.hbs
+          if ($LASTEXITCODE -ne 0) { throw 'cargo about failed' }
+          $left = Select-String -Path package/THIRD-PARTY-LICENSES.txt -Pattern '<(copyright holders|year|owner|name of author)>'
+          if ($left) { throw "Unfilled license placeholders: $left" }
+
+      - name: Zip and checksum
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          $zip = "FlyingMicrowave-$env:TAG-win-x64.zip"
+          Compress-Archive -Path package/* -DestinationPath "dist/$zip"
+          $hash = (Get-FileHash -Algorithm SHA256 "dist/$zip").Hash.ToLowerInvariant()
+          # The format of sha256sum, so that `sha256sum -c` can check it.
+          [IO.File]::WriteAllText("$PWD/dist/SHA256SUMS.txt", "$hash  $zip`n")
+          Get-Content dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Create draft release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      # Fails when a release for the tag already exists: delete the old
+      # draft first to make it again.
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" --name release --dir dist
+          gh run download "$GITHUB_RUN_ID" --name release-notes --dir notes
+          args=(--draft --verify-tag --title "Flying Microwave $TAG" --notes-file notes/release-notes.md)
+          if [[ "$TAG" == *-* ]]; then args+=(--prerelease); fi
+          gh release create "$TAG" "${args[@]}" dist/*
