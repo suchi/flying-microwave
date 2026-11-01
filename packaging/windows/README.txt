@@ -59,9 +59,9 @@ KNOWN LIMITATIONS
   and Smart App Control in enforcement mode is likely to block it.
 - Group Policy on managed PCs may prevent you from choosing a screen
   saver.
-- The arm64 build is not tested on real hardware. It only passes an
-  automated smoke test, and it is provided without any guarantee that
-  it works.
+- The arm64 build is not tested on real hardware. It is only checked
+  automatically, and it is provided without any guarantee that it
+  works. See the release notes for the checks.
 
 PRIVACY
 
@@ -135,8 +135,9 @@ v0.2.0 で追加されます。
   ブロックされる可能性が高いです。
 - 管理されている PC では、グループ ポリシーによってスクリーン セーバーを
   選べない場合があります。
-- arm64 版は実機で確認していません。自動のスモーク テストだけを
-  行っており、動作を保証せずに提供しています。
+- arm64 版は実機で確認していません。自動の確認だけを行っており、
+  動作を保証せずに提供しています。行った確認はリリース ノートを
+  参照してください。
 
 プライバシー
 

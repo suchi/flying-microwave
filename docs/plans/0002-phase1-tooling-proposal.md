@@ -50,7 +50,7 @@ flowchart LR
 ```
 
 - 起動: `v[0-9]+.[0-9]+.[0-9]+`のタグのプッシュ。タグの名前は環境変数で渡し、厳密な正規表現で検査してから、`cargo metadata --no-deps --locked --offline`で得たバージョンと照合する。タグが付いたコミットが`origin/main`の祖先であることも確かめる(計画の7.2で、タグは`main`に付けるため。T-5はタグを作れる人を絞るだけで、付ける先のコミットは制限しない)。
-- ビルドのジョブ: x64とarm64を、キャッシュを使わずに最初からビルドする([ADR-0017](../adr/0017-ci-build-cache-and-x64-spike-builds.md))。CIと同じ依存DLLの確認を行う。arm64は動作を保証しない対象で、CIではビルドしないため、GitHubがホストするarm64のランナー(`windows-11-arm`)でビルドし、同じジョブで自動のスモークテストを行う。arm64のビルドかスモークテストが失敗したら、ワークフローを失敗にする([ADR-0016](../adr/0016-arm64-without-guarantee.md)。2026-11-01に加えた)。`FlyingMicrowave.scr`に改名し、利用者向けの`README.txt`、`LICENSE.txt`、`THIRD-PARTY-LICENSES.txt`と一緒にzipにする。権限は読み取りだけ。
+- ビルドのジョブ: x64とarm64を、キャッシュを使わずに最初からビルドする([ADR-0017](../adr/0017-ci-build-cache-and-x64-spike-builds.md))。CIと同じ依存DLLの確認を行う。arm64は動作を保証しない対象で、CIではビルドしないため、GitHubがホストするarm64のランナー(`windows-11-arm`)でビルドし、同じジョブで自動の確認(依存DLLの確認と、動く場合はスモークテスト)を行う。arm64のビルドか自動の確認が失敗したら、ワークフローを失敗にする([ADR-0016](../adr/0016-arm64-without-guarantee.md)。2026-11-01に加えた)。`FlyingMicrowave.scr`に改名し、利用者向けの`README.txt`、`LICENSE.txt`、`THIRD-PARTY-LICENSES.txt`と一緒にzipにする。権限は読み取りだけ。
 - リリースのジョブ: 成果物を受け取り、`SHA256SUMS.txt`を作る。同じタグのリリースや下書きがないことを`gh release view`で確かめてから、`gh release create --draft --verify-tag`で下書きを作る。リリースノートは`CHANGELOG.md`の該当する版の節から作る。書き込みの権限(`contents: write`)は、このジョブだけに与える。
 - 公開: メンテナーが下書きを確かめて公開する(計画の7.2)。
 - アーティファクト証明: 非公開のあいだは使えないため、入れない。公開したときに、リリースのジョブに加える。
