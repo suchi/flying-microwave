@@ -154,14 +154,19 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 環境(cloud environment)は、ほかのプロジェクトと共有せず、本プロジェクト専用のものを使う。環境の設定(接続を許可するドメイン、セットアップスクリプト)は環境ごとに1つで、共有すると、片方のための変更がもう片方にも効くためである。推奨の設定は次のとおり。
 
 - Network access: 「Custom」とし、標準のパッケージ置き場も許可する(「Also include default list of common package managers」にチェックを入れる)。Allowed domainsには、`docs.rs`、`doc.rust-lang.org`、`docs.github.com`を加える。商標の確認には`tmsearch.uspto.gov`と`www.j-platpat.inpit.go.jp`も使う。
-- Setup script: 次のスクリプト。セッションの開始時に、リポジトリの1つ上のディレクトリで実行される。
+- Setup script: 次のスクリプト。
+  - 実行のタイミング: 公式ドキュメント([Environment caching](https://code.claude.com/docs/en/cloud-environments#environment-caching))によると、毎回のセッションではなく、最初のセッションと、環境のキャッシュを作り直すとき(スクリプトや許可するドメインを変えたとき、約7日でキャッシュが期限切れになったとき)に実行される。
+  - 実行するディレクトリ: 公式ドキュメントに記載がない。本プロジェクト専用の環境では、リポジトリの1つ上のディレクトリで実行されて`cd flying-microwave`が成功したことを、actionlintが入っていたことから確かめた。
+  - 失敗の扱い: 公式ドキュメント([Script requirements](https://code.claude.com/docs/en/cloud-environments#script-requirements))によると、0以外の終了コードではセッションが始まらない。そのため各コマンドの失敗は`|| true`で無視し、代わりにセッションの初めに`rustup show`と`actionlint -version`で、導入されたことを確かめる。
 
 ```bash
 #!/bin/bash
 # Flying Microwave: setup for cloud sessions.
-# The script starts one directory above the repository.
+# Why: a non-zero exit stops the session from starting, so failures are
+# ignored here and checked at the start of each session instead.
+# The script starts one directory above the repository (observed, not documented).
 cd flying-microwave || exit 0
-# Rust toolchain pinned by rust-toolchain.toml (1.99.1, rustfmt, clippy, Windows targets)
+# Rust toolchain pinned by rust-toolchain.toml (with rustfmt, clippy, Windows targets)
 rustup toolchain install || true
 # Workflow linter, run before pushing workflow changes
 GOBIN=/usr/local/bin go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 || true
