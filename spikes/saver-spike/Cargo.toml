@@ -27,7 +27,7 @@ pollster = "=1.0.1"
 # log crate (wgpu-hal dx12 `configure`); the spike forwards it to its log file.
 # Same version as already in Cargo.lock through wgpu. Why `package`: the
 # spike has its own `log` module and `log!` macro, which the crate name would clash with.
-log_crate = { package = "log", version = "=0.4.35" }
+log_crate = { package = "log", version = "=0.4.34" }
 windows-sys = { version = "=0.61.2", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",

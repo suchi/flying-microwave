@@ -11,3 +11,6 @@ _work
 
 # Temporary worktrees of Claude Code subagents (docs/development/review-process.md)
 /.claude/worktrees/
+
+# Python bytecode caches
+__pycache__/

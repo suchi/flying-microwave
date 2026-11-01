@@ -48,6 +48,17 @@ jobs:
         with:
           persist-credentials: false
 
+      # Supply-chain defense: the spikes are run by hand on real hardware, so
+      # their dependencies must also have been public for at least 7 days
+      # before anything is built (docs/incidents/0007).
+      - name: Check dependency cooldown
+        shell: pwsh
+        run: |
+          python -I -m unittest discover -s scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I scripts/check_publish_age.py spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
 
