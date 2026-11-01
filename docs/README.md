@@ -81,3 +81,4 @@
 | [0005](incidents/0005-english-notes-between-tool-calls.md) | 対策のあとも、ツール呼び出しの合間に英語の文を表示した |
 | [0006](incidents/0006-plan-delayed-first-runnable-version.md) | 計画の順番が、最初に動く版を遅らせた |
 | [0007](incidents/0007-dependencies-inside-cooldown.md) | 公開から7日たっていない依存の版を使った |
+| [0008](incidents/0008-push-cancelled-running-pr-ci.md) | PRのCIの実行中にプッシュし、終わりかけのビルドを取り消した |
