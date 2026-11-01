@@ -42,7 +42,7 @@ Phase 1の残りの作業のうち、次の4つで使う依存crateと道具を�
 ```mermaid
 flowchart LR
     tag["push tag vX.Y.Z"] --> check["check the tag matches Cargo.toml"]
-    check --> build["build job per target (x64, arm64): contents read, no cache"]
+    check --> build["build job per target (x64, arm64 with automated checks): contents read, no cache"]
     build --> artifacts["upload artifacts"]
     artifacts --> release["release job: contents write"]
     release --> sums["SHA256SUMS.txt"]
@@ -50,7 +50,7 @@ flowchart LR
 ```
 
 - 起動: `v[0-9]+.[0-9]+.[0-9]+`のタグのプッシュ。タグの名前は環境変数で渡し、厳密な正規表現で検査してから、`cargo metadata --no-deps --locked --offline`で得たバージョンと照合する。タグが付いたコミットが`origin/main`の祖先であることも確かめる(計画の7.2で、タグは`main`に付けるため。T-5はタグを作れる人を絞るだけで、付ける先のコミットは制限しない)。
-- ビルドのジョブ: x64とarm64を、キャッシュを使わずに最初からビルドする([ADR-0015](../adr/0015-ci-build-cache-and-spike-targets.md))。CIと同じ依存DLLの確認を行う。`FlyingMicrowave.scr`に改名し、利用者向けの`README.txt`、`LICENSE.txt`、`THIRD-PARTY-LICENSES.txt`と一緒にzipにする。権限は読み取りだけ。
+- ビルドのジョブ: x64とarm64を、キャッシュを使わずに最初からビルドする([ADR-0017](../adr/0017-ci-build-cache-and-x64-spike-builds.md))。CIと同じ依存DLLの確認を行う。arm64は動作を保証しない対象で、CIではビルドしないため、GitHubがホストするarm64のランナー(`windows-11-arm`)でビルドし、同じジョブで自動の確認(依存DLLの確認と、動く場合はスモークテスト)を行う。arm64のビルドか自動の確認が失敗したら、ワークフローを失敗にする([ADR-0016](../adr/0016-arm64-without-guarantee.md)。2026-11-01に加えた)。arm64のホストでビルドするため、実装のときに、`windows-11-arm`のイメージで`rc.exe`(T-1)と`dumpbin.exe`(依存DLLの確認)が使えるかと、そのパスを確かめる。CIの依存DLLの確認は`bin\Hostx64\x64\dumpbin.exe`を探しており、そのままではarm64のホストで見つからないおそれがある(未確認)。[調査結果](../research/phase1-tooling.md)の「x64のホストの`rc.exe`を使う」という推測は、x64のホストでクロスビルドする前提のものである。`FlyingMicrowave.scr`に改名し、利用者向けの`README.txt`、`LICENSE.txt`、`THIRD-PARTY-LICENSES.txt`と一緒にzipにする。権限は読み取りだけ。
 - リリースのジョブ: 成果物を受け取り、`SHA256SUMS.txt`を作る。同じタグのリリースや下書きがないことを`gh release view`で確かめてから、`gh release create --draft --verify-tag`で下書きを作る。リリースノートは`CHANGELOG.md`の該当する版の節から作る。書き込みの権限(`contents: write`)は、このジョブだけに与える。
 - 公開: メンテナーが下書きを確かめて公開する(計画の7.2)。
 - アーティファクト証明: 非公開のあいだは使えないため、入れない。公開したときに、リリースのジョブに加える。

@@ -34,7 +34,7 @@
 | [0003](0003-settings-ui-with-eframe.md) | 設定画面にeframe/eguiを採用する | 採用 | 2026-10-31 |
 | [0004](0004-store-settings-as-toml.md) | 設定をTOMLファイルで保存する | 採用 | 2026-10-31 |
 | [0005](0005-license-mit.md) | ライセンスにMITを採用する | 採用 | 2026-10-31 |
-| [0006](0006-target-windows-11-x64-arm64.md) | 対象環境をWindows 11のx64とarm64にする | 採用 | 2026-10-31 |
+| [0006](0006-target-windows-11-x64-arm64.md) | 対象環境をWindows 11のx64とarm64にする | 非推奨(ADR-0016に置き換え) | 2026-10-31 |
 | [0007](0007-adversarial-review-without-copilot.md) | 敵対的レビューを別コンテキストのエージェントで行い、GitHub Copilotのレビューは使わない | 非推奨(ADR-0014に置き換え) | 2026-10-31 |
 | [0008](0008-svg-assets-with-resvg.md) | 素材をSVGで作り、resvgでラスタライズする | 採用 | 2026-10-31 |
 | [0009](0009-cargo-workspace-core-and-app.md) | Cargoワークスペースをcoreとappの2つのcrateに分ける | 採用 | 2026-10-31 |
@@ -43,4 +43,6 @@
 | [0012](0012-standalone-app-mode.md) | 単独アプリとしてウィンドウ・全画面でも実行できる設計にする | 採用 | 2026-10-31 |
 | [0013](0013-no-code-signing-for-v0.md) | v0.x系はコード署名せずに配布し、v1.0.0までに再判断する | 採用 | 2026-10-31 |
 | [0014](0014-risk-based-review-depth.md) | 敵対的レビューの深さを変更の種類で決める | 採用 | 2026-10-31 |
-| [0015](0015-ci-build-cache-and-spike-targets.md) | CIでビルドをキャッシュし、PRでのスパイクのビルドをx64に限る | 採用 | 2026-10-31 |
+| [0015](0015-ci-build-cache-and-spike-targets.md) | CIでビルドをキャッシュし、PRでのスパイクのビルドをx64に限る | 非推奨(ADR-0017に置き換え) | 2026-10-31 |
+| [0016](0016-arm64-without-guarantee.md) | arm64版は動作を保証せずに配布し、CIではx64だけをビルドする | 採用 | 2026-11-01 |
+| [0017](0017-ci-build-cache-and-x64-spike-builds.md) | CIでビルドをキャッシュし、スパイクのビルドをx64に限る | 採用 | 2026-11-01 |

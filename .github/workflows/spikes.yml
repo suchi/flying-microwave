@@ -1,8 +1,8 @@
-# Builds the Phase 0 technical spikes on Windows. Pull requests build x64
-# only, with a build cache, to check that the spikes still build. Manual runs
-# (workflow_dispatch) build x64 and arm64 from scratch and publish them as
-# build artifacts, so the maintainer can run them on Windows 11
-# (spikes/README.md, ADR-0015).
+# Builds the Phase 0 technical spikes on Windows for x64. Pull requests use a
+# build cache, to check that the spikes still build. Manual runs
+# (workflow_dispatch) build from scratch and publish the result as build
+# artifacts, so the maintainer can run them on Windows 11
+# (spikes/README.md, ADR-0017).
 #
 # Security: same rules as ci.yml (actions pinned by commit SHA, read-only
 # token, no persisted credentials, --locked).
@@ -36,10 +36,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Why: pull requests build x64 only to keep feedback fast. The arm64
-        # build is needed only for testing on an arm64 device, so it runs when
-        # the workflow is started by hand (workflow_dispatch). See ADR-0015.
-        target: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]' || '["x86_64-pc-windows-msvc"]') }}
+        # Why: the spikes are not tested on arm64 devices, so arm64 is not
+        # built, not even by manual runs (ADR-0016, ADR-0017).
+        target: [x86_64-pc-windows-msvc]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -48,7 +47,7 @@ jobs:
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
 
-      # Caches ~/.cargo and the build artifacts of dependencies (ADR-0015).
+      # Caches ~/.cargo and the build artifacts of dependencies (ADR-0017).
       # Must come after the toolchain install: the rustc version is part of the key.
       # Pull requests only: manual runs build from scratch, because their
       # artifacts are run by hand on real hardware and cache contents are not
@@ -97,7 +96,6 @@ jobs:
       # runners at all (Phase 0, task 8). Its outcome is recorded in
       # docs/research/spike-results.md and must not block the spike build.
       - name: Self-test on the hosted runner (feasibility check)
-        if: matrix.target == 'x86_64-pc-windows-msvc'
         continue-on-error: true
         timeout-minutes: 3
         shell: pwsh
