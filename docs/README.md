@@ -25,6 +25,7 @@
 | 番号 | タイトル | ステータス |
 | --- | --- | --- |
 | [0001](plans/0001-initial-implementation-plan.md) | 空飛ぶ電子レンジ スクリーンセーバー 初期実装計画 | 合意済み |
+| [0002](plans/0002-phase1-tooling-proposal.md) | Phase 1のビルド・配布用ツールの提案 | 提案 |
 
 ## 調査
 
@@ -34,6 +35,7 @@
 | [tech-stack.md](research/tech-stack.md) | 言語・エコシステムの比較検討 |
 | [prior-art-and-ip.md](research/prior-art-and-ip.md) | 先行作品と知的財産上の配慮 |
 | [spike-results.md](research/spike-results.md) | 技術スパイクの結果(記録待ち) |
+| [phase1-tooling.md](research/phase1-tooling.md) | Phase 1のビルド・配布用ツール(リソースの埋め込み、ライセンス表記の生成、リリースのワークフロー) |
 
 ## 設計
 
