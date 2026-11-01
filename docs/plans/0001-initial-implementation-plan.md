@@ -95,7 +95,7 @@
 | N-06 | 通信 | ネットワーク通信を一切行わない |
 | N-07 | 副作用 | `/s`・`/p`の実行中はファイルに書き込まない(ログを有効にした場合を除く) |
 | N-08 | 堅牢性 | 不正な引数・設定ファイルでクラッシュせず、既定値で動作する |
-| N-09 | 対応環境 | Windows 11のx64。arm64版は、動作を保証せずに配布する([ADR-0016](../adr/0016-arm64-without-guarantee.md))。追加のランタイムを必要としない(VC++ランタイムを静的リンクする)。Windows 10は動作保証外(2025-10-14にサポート終了 [MS-5])。[ADR-0006](../adr/0006-target-windows-11-x64-arm64.md)、[ADR-0016](../adr/0016-arm64-without-guarantee.md) |
+| N-09 | 対応環境 | Windows 11のx64。arm64版は、動作を保証せずに配布する。追加のランタイムを必要としない(VC++ランタイムを静的リンクする)。Windows 10は動作保証外(2025-10-14にサポート終了 [MS-5])。[ADR-0006](../adr/0006-target-windows-11-x64-arm64.md)、[ADR-0016](../adr/0016-arm64-without-guarantee.md) |
 | N-10 | 表示品質 | モニタごとのDPIに対応し、どのモニタでも同じ見た目になる。高リフレッシュレートのモニタでもカクつかない(描画時の補間) |
 | N-11 | 表現 | ガイドラインG-1〜G-6を満たす(閃光なし、静止要素なし等) |
 | N-12 | ライセンス | 依存はすべてOSSライセンス。配布物に依存crateのライセンス表記(フォントなどcrateのメタデータ外のものを含む)を同梱する |
@@ -172,7 +172,7 @@ flowchart LR
 1. 製品名「Flying Microwave」の商標の確認(D-5)。米国(USPTO)は2026-10-31に同じ文字列のフレーズ検索を行い、同じ文字列の登録・出願は見当たらず、着想元に関係する第9類の登録は失効していた([先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認))。米国の結果の再確認(自動化したブラウザで得た結果のため)、空白なしの表記や類似の商標、日本(J-PlatPat。自動化したブラウザからの接続を拒否される)は、メンテナーが通常のブラウザで確認し、結果を同じ文書に追記する。
 2. Cargoワークスペースの雛形(`crates/core`・`crates/app`)、`rust-toolchain.toml`、`.cargo/config.toml`(Windowsターゲットの`+crt-static`)、lint設定を作る。crate名は`flying-microwave-core`・`flying-microwave`とする。
 3. AGENTS.mdの検証コマンド表を確定する(下表の案)。
-4. CIワークフローを追加する(`.github/workflows/`の変更はセキュリティ設定のため要承認)。Windowsランナーでfmt・clippy・テスト・x64/arm64ビルド・依存DLLの確認(システムDLLだけか)・依存crateの重複検出(`cargo tree -d`)を行う。Linuxランナーでワークスペース全体のビルド・clippy・テストを行う(アーキテクチャのA-7)。ActionsはコミットSHAで固定し、ジョブごとの権限を最小にする。非公開リポジトリではWindowsランナーが無料枠を消費することに留意する。
+4. CIワークフローを追加する(`.github/workflows/`の変更はセキュリティ設定のため要承認)。Windowsランナーでfmt・clippy・テスト・x64ビルド(2026-11-01に変更: arm64はLinuxランナーでの型チェックだけ。[ADR-0016](../adr/0016-arm64-without-guarantee.md))・依存DLLの確認(システムDLLだけか)・依存crateの重複検出(`cargo tree -d`)を行う。Linuxランナーでワークスペース全体のビルド・clippy・テストを行う(アーキテクチャのA-7)。ActionsはコミットSHAで固定し、ジョブごとの権限を最小にする。非公開リポジトリではWindowsランナーが無料枠を消費することに留意する。
 5. Dependabotにcargoを追加する(`.github/dependabot.yml`の変更は要承認。`cooldown`は維持する)。0.x系のcrateはマイナー更新でも破壊的変更になりうるため、egui系・winit・wgpuは一緒に更新されるようにグループを分ける。
 6. `CHANGELOG.md`を追加する。
 7. 技術スパイクS1〜S6を行う。スパイク用の依存(winit・wgpu・pollster・windows-sys・eframe)について事前に承認を得る。スパイクは`spikes/`に置き、ワークスペースに含めず製品コードから参照しない。CIまたはメンテナーのWindows環境でビルドし、メンテナーがWindows 11実機で実行して結果を`docs/research/spike-results.md`に記録する。
@@ -392,7 +392,7 @@ flowchart LR
 | D-4 | 設定の保存形式 | 利用者ごとの設定ディレクトリのTOMLファイル(具体的な場所はPhase 2で決める) | [ADR-0004](../adr/0004-store-settings-as-toml.md) |
 | D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。米国では同じ文字列のフレーズ検索で該当なし(結果はメンテナーが通常のブラウザで再確認する。空白なしの表記や類似の商標は未確認)。メンテナーによる残りの確認(日本を含む)で問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認) |
 | D-6 | 本プロジェクトのライセンス | MIT(著作権者の表記は「Flying Microwave contributors」) | [ADR-0005](../adr/0005-license-mit.md)、`LICENSE` |
-| D-7 | 対象のWindowsとCPUアーキテクチャ | Windows 11のx64とarm64(2026-11-01に変更: arm64版は動作を保証せずに配布し、CIではx64だけをビルドする) | [ADR-0006](../adr/0006-target-windows-11-x64-arm64.md)、[ADR-0016](../adr/0016-arm64-without-guarantee.md) |
+| D-7 | 対象のWindowsとCPUアーキテクチャ | Windows 11のx64。arm64版は動作を保証せずに配布し、CIではx64だけをビルドする(2026-11-01に変更。当初の決定はWindows 11のx64とarm64) | [ADR-0006](../adr/0006-target-windows-11-x64-arm64.md)、[ADR-0016](../adr/0016-arm64-without-guarantee.md) |
 | D-8 | レビューの方法 | 別コンテキストのエージェントによる敵対的レビュー。Copilotは利用せず(レビューを含む)、Copilotでレビューする場合の手順は参考として残す | [ADR-0007](../adr/0007-adversarial-review-without-copilot.md)、[PRのレビュー手順](../development/review-process.md) |
 | D-9 | 飛行表現 | 案A(ドアの羽ばたき)で進め、Phase 3の素材作成時に見え方を確認する | [ビジュアルデザイン方針](../design/visual-design.md) |
 | D-10 | リポジトリの整理 | `personal/`は削除済み。Dependabotの担当者を本リポジトリの所有者に変更 | `.github/dependabot.yml` |
