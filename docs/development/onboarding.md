@@ -13,9 +13,9 @@
 | 環境を準備する | [5.1](#51-手でのビルドとテスト)の前提のツール | 整備済み |
 | ビルドする | [5.1](#51-手でのビルドとテスト) | 整備済み |
 | テストする(自動テスト) | [5.1](#51-手でのビルドとテスト)、[8](#8-windows実機での確認) | 整備済み |
-| 動かして試す(`/s`・`/c`・`/p`) | [5.2](#52-動かして試す) | 整備済み(`/p`はまだ何もしない。Phase 1の段階2で作る) |
+| 動かして試す(`/s`・`/c`・`/p`と長いオプション) | [5.2](#52-動かして試す) | 整備済み(`/p`はまだ何もしない。Phase 1の段階2で作る) |
 | ログを見る | [5.3](#53-ログとデバッグ) | 整備済み |
-| デバッガで調べる | [5.3](#53-ログとデバッグ) | 未整備(下の理由。確かめられるようになったら書く) |
+| デバッガで調べる | [5.3](#53-ログとデバッグ) | 未整備(公式ドキュメントに接続できないため。接続を許可したあとの、Phase 1の段階2のPRで書く) |
 | 困ったときに対処する | [5.4](#54-困ったときの対処) | 整備済み |
 | 変更を進める(ブランチ、コミット、レビュー、マージ) | [3](#3-開発の進め方)、[4](#4-レビューとマージ) | 整備済み |
 | リリースする | [8](#8-windows実機での確認)、[計画の7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順) | 整備済み(プレリリースだけ。正式なリリースはarm64のビルドを加えてから) |
@@ -154,7 +154,8 @@ Linuxでは、手順2・5・6(`python3`で実行する。手順6には`jq`が要
 
 - `flying-microwave.exe /s`: スクリーンセーバーとして、すべてのモニタを覆って動く。キーの押下、マウスのボタンやホイール、タッチ、マウスを16ピクセル以上動かしたとき、ほかのウィンドウが前面に出たときに終了する。起動直後の0.5秒間のマウスの動きは無視する。
 - `flying-microwave.exe /c`: 設定は今後のバージョンで追加する旨のメッセージを表示する。`.scr`を引数なしで起動したときも同じ。
-- `flying-microwave.exe /p <ウィンドウの番号>`: プレビューは、まだ何もしない(Phase 1の段階2で作る)。
+- `flying-microwave.exe /p <ウィンドウの番号>`: プレビューは、まだ何もしない(Phase 1の段階2で作る)。ウィンドウの番号がないか不正なときは、`/c`と同じメッセージになる。
+- `--settings`: `/c`と同じメッセージになる。`--window`と`--fullscreen`: 単独のアプリとしては、まだ動かない旨のメッセージになる(単独のアプリはPhase 6で判断する)。
 - 引数なしの`flying-microwave.exe`: 単独のアプリとしては動かない旨のメッセージを表示する。
 - スクリーンセーバーの設定画面から試すには、5.1の手順4のとおり`.scr`にして入れる。
 
@@ -162,9 +163,9 @@ Linuxでは、手順2・5・6(`python3`で実行する。手順6には`jq`が要
 
 - コンソールはない。スクリーンセーバーなので、デバッグのビルドでもコンソールを開かない(`main.rs`の`windows_subsystem = "windows"`)。`println!`や`eprintln!`の出力は見えない。
 - ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。
-- panic: panicのメッセージは標準エラー出力に出るため、見えず、ログにも残らない(panicのフックをまだ設定していない。Rustの[`std::panic::set_hook`](https://doc.rust-lang.org/std/panic/fn.set_hook.html)で、ログに書くようにできる)。GPUの初期化の中のpanicは捕まえて、ログに書く(`render.rs`の`guarded`)。
+- panic: panicのメッセージは標準エラー出力に出るため、見えず、ログにも残らない(panicのフックをまだ設定していない。Rustの[`std::panic::set_hook`](https://doc.rust-lang.org/std/panic/fn.set_hook.html)で、ログに書くようにできる)。GPUの初期化の中のpanicは捕まえて、panicが起きたことだけをログに書く(`GPU initialization failed: GPU initialization panicked`。`render.rs`の`guarded`)。panicのメッセージと場所は残らない。初期化の外でpanicが起きると、プロセスが終わる。
 - デバッグのビルド: `cargo build --locked --target x86_64-pc-windows-msvc`(`--release`を付けない)。実行ファイルは`target\x86_64-pc-windows-msvc\debug\flying-microwave.exe`にできる。
-- デバッガ: 未整備。MSVCのターゲットでビルドしたRustの実行ファイルは、Windowsのデバッガで調べられるはずだが、使い方(Visual Studio、VS CodeのC/C++の拡張など)を公式ドキュメントで確かめられていない(この環境から`learn.microsoft.com`と`code.visualstudio.com`に接続できなかった)。確かめられたら、この項目を書く。なお、`/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。
+- デバッガ: 未整備。MSVCのターゲットでビルドしたRustの実行ファイルは、Windowsのデバッガで調べられるはずだが、使い方(Visual Studio、VS CodeのC/C++の拡張など)を公式ドキュメントで確かめられていない(この環境から`learn.microsoft.com`と`code.visualstudio.com`に接続できなかった)。6.5の推奨のドメインに`learn.microsoft.com`と`code.visualstudio.com`を加えて接続を許可したあと、Phase 1の段階2のPRで、この項目を書く。なお、`/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。
 
 ### 5.4 困ったときの対処
 
@@ -172,7 +173,7 @@ Linuxでは、手順2・5・6(`python3`で実行する。手順6には`jq`が要
 - ビルドでリンカが見つからない: Visual Studio Build Toolsの「C++ によるデスクトップ開発」が入っているかを確かめる(5.1の前提のツール)。
 - 依存の7日の検査が通らない: 公開から7日たっていない版を使っている。7日以上前に公開された版を選ぶか、7日たつまで待つ(6.3の「依存の公開からの日数」)。
 - フックの検査が通らない: `jq`が入っているか、Git Bashの中で実行しているかを確かめる(6.3)。
-- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。
+- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`screensaver ended:`の行がある。この行がなく途中で切れていれば、panicなどで異常終了している。
 
 ## 6. AIエージェントとの協働
 
@@ -229,7 +230,7 @@ Linuxでは、手順2・5・6(`python3`で実行する。手順6には`jq`が要
 
 環境(cloud environment)は、ほかのプロジェクトと共有せず、本プロジェクト専用のものを使う。環境の設定(接続を許可するドメイン、セットアップスクリプト)は環境ごとに1つで、共有すると、片方のための変更がもう片方にも効くためである。推奨の設定は次のとおり。
 
-- Network access: 「Custom」とし、標準のパッケージ置き場も許可する(「Also include default list of common package managers」にチェックを入れる)。Allowed domainsには、`docs.rs`、`doc.rust-lang.org`、`docs.github.com`を加える。商標の確認には`tmsearch.uspto.gov`と`www.j-platpat.inpit.go.jp`も使う。
+- Network access: 「Custom」とし、標準のパッケージ置き場も許可する(「Also include default list of common package managers」にチェックを入れる)。Allowed domainsには、`docs.rs`、`doc.rust-lang.org`、`docs.github.com`を加える。Windowsのデバッガの使い方を確かめるため、`learn.microsoft.com`と`code.visualstudio.com`も加える(5.3)。商標の確認には`tmsearch.uspto.gov`と`www.j-platpat.inpit.go.jp`も使う。
 - Setup script: 次のスクリプト。
   - 実行のタイミング: 公式ドキュメント([Environment caching](https://code.claude.com/docs/en/cloud-environments#environment-caching))によると、毎回のセッションではなく、最初のセッションと、環境のキャッシュを作り直すとき(スクリプトや許可するドメインを変えたとき、約7日でキャッシュが期限切れになったとき)に実行される。
   - 実行するディレクトリ: 公式ドキュメントに記載がない。本プロジェクト専用の環境では、リポジトリの1つ上のディレクトリで実行されて`cd flying-microwave`が成功したことを、actionlintが入っていたことから確かめた。
