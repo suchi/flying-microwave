@@ -140,7 +140,9 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 
 - block-dangerous-git.sh: Bashの実行前に、危険なgit操作を止める。`main`への直接プッシュ、`main`へのforce push、`--no-verify`付きのコミットとプッシュ、ルートやホームの再帰削除は拒否する。force push、`git reset --hard`、`git clean -f`、`git branch -D`、`main`上でのコミット、ダウンロードしたスクリプトを直接シェルに渡す操作、`.env`のステージは、実行前に確認を求める
 - protect-config.sh: セキュリティ設定のファイルを編集する前に確認を求める。対象は`.claude/settings.json`、`.claude/settings.local.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`
-- jqが必要: どちらのフックも`jq`で入力を解析する。`jq`がない環境では、判断を保留して毎回確認を求める動作になるため、事前に`jq`を導入しておく。パッケージマネージャーは問わない(例: Windowsでは`winget install jqlang.jq`または`scoop install jq`、Ubuntu・WSL2では`sudo apt-get install jq`)
+- require-japanese-description.sh: BashとAgentの実行前に、ツールの説明文(`description`)に日本語(ひらがな・カタカナ・漢字)が含まれるかを確かめ、含まれなければ拒否して日本語での書き直しを求める([incidents 0001](../incidents/0001-english-text-shown-to-maintainer.md))
+- require-japanese-reply.sh: 返答とサブエージェントの報告(StopとSubagentStop)の最後のメッセージに日本語が含まれなければ、会話を続けさせて日本語での書き直しを求める。表示そのものは止められない。続けさせるのは1回だけで、`stop_hook_active`がtrueのときは止めない。考える過程はフックで確かめられないため、規則に頼る
+- jqが必要: どのフックも`jq`で入力を解析する。block-dangerous-git.shとprotect-config.shは、`jq`がない環境では判断を保留して毎回確認を求める動作になるため、事前に`jq`を導入しておく。日本語の確認の2つは、セキュリティの防御ではないため、`jq`がないときは何も止めない。パッケージマネージャーは問わない(例: Windowsでは`winget install jqlang.jq`または`scoop install jq`、Ubuntu・WSL2では`sudo apt-get install jq`)
 
 `.claude/settings.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`の変更は、メンテナーの承認を得てから行う。Dependabotの`cooldown`はサプライチェーン攻撃への対策なので、承認なしに削除・無効化しない。
 

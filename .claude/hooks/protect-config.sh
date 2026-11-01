@@ -20,12 +20,12 @@ ask() {
 }
 
 if ! command -v jq >/dev/null 2>&1; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"jq is required by this hook but was not found. Install jq (see docs/development/onboarding.md, section 6.3)."}}\n'
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"このフックにはjqが必要ですが、見つかりません。jqを導入してください(docs/development/onboarding.mdの6.3)。"}}\n'
   exit 0
 fi
 
 path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null) ||
-  ask "Failed to parse the hook payload as JSON. Confirm with the user first."
+  ask "フックの入力をJSONとして解析できませんでした。先にユーザーに確認してください。"
 
 [ -n "$path" ] || exit 0
 
@@ -41,7 +41,7 @@ esac
 
 case "$path" in
   */.claude/settings.json|*/.claude/settings.local.json|*/.claude/hooks/*|*/.github/workflows/*|*/.github/dependabot.yml)
-    ask "Modifying security-related configuration: $path. Requires user approval (AGENTS.md: security)."
+    ask "セキュリティに関わる設定を変更しようとしています: $path。ユーザーの承認が必要です(AGENTS.mdのセキュリティ)。"
     ;;
 esac
 
