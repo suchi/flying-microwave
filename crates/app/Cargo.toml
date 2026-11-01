@@ -17,8 +17,9 @@ flying-microwave-core = { path = "../core" }
 # are the ones the technical spikes ran on real hardware (Phase 0, task 7).
 # Why: default features are off so that only the Windows backend is built.
 winit = { version = "=0.30.13", default-features = false, features = ["rwh_06"] }
-# Why: DX12 only (ADR-0002). No wgsl yet: the placeholder sprite is drawn by
-# copying solid rectangles, without shaders.
+# Why: DX12 only (ADR-0002). wgpu always builds its WGSL front end on native
+# targets (wgpu-core's "wgsl" feature), but the app uses no shader yet: the
+# placeholder sprite is drawn by copying solid rectangles.
 wgpu = { version = "=30.0.1", default-features = false, features = ["std", "parking_lot", "dx12"] }
 pollster = "=1.0.1"
 windows-sys = { version = "=0.61.2", features = [
