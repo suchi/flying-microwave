@@ -194,8 +194,13 @@ jobs:
           (cd dist && sha256sum -- *.zip > SHA256SUMS.txt && cat SHA256SUMS.txt)
           # A release or draft for the tag must not exist yet: delete the old
           # draft first to make it again.
-          if gh release view "$TAG" > /dev/null 2>&1; then
+          # Why: only "release not found" means there is none; any other
+          # failure (authentication, rate limit) must not be taken as absent.
+          if err=$(gh release view "$TAG" 2>&1 > /dev/null); then
             echo "$TAG のリリースか下書きが、すでにある" >&2
+            exit 1
+          elif [[ "$err" != *"release not found"* ]]; then
+            echo "$TAG のリリースがあるかを確かめられない: $err" >&2
             exit 1
           fi
           args=(--draft --verify-tag --title "Flying Microwave $TAG" --notes-file notes/release-notes.md)
