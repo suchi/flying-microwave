@@ -30,8 +30,9 @@ GitHub Copilot・Claude Code・Codexすべてに対する指示の単一ソー�
 | 型チェック           | `cargo check --workspace --all-targets --locked`(Windows固有のコードはLinuxでも`--target x86_64-pc-windows-msvc`を付けて確認できる) |
 | ビルド               | `cargo build --release --locked`                                                                                                    |
 | 依存の公開からの日数 | `python3 -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock`                 |
+| フックの動作         | `python3 -I scripts/check_hooks.py`(`.claude/settings.json`に登録したすべてのフックを、LinuxとmacOSでの起動(`sh -c`)のとおりに起動して確かめる)            |
 
-コミット前に必ずテスト・リントを実行する。ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では不要とする。シェルスクリプト(`.claude/hooks/`など)を変更した場合は、表の有無にかかわらず`sh -n`による構文チェックと、サンプル入力での動作確認を行う。
+コミット前に必ずテスト・リントを実行する。ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では不要とする。シェルスクリプト(`.claude/hooks/`など)を変更した場合は、表の有無にかかわらず`sh -n`による構文チェックと、サンプル入力での動作確認を行う。フックの動作確認は、`sh ファイル名`ではなく、設定に登録したとおりの起動で行う(検証コマンドの表の「フックの動作」)。`sh ファイル名`では、実行権限がなくても動いてしまうため([docs/incidents/0009](docs/incidents/0009-guard-hooks-never-ran.md))。フックを加えたときは、`scripts/check_hooks.py`にサンプル入力も加える。
 
 ## 進め方(Agentic Coding)
 

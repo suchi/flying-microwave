@@ -137,14 +137,15 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 
 ### 6.3 フック
 
-`.claude/hooks/`にあり、`.claude/settings.json`で登録されている。
+`.claude/hooks/`にあり、`.claude/settings.json`で登録されている。どのフックも、gitで実行権限付き(100755)にする。登録したとおりに起動できないフックは、Claude Codeでは止めないエラーとして扱われ、黙って効かなくなる。`scripts/check_hooks.py`が、登録したすべてのフックを登録したとおりに起動し、止めるべき入力を止め、通すべき入力を通すことを確かめる(CIのLinuxのジョブでも毎回実行する。[incidents 0009](../incidents/0009-guard-hooks-never-ran.md))。フックを加えたら、このスクリプトに両方のサンプル入力も加える。
+
+- 確かめる範囲: Claude Codeは、LinuxとmacOSでは登録の文字列を`sh -c`に渡し、WindowsではGit Bash(なければPowerShell)に渡す(公式ドキュメント「Hooks reference」)。`check_hooks.py`が再現するのは`sh -c`だけである。Windowsでは、Git for Windows(Git Bash)を入れておく。PowerShellでは、登録の形のフックは起動しないおそれがある(未確認)
+- 既知の誤検知: block-dangerous-git.shは、コマンドの文字列全体を見るため、gitを実行しないコマンド(`echo`の引数、ヒアドキュメントの中のサンプル入力など)に、mainへのプッシュなどの文字列が含まれるだけでも止める。また、mainの上では、`git commit`という文字列を含むだけのコマンドにも確認を求める。そのような文字列を含むファイルは、Writeのツールで書いてから実行する。PRの本文は`--body-file`で渡す
 
 - block-dangerous-git.sh: Bashの実行前に、危険なgit操作を止める。`main`への直接プッシュ、`main`へのforce push、`--no-verify`付きのコミットとプッシュ、ルートやホームの再帰削除は拒否する。force push、`git reset --hard`、`git clean -f`、`git branch -D`、`main`上でのコミット、ダウンロードしたスクリプトを直接シェルに渡す操作、`.env`のステージは、実行前に確認を求める
 - protect-config.sh: セキュリティ設定のファイルを編集する前に確認を求める。対象は`.claude/settings.json`、`.claude/settings.local.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`
 - require-japanese-description.sh: BashとAgentの実行前に、ツールの説明文(`description`)に日本語(ひらがな・カタカナ・漢字)が含まれるかを確かめ、含まれなければ拒否して日本語での書き直しを求める([incidents 0001](../incidents/0001-english-text-shown-to-maintainer.md))
-- require-japanese-reply.sh: 返答とサブエージェントの報告(StopとSubagentStop)の最後のメッセージに日本語が含まれなければ、会話を続けさせて日本語での書き直しを求める。表示そのものは止められない。続けさせるのは1回だけで、`stop_hook_active`がtrueのときは止めない。考える過程はフックで確かめられないため、規則に頼る
-- flag-non-japanese-display.sh: 表示されるassistantのメッセージ(MessageDisplay)を、すべて確かめる。ツール呼び出しの合間の短い文も対象である。メッセージ全体に日本語がなければ、表示の末尾に日本語の注意書きを付け、違反を、ほかの人が読み書きできない場所に記録する(`$TMPDIR/claude-japanese-check-<ユーザーID>/`を権限700で作り、持ち主を確かめる)。サブエージェントの中では動かない。表示を止めることはできない([incidents 0005](../incidents/0005-english-notes-between-tool-calls.md))
-- require-japanese-display.sh: 上の違反の記録があれば、次のツールの呼び出し(PreToolUse。すべてのツール)を拒否するか、ターンの終わり(Stop)で会話を続けさせる。どちらも、表示された文を示して、日本語での書き直しを求める。サブエージェントの中では動かない
+- require-japanese-reply.sh: 返答とサブエージェントの報告(StopとSubagentStop)の最後のメッセージに日本語が含まれなければ、会話を続けさせて日本語での書き直しを求める。表示そのものは止められない。続けさせるのは1回だけで、`stop_hook_active`がtrueのときは止めない。考える過程はフックで確かめられないため、規則に頼る。ツール呼び出しの合間の文は確かめない(できるだけ日本語で書き、やむを得ず英語になった場合は許容する、というメンテナーの判断。2026-11-01に、合間の文を確かめていた2つのフックを外した。[incidents 0005](../incidents/0005-english-notes-between-tool-calls.md))
 - jqが必要: どのフックも`jq`で入力を解析する。block-dangerous-git.shとprotect-config.shは、`jq`がない環境では判断を保留して毎回確認を求める動作になるため、事前に`jq`を導入しておく。日本語の確認のフックは、セキュリティの防御ではないため、`jq`がないときは何も止めない。パッケージマネージャーは問わない(例: Windowsでは`winget install jqlang.jq`または`scoop install jq`、Ubuntu・WSL2では`sudo apt-get install jq`)
 
 `.claude/settings.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`の変更は、メンテナーの承認を得てから行う。Dependabotの`cooldown`はサプライチェーン攻撃への対策なので、承認なしに削除・無効化しない。
