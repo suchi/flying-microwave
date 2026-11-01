@@ -8,7 +8,7 @@
 #
 # MessageDisplay cannot block a message and Claude never sees its output, so
 # this hook only (1) appends a Japanese notice to the displayed message and
-# (2) records the violation in a state file. require-japanese-display.sh then
+# (2) records the violation in a private state file. require-japanese-display.sh then
 # stops the next tool call or the end of the turn and asks for a rewrite.
 #
 # Japanese is judged over the whole message, when its final batch arrives,
@@ -25,14 +25,27 @@ field() {
   printf '%s' "$input" | jq -r "$1" 2>/dev/null
 }
 
+# Messages displayed inside a subagent are not the main conversation's.
+agent=$(field '.agent_id // empty') || exit 0
+[ -z "$agent" ] || exit 0
 session=$(field '.session_id // empty' | tr -cd 'A-Za-z0-9_-') || exit 0
 message=$(field '.message_id // empty' | tr -cd 'A-Za-z0-9_-') || exit 0
 [ -n "$session" ] && [ -n "$message" ] || exit 0
 delta=$(field '.delta // ""') || exit 0
 final=$(field '.final // false') || exit 0
 
-dir="${TMPDIR:-/tmp}/claude-japanese-check"
+# Why: the record is quoted back to Claude as the reason of a denial, so
+# nobody else may be able to write it. Prefer the per-session scratchpad;
+# otherwise use a per-user directory created with mode 700 and owned by us.
+umask 077
+scratch=$(printf '%s' "$input" | jq -r '.scratchpad_dir // empty' 2>/dev/null) || exit 0
+if [ -n "$scratch" ] && [ -d "$scratch" ]; then
+  dir="$scratch/japanese-check"
+else
+  dir="${TMPDIR:-/tmp}/claude-japanese-check-$(id -u)"
+fi
 mkdir -p "$dir" 2>/dev/null || exit 0
+[ -O "$dir" ] || exit 0
 prefix="$dir/$session.$message"
 
 # jq -e exits 1 only when the result is false; any other failure counts as

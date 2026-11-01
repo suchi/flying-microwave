@@ -22,14 +22,31 @@ agent=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null) || exit 0
 session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null | tr -cd 'A-Za-z0-9_-') || exit 0
 [ -z "$agent" ] && [ -n "$session" ] || exit 0
 
+# Why: the record is quoted back to Claude as the reason of a denial, so
+# nobody else may be able to write it. Prefer the per-session scratchpad;
+# otherwise use a per-user directory created with mode 700 and owned by us.
+umask 077
+scratch=$(printf '%s' "$input" | jq -r '.scratchpad_dir // empty' 2>/dev/null) || exit 0
+if [ -n "$scratch" ] && [ -d "$scratch" ]; then
+  dir="$scratch/japanese-check"
+else
+  dir="${TMPDIR:-/tmp}/claude-japanese-check-$(id -u)"
+fi
+mkdir -p "$dir" 2>/dev/null || exit 0
+[ -O "$dir" ] || exit 0
+record="$dir/$session.violation"
+[ -f "$record" ] || exit 0
+
 if [ "$event" = "Stop" ]; then
   active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null) || exit 0
-  # Continue the turn at most once in a row (same rule as require-japanese-reply.sh).
-  [ "$active" = "true" ] && exit 0
+  # Continue the turn at most once in a row (same rule as
+  # require-japanese-reply.sh). Drop the record so that it is not carried
+  # over to the next turn, where it would ask to rewrite an old message.
+  if [ "$active" = "true" ]; then
+    rm -f "$record"
+    exit 0
+  fi
 fi
-
-record="${TMPDIR:-/tmp}/claude-japanese-check/$session.violation"
-[ -f "$record" ] || exit 0
 quoted=$(head -c 1500 "$record")
 rm -f "$record"
 
