@@ -1,0 +1,16 @@
+Third-party software in Flying Microwave
+========================================
+
+Flying Microwave includes the following open source software. Each entry
+lists the license and the components that use it.
+{{#each licenses}}
+
+------------------------------------------------------------------------
+{{name}} ({{id}})
+Used by:
+{{#each used_by}}
+- {{crate.name}} {{crate.version}}
+{{/each}}
+
+{{{text}}}
+{{/each}}

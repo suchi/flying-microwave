@@ -47,3 +47,4 @@
 | [0016](0016-arm64-without-guarantee.md) | arm64版は動作を保証せずに配布し、CIではx64だけをビルドする | 採用 | 2026-11-01 |
 | [0017](0017-ci-build-cache-and-x64-spike-builds.md) | CIでビルドをキャッシュし、スパイクのビルドをx64に限る | 採用 | 2026-11-01 |
 | [0018](0018-review-before-opening-pr.md) | 敵対的レビューをPRを作る前に行う | 採用 | 2026-11-01 |
+| [0019](0019-screensaver-windows-without-winit-fullscreen.md) | `/s`のウィンドウを、winitの全画面の指定を使わずに作る | 採用 | 2026-11-01 |

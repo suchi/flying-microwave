@@ -207,7 +207,8 @@ cargo fetch --locked || true
 
 - 自動テスト: ロジックを`core`に寄せ、WindowsとLinuxの両方のCIで単体テストする
 - 手動テスト: メンテナーが、各リリースの前に、Windows 11実機で[実装計画の手動テストのチェックリスト](../plans/0001-initial-implementation-plan.md#82-手動テストwindows実機)を実施する。CIでビルドした成果物を使う。確認できなかった項目は、リリースノートに明記する
-- 技術スパイク: Windows実機でしか確かめられない不確実性(S1〜S6)は、Phase 0で確認する。内容は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md#未確認事項と検証方法技術スパイク)に一覧がある
+- CIの成果物: `ci.yml`は、実行のたびに、`FlyingMicrowave.scr`と`LICENSE.txt`を成果物`flying-microwave-x86_64-pc-windows-msvc`として残す(PRと`main`は7日、手動実行は30日)。実機での確認には、PRの実行の成果物を使ってよい。手動実行(workflow_dispatch)は、キャッシュを使わずにビルドし、`THIRD-PARTY-LICENSES.txt`も加える。プレリリースの配布物は、この手動実行で作る([計画の7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順))
+- 技術スパイク: Windows実機でしか確かめられない不確実性(S1〜S6)は、Phase 0で確認した(4回の確認で終え、残りは製品で確かめる。計画のD-20)。内容は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md#未確認事項と検証方法技術スパイク)に一覧がある
 
 ## 9. セキュリティの注意
 

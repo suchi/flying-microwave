@@ -4,6 +4,10 @@
 # - third-party actions are pinned by full commit SHA (Dependabot updates them),
 # - the workflow token is read-only and checkout does not persist credentials,
 # - every cargo command uses --locked so Cargo.lock is not changed silently.
+#
+# Artifacts: every run keeps FlyingMicrowave.scr for checks on real hardware.
+# A manual run (workflow_dispatch) builds from scratch without the cache and
+# adds the license notices, for a pre-release (plan 0001, section 7.3).
 
 name: CI
 
@@ -11,6 +15,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -81,7 +86,10 @@ jobs:
       # The default key includes neither the matrix target nor the root
       # Cargo.toml, so add both: the target keeps caches for different
       # targets apart (ADR-0017).
+      # Why: a manual run makes pre-release artifacts, so it never restores a
+      # cache (same rule as the release workflow, plan 0001 chapter 9).
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        if: github.event_name != 'workflow_dispatch'
         with:
           key: ${{ matrix.target }}-${{ hashFiles('Cargo.toml') }}
 
@@ -107,6 +115,35 @@ jobs:
           if (-not ($out | Select-String -Pattern '(?i)\bKERNEL32\.dll\b')) { throw 'dumpbin output does not list KERNEL32.dll' }
           $bad = $out | Select-String -Pattern '(?i)\b(vcruntime|msvcp|concrt|vccorlib|ucrtbase)\w*\.dll\b|\bapi-ms-win-crt-'
           if ($bad) { throw "Dynamic C runtime dependency found: $bad" }
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          Copy-Item 'target/${{ matrix.target }}/release/flying-microwave.exe' dist/FlyingMicrowave.scr
+          Copy-Item LICENSE dist/LICENSE.txt
+
+      # Why: install from source with --locked; crates.io checksums are
+      # verified by Cargo (plan 0002, T-2). Manual runs only, as it takes minutes.
+      - name: License notices
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          cargo install --locked --features cli --version 0.9.3 cargo-about
+          cargo about generate --locked --fail -o dist/THIRD-PARTY-LICENSES.txt about.hbs
+          if ($LASTEXITCODE -ne 0) { throw 'cargo about failed' }
+          # Unfilled SPDX placeholders are not caught by the exit code (T-2).
+          # Why: angle brackets only. "Copyright [yyyy] [name of copyright
+          # owner]" is part of the Apache-2.0 text itself (its appendix).
+          $left = Select-String -Path dist/THIRD-PARTY-LICENSES.txt -Pattern '<(copyright holders|year|owner|name of author)>'
+          if ($left) { throw "Unfilled license placeholders: $left" }
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: flying-microwave-${{ matrix.target }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 30 || 7 }}
 
       # winit, wgpu and the egui family must be upgraded together (R-05).
       - name: Check duplicate GUI crates
