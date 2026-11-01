@@ -1,0 +1,71 @@
+# Phase 1のビルド・配布用ツールの提案
+
+- 作成日: 2026-11-01
+- ステータス: 提案(メンテナーの承認待ち)。承認された項目は、ADRに記録してから実装する
+- 関連: [実装計画](0001-initial-implementation-plan.md)のPhase 1の作業9〜12と9章、[調査結果](../research/phase1-tooling.md)
+
+## 目的
+
+Phase 1の残りの作業のうち、次の4つで使う依存crateと道具を決める。いずれも依存の追加か、セキュリティ設定(ワークフロー)の変更にあたるため、メンテナーの承認が必要である(AGENTS.md)。
+
+- 作業9: DLLの検索パスの制限。Windows APIを呼ぶcrateが必要になる。
+- 作業10: Windowsリソースの埋め込み。
+- 作業11: 依存crateのライセンス表記の生成。
+- 作業12: リリースのワークフロー。
+
+## 提案
+
+| ID | 項目 | 提案 | 主な理由 |
+| --- | --- | --- | --- |
+| T-1 | Windowsリソースの埋め込み(作業10) | embed-resource 3.0.12を、ビルド時だけの依存として使う。自分で書いた`.rc`から、アイコン・バージョン情報・文字列表の序数1を埋め込む | 文字列表の序数1を素直に書ける。Linuxでの型チェックを壊さず、Windowsでは失敗を見逃さない。リソースを実行ファイルにだけ結び付ける |
+| T-2 | ライセンス表記の生成(作業11) | cargo-about 0.9.3を、リリースのワークフローで`cargo install --locked --features cli --version 0.9.3 cargo-about`によりソースから入れる。テキスト形式のテンプレートで`THIRD-PARTY-LICENSES.txt`を作る | 配布されているバイナリには署名がない。ソースからなら、crates.ioのチェックサムをCargoが確かめる |
+| T-3 | リリースのワークフロー(作業12) | 下の「T-3の構成」のとおり | 書き込みの権限を、依存crateをビルドしないジョブだけに与える。第三者のActionを増やさない |
+| T-4 | Windows APIを呼ぶcrate(作業6〜9) | `windows-sys` 0.61.2を、製品の依存に加える | [技術スタックの比較](../research/tech-stack.md)で採用済みで、スパイクでも使った。Microsoftの公式のcrate |
+| T-5 | リリース用のタグの保護 | メンテナーが、`v*`のタグを作れる人を管理者に限るルールセットを設定する | ワークフローは、タグが付いたコミットの内容で動く。タグを作れる人を絞らないと、書き込み権限のある人が、リリースの権限で任意のワークフローを動かせる。非公開リポジトリでは、Pro以上の契約で設定できる |
+
+### T-1の補足
+
+- バージョン情報は、ビルドスクリプトが`CARGO_PKG_VERSION`からマクロで`.rc`に渡す。Cargo.tomlとの二重管理にしない。
+- ビルドスクリプトは`cargo:rerun-if-changed`を、`.rc`・アイコン・マニフェストについて出す。
+- WindowsのCIに、埋め込んだバージョン情報が実行ファイルにあることを確かめる検査を加える。
+- 採用しなかった案: winresource(文字列表の扱い、Linuxでの場合分け、テスト用の実行ファイルにもリソースが入ること、リリースのタグがないこと)、コンパイル済みの`.res`をリポジトリに置く方法(バージョン情報の二重管理)。
+
+### T-2の補足
+
+- `about.toml`で、対象をWindowsの2つのターゲットに絞り、公開しないワークスペースのcrateを外す。
+- `windows-sys`・`windows-link`のように、ライセンスのファイルが読み込まれないcrateには、`clarify`でファイルとSHA-256を明示する。
+- 生成した結果に、SPDXの定型文の空欄(`<copyright holders>`など)が残っていたら失敗にする検査を加える。定型文への置き換えは、終了コードでは検出できないため。
+- テンプレートは、本文を`{{{text}}}`で出力する。出力は`-o`でファイルに書く。
+
+### T-3の構成
+
+```mermaid
+flowchart LR
+    tag["push tag vX.Y.Z"] --> check["check the tag matches Cargo.toml"]
+    check --> build["build job per target (x64, arm64): contents read, no cache"]
+    build --> artifacts["upload artifacts"]
+    artifacts --> release["release job: contents write"]
+    release --> sums["SHA256SUMS.txt"]
+    sums --> draft["gh release create --draft --verify-tag"]
+```
+
+- 起動: `v[0-9]+.[0-9]+.[0-9]+`のタグのプッシュ。タグの名前は環境変数で渡し、厳密な正規表現で検査してから、`cargo metadata --no-deps --locked --offline`で得たバージョンと照合する。
+- ビルドのジョブ: x64とarm64を、キャッシュを使わずに最初からビルドする([ADR-0015](../adr/0015-ci-build-cache-and-spike-targets.md))。CIと同じ依存DLLの確認を行う。`FlyingMicrowave.scr`に改名し、利用者向けの`README.txt`、`LICENSE.txt`、`THIRD-PARTY-LICENSES.txt`と一緒にzipにする。権限は読み取りだけ。
+- リリースのジョブ: 成果物を受け取り、`SHA256SUMS.txt`を作る。同じタグのリリースや下書きがないことを`gh release view`で確かめてから、`gh release create --draft --verify-tag`で下書きを作る。リリースノートは`CHANGELOG.md`の該当する版の節から作る。書き込みの権限(`contents: write`)は、このジョブだけに与える。
+- 公開: メンテナーが下書きを確かめて公開する(計画の7.2)。
+- アーティファクト証明: 非公開のあいだは使えないため、入れない。公開したときに、リリースのジョブに加える。
+- `cache-mode: none`: キャッシュのActionを使わないことで代える。ワークフローの検査ツールがまだ対応していないため。
+- 公開したときの追加の検討: リリースの変更を禁止する設定(immutable releases)。
+
+## 確認事項(メンテナーの判断を待っているもの)
+
+| ID | 内容 | 推奨 |
+| --- | --- | --- |
+| Q-1 | T-1〜T-4を承認するか | 承認する |
+| Q-2 | T-5のタグの保護を設定できる契約か | 設定できるなら設定する。手順はエージェントが用意する |
+| Q-3 | 設定画面の「Surprises」(隠し要素をまとめてオフにするスイッチ。[設定項目仕様](../design/settings.md)の`extras.surprises`)を残すか。残すと、隠し要素の中身は分からないが、存在は利用者に伝わる | 残す。利用者向けの文書には、このスイッチの説明も書かない |
+| Q-4 | 英語の返答を自動で検出して書き直させるフック(`.claude/hooks/`。セキュリティ設定)を加えるか | まずAGENTS.mdの言語ルールで様子を見て、再発したら加える |
+
+## 進め方
+
+承認された項目から、作業10・11・12の順に、それぞれ別のPRで実装する。T-4は、作業9(DLLの検索パスの制限)のPRで加える。各PRには対応するADRを含め、本格的なレビュー(ADR-0014)を行う。
