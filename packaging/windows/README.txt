@@ -16,7 +16,8 @@ or endorsed by their creators or rights holders.
 
 REQUIREMENTS
 
-- Windows 11 (x64 or arm64)
+- Windows 11 (x64)
+- The arm64 build is provided without any guarantee that it works.
 
 INSTALL
 
@@ -58,8 +59,9 @@ KNOWN LIMITATIONS
   and Smart App Control in enforcement mode is likely to block it.
 - Group Policy on managed PCs may prevent you from choosing a screen
   saver.
-- The arm64 build may be untested on real hardware. See the release
-  notes.
+- The arm64 build is not tested on real hardware. It only passes an
+  automated smoke test, and it is provided without any guarantee that
+  it works.
 
 PRIVACY
 
@@ -89,7 +91,8 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 動作環境
 
-- Windows 11 (x64 または arm64)
+- Windows 11 (x64)
+- arm64 版は、動作を保証せずに提供しています。
 
 インストール
 
@@ -132,8 +135,8 @@ v0.2.0 で追加されます。
   ブロックされる可能性が高いです。
 - 管理されている PC では、グループ ポリシーによってスクリーン セーバーを
   選べない場合があります。
-- arm64 版は実機で未検証の場合があります。リリースノートを参照して
-  ください。
+- arm64 版は実機で確認していません。自動のスモーク テストだけを
+  行っており、動作を保証せずに提供しています。
 
 プライバシー
 

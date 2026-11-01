@@ -95,7 +95,7 @@
 | N-06 | 通信 | ネットワーク通信を一切行わない |
 | N-07 | 副作用 | `/s`・`/p`の実行中はファイルに書き込まない(ログを有効にした場合を除く) |
 | N-08 | 堅牢性 | 不正な引数・設定ファイルでクラッシュせず、既定値で動作する |
-| N-09 | 対応環境 | Windows 11(x64・arm64)。追加のランタイムを必要としない(VC++ランタイムを静的リンクする)。Windows 10は動作保証外(2025-10-14にサポート終了 [MS-5])。[ADR-0006](../adr/0006-target-windows-11-x64-arm64.md) |
+| N-09 | 対応環境 | Windows 11のx64。arm64版は、動作を保証せずに配布する([ADR-0016](../adr/0016-arm64-without-guarantee.md))。追加のランタイムを必要としない(VC++ランタイムを静的リンクする)。Windows 10は動作保証外(2025-10-14にサポート終了 [MS-5])。[ADR-0006](../adr/0006-target-windows-11-x64-arm64.md)、[ADR-0016](../adr/0016-arm64-without-guarantee.md) |
 | N-10 | 表示品質 | モニタごとのDPIに対応し、どのモニタでも同じ見た目になる。高リフレッシュレートのモニタでもカクつかない(描画時の補間) |
 | N-11 | 表現 | ガイドラインG-1〜G-6を満たす(閃光なし、静止要素なし等) |
 | N-12 | ライセンス | 依存はすべてOSSライセンス。配布物に依存crateのライセンス表記(フォントなどcrateのメタデータ外のものを含む)を同梱する |
@@ -218,7 +218,7 @@ flowchart LR
 
 完了条件: [全フェーズ共通のリリース条件](#71-全フェーズ共通のリリース条件)。
 
-リリース: v0.1.0(x64・arm64)
+リリース: v0.1.0(x64。arm64版は動作を保証せずに配布する)
 
 ### Phase 2: v0.2.0 設定画面
 
@@ -317,7 +317,7 @@ flowchart LR
 11. 空白や日本語を含むパス・ユーザー名の環境で動く。
 12. スリープやディスプレイの消灯から復帰したときに正しく動く・終了する。
 13. Smart App Controlが有効な環境での挙動を記録する(環境がある場合)。
-14. arm64の実機で動く(実機がない場合はリリースノートに未検証と明記する)。
+14. arm64版: 実機での手動テストは行わない。リリースのワークフローの自動のスモークテストが通ったことを確かめ、リリースノートに、arm64版は動作を保証しないことを明記する([ADR-0016](../adr/0016-arm64-without-guarantee.md))。
 15. CPU使用率・GPU使用率・メモリ使用量を記録する。
 16. 終了後にプロセスが残らない。
 17. 利用者向けREADMEの手順どおりに導入・削除できる。
@@ -340,7 +340,7 @@ flowchart LR
 
 - 配布物(案): `FlyingMicrowave-<version>-windows-x64.zip`、`FlyingMicrowave-<version>-windows-arm64.zip`、`SHA256SUMS.txt`。zipには`FlyingMicrowave.scr`、利用者向けの`README.txt`(`packaging/windows/README.txt`)、`LICENSE.txt`(ルートの`LICENSE`の写し)、`THIRD-PARTY-LICENSES.txt`を入れる。単独アプリとしての実行を実装したら、`.exe`の同梱方法を決める(ADR-0012)。
 - `.scr`単体はメールやブラウザで危険なファイルとして扱われやすいため、zipで配布する。
-- ワークフローの安全対策: ActionsはコミットSHAで固定する、ジョブごとの`permissions`を最小にする、`--locked`でビルドする、リリース用のタグを保護する。リリースのワークフローではビルドのキャッシュを復元せず、毎回最初からビルドする(CIのキャッシュは[ADR-0015](../adr/0015-ci-build-cache-and-spike-targets.md))。
+- ワークフローの安全対策: ActionsはコミットSHAで固定する、ジョブごとの`permissions`を最小にする、`--locked`でビルドする、リリース用のタグを保護する。リリースのワークフローではビルドのキャッシュを復元せず、毎回最初からビルドする(CIのキャッシュは[ADR-0017](../adr/0017-ci-build-cache-and-x64-spike-builds.md))。
 - ビルドの出所を検証できるよう、GitHubのアーティファクト証明(artifact attestations)を付ける。非公開リポジトリで利用できるプランは限られるとレビューで指摘されており(GitHubのドキュメントは調査環境から接続できず未確認)、利用できない間は付けない。利用するActionは実装時に公式ドキュメントで確認する[GH-1]。
 - v0.x系は署名せずに配布し、SmartScreenの警告と、Smart App Controlの強制モードでのブロック[MS-6]を既知の制限として明記する([ADR-0013](../adr/0013-no-code-signing-for-v0.md))。v1.0.0の前に再判断する(Issue #2)。
 - SignPath Foundationの無償署名の条件(原文で確認)[SP-1]: すべての構成要素がOSIの承認したライセンスであること(商用のデュアルライセンス不可)、独自(非OSS)コンポーネントを含まないこと、署名する形で既にリリースされていること、アンインストールの手順または仕組みを提供すること、検証可能な方法でソースからビルドすること、全メンバーの多要素認証、リリースごとの手動承認、コード署名ポリシーの公開など。加えて「a certain verifiable reputation」が求められるため、新しいプロジェクトは申請が通らない可能性がある。証明書の発行先(発行者表示)はSignPath Foundationになる。条件の原文に「public」という語はないが、署名するソースと検証可能なビルドを第三者が確かめられる必要があることから、実際には公開リポジトリが必要になると推測されるため、公開の時期とあわせて検討する。
@@ -392,7 +392,7 @@ flowchart LR
 | D-4 | 設定の保存形式 | 利用者ごとの設定ディレクトリのTOMLファイル(具体的な場所はPhase 2で決める) | [ADR-0004](../adr/0004-store-settings-as-toml.md) |
 | D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。米国では同じ文字列のフレーズ検索で該当なし(結果はメンテナーが通常のブラウザで再確認する。空白なしの表記や類似の商標は未確認)。メンテナーによる残りの確認(日本を含む)で問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認) |
 | D-6 | 本プロジェクトのライセンス | MIT(著作権者の表記は「Flying Microwave contributors」) | [ADR-0005](../adr/0005-license-mit.md)、`LICENSE` |
-| D-7 | 対象のWindowsとCPUアーキテクチャ | Windows 11のx64とarm64 | [ADR-0006](../adr/0006-target-windows-11-x64-arm64.md) |
+| D-7 | 対象のWindowsとCPUアーキテクチャ | Windows 11のx64とarm64(2026-11-01に変更: arm64版は動作を保証せずに配布し、CIではx64だけをビルドする) | [ADR-0006](../adr/0006-target-windows-11-x64-arm64.md)、[ADR-0016](../adr/0016-arm64-without-guarantee.md) |
 | D-8 | レビューの方法 | 別コンテキストのエージェントによる敵対的レビュー。Copilotは利用せず(レビューを含む)、Copilotでレビューする場合の手順は参考として残す | [ADR-0007](../adr/0007-adversarial-review-without-copilot.md)、[PRのレビュー手順](../development/review-process.md) |
 | D-9 | 飛行表現 | 案A(ドアの羽ばたき)で進め、Phase 3の素材作成時に見え方を確認する | [ビジュアルデザイン方針](../design/visual-design.md) |
 | D-10 | リポジトリの整理 | `personal/`は削除済み。Dependabotの担当者を本リポジトリの所有者に変更 | `.github/dependabot.yml` |
