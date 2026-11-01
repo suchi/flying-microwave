@@ -7,7 +7,8 @@
 #
 # Artifacts: every run keeps FlyingMicrowave.scr for checks on real hardware.
 # A manual run (workflow_dispatch) builds from scratch without the cache and
-# adds the license notices, for a pre-release (plan 0001, section 7.3).
+# adds the license notices, for checks on real hardware. Releases are built
+# by release.yml (plan 0001, section 7.3).
 
 name: CI
 
@@ -110,8 +111,8 @@ jobs:
       # The default key includes neither the matrix target nor the root
       # Cargo.toml, so add both: the target keeps caches for different
       # targets apart (ADR-0017).
-      # Why: a manual run makes pre-release artifacts, so it never restores a
-      # cache (same rule as the release workflow, plan 0001 chapter 9).
+      # Why: a manual run makes artifacts that people run, so it never
+      # restores a cache (same rule as release.yml, plan 0001 chapter 9).
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: github.event_name != 'workflow_dispatch'
         with:
