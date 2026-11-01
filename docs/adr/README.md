@@ -46,4 +46,4 @@
 | [0015](0015-ci-build-cache-and-spike-targets.md) | CIでビルドをキャッシュし、PRでのスパイクのビルドをx64に限る | 非推奨(ADR-0017に置き換え) | 2026-10-31 |
 | [0016](0016-arm64-without-guarantee.md) | arm64版は動作を保証せずに配布し、CIではx64だけをビルドする | 採用 | 2026-11-01 |
 | [0017](0017-ci-build-cache-and-x64-spike-builds.md) | CIでビルドをキャッシュし、スパイクのビルドをx64に限る | 採用 | 2026-11-01 |
-| [0018](0018-review-before-push.md) | 敵対的レビューをプッシュの前に行う | 採用 | 2026-11-01 |
+| [0018](0018-review-before-opening-pr.md) | 敵対的レビューをPRを作る前に行う | 採用 | 2026-11-01 |
