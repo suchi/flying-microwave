@@ -25,7 +25,7 @@
 | 番号 | タイトル | ステータス |
 | --- | --- | --- |
 | [0001](plans/0001-initial-implementation-plan.md) | 空飛ぶ電子レンジ スクリーンセーバー 初期実装計画 | 合意済み |
-| [0002](plans/0002-phase1-tooling-proposal.md) | Phase 1のビルド・配布用ツールの提案 | 提案 |
+| [0002](plans/0002-phase1-tooling-proposal.md) | Phase 1のビルド・配布用ツールの提案 | 合意済み |
 
 ## 調査
 
