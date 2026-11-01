@@ -10,5 +10,24 @@ publish.workspace = true
 [dependencies]
 flying-microwave-core = { path = "../core" }
 
+# The screensaver itself is Windows only (ADR-0006). On other hosts the
+# binary builds without these, so the workspace can be checked on Linux.
+[target.'cfg(windows)'.dependencies]
+# Why: exact pins, because 0.x crates can break on minor updates. The versions
+# are the ones the technical spikes ran on real hardware (Phase 0, task 7).
+# Why: default features are off so that only the Windows backend is built.
+winit = { version = "=0.30.13", default-features = false, features = ["rwh_06"] }
+# Why: DX12 only (ADR-0002). No wgsl yet: the placeholder sprite is drawn by
+# copying solid rectangles, without shaders.
+wgpu = { version = "=30.0.1", default-features = false, features = ["std", "parking_lot", "dx12"] }
+pollster = "=1.0.1"
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
 [lints]
 workspace = true
