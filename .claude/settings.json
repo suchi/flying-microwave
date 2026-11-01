@@ -38,6 +38,14 @@
             "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/require-japanese-description.sh\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/require-japanese-display.sh\""
+          }
+        ]
       }
     ],
     "Stop": [
@@ -46,6 +54,20 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/require-japanese-reply.sh\""
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/require-japanese-display.sh\""
+          }
+        ]
+      }
+    ],
+    "MessageDisplay": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/flag-non-japanese-display.sh\""
           }
         ]
       }
