@@ -39,3 +39,4 @@
 | [0007](0007-dependencies-inside-cooldown.md) | 公開から7日たっていない依存の版を使った | 2026-11-01 |
 | [0008](0008-push-cancelled-running-pr-ci.md) | PRのCIの実行中にプッシュし、終わりかけのビルドを取り消した | 2026-11-01 |
 | [0009](0009-guard-hooks-never-ran.md) | 防御のフックが、最初から一度も働いていなかった | 2026-11-01 |
+| [0010](0010-onboarding-missed-build-steps.md) | 開発参加者向けの文書に、ビルドの方法が抜けていた | 2026-11-01 |
