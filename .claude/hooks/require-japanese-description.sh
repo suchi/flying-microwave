@@ -1,0 +1,27 @@
+#!/bin/sh
+# PreToolUse hook for tools that take a description (registered in
+# .claude/settings.json for Bash and Agent).
+#
+# The description is shown to the maintainer, so AGENTS.md (language rules,
+# the principle) requires it to be in Japanese (docs/incidents/0001). The hook
+# denies the call when the description contains no Japanese characters, and
+# tells the agent why.
+#
+# Requires jq (docs/development/onboarding.md, section 6.3). This is a
+# language check, not a security guard, so without jq or a parsable payload
+# the hook does not block anything.
+
+input=$(cat)
+
+command -v jq >/dev/null 2>&1 || exit 0
+
+description=$(printf '%s' "$input" | jq -r '.tool_input.description // empty' 2>/dev/null) || exit 0
+[ -n "$description" ] || exit 0
+
+if printf '%s' "$description" | jq -Rse 'test("[\\p{Hiragana}\\p{Katakana}\\p{Han}]")' >/dev/null 2>&1; then
+  exit 0
+fi
+
+jq -cn --arg reason "ツールの説明文(description)に日本語が含まれていません。説明文はメンテナーに表示されるため、日本語で書き直してから呼び出してください(AGENTS.mdの言語ルールの原則)。" \
+  '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
+exit 0
