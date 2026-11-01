@@ -76,3 +76,4 @@
 | --- | --- |
 | [0001](incidents/0001-english-text-shown-to-maintainer.md) | メンテナーに英語の文章が表示された |
 | [0002](incidents/0002-extra-ci-run-after-review.md) | レビューの指摘の修正で、不要なCIが走った |
+| [0003](incidents/0003-cancelled-maintainer-spike-run.md) | メンテナーのスパイクの手動実行を取り消した |

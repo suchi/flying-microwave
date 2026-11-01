@@ -32,3 +32,4 @@
 | --- | --- | --- |
 | [0001](0001-english-text-shown-to-maintainer.md) | メンテナーに英語の文章が表示された | 2026-11-01 |
 | [0002](0002-extra-ci-run-after-review.md) | レビューの指摘の修正で、不要なCIが走った | 2026-11-01 |
+| [0003](0003-cancelled-maintainer-spike-run.md) | メンテナーのスパイクの手動実行を取り消した | 2026-11-01 |
