@@ -29,6 +29,7 @@ GitHub Copilot・Claude Code・Codexすべてに対する指示の単一ソー�
 | リント・フォーマット | `cargo fmt --all --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`                                         |
 | 型チェック           | `cargo check --workspace --all-targets --locked`(Windows固有のコードはLinuxでも`--target x86_64-pc-windows-msvc`を付けて確認できる) |
 | ビルド               | `cargo build --release --locked`                                                                                                    |
+| 依存の公開からの日数 | `python3 -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock`                 |
 
 コミット前に必ずテスト・リントを実行する。ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では不要とする。シェルスクリプト(`.claude/hooks/`など)を変更した場合は、表の有無にかかわらず`sh -n`による構文チェックと、サンプル入力での動作確認を行う。
 
@@ -137,6 +138,7 @@ GitHub Actionsは、必要な実行(PRのCI、成果物を作る手動実行)は
 - シークレット・トークン・認証情報をハードコードしない。`.env`等のシークレットファイルをコミットしない。シークレットの値を会話・ログ・PR本文に貼らない。
 - 外部入力は検証し、ファイルパス・利用者の入力をサニタイズする。
 - 依存関係は安定版・メンテナンスされているものを使う。追加前にレジストリで実在・正確な名前を確認する(タイポスクワッティング対策)。
+- 依存関係(間接の依存とCIで入れるツールを含む)は、公開から7日以上たった版だけを使う(サプライチェーン攻撃対策。Dependabotの`cooldown`と同じ日数)。Dependabotの`cooldown`は、手元の`cargo`での解決には効かない。`Cargo.lock`を作ったり変えたりしたとき、CIで入れるツールの版を変えたときは、コミットの前に検証コマンドの表の「依存の公開からの日数」を実行し、通らない版は使わない。CIでも同じ検査を行う([docs/incidents/0007](docs/incidents/0007-dependencies-inside-cooldown.md))。
 - 生成コードも通常の検証フローを通す。セキュリティに影響する変更(認証・権限・入力処理・暗号)はPR本文で明示する。
 
 エージェントの振る舞いについて:

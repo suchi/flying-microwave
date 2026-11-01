@@ -148,6 +148,8 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 
 `.claude/settings.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`の変更は、メンテナーの承認を得てから行う。Dependabotの`cooldown`はサプライチェーン攻撃への対策なので、承認なしに削除・無効化しない。
 
+依存の公開からの日数: Dependabotの`cooldown`(7日)は、手元の`cargo`での解決には効かない。cargo 1.99の安定版には、同じ設定もない(`min-publish-age`は`-Zmin-publish-age`が必要)。そのため、`scripts/check_publish_age.py`で、ロックファイルのcrates.ioのすべての版と、CIで入れるツール(cargo-about)の版とそのロックファイルが、公開から7日以上たっているかを確かめる。公開日時は、crates.ioの索引の`pubtime`を使う。索引に版が見つからない場合や、索引を読めない場合は失敗にする。CIのLinuxのジョブが毎回実行する。手元で`Cargo.lock`を変えたときは、コミットの前に実行する(AGENTS.mdの検証コマンド)。新しい依存を加えたいのに検査を通らないときは、7日以上前に公開された版を選ぶか、7日たつまで待つ([incidents 0007](../incidents/0007-dependencies-inside-cooldown.md))。
+
 ### 6.4 モデルの使い分け
 
 - 最も高性能なモデル: 計画、深いレビュー、整合性チェックなど、深い検討が必要な作業に使う

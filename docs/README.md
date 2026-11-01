@@ -80,3 +80,4 @@
 | [0004](incidents/0004-spike-output-not-visible.md) | 実機の確認で、描画が目に見えなかった |
 | [0005](incidents/0005-english-notes-between-tool-calls.md) | 対策のあとも、ツール呼び出しの合間に英語の文を表示した |
 | [0006](incidents/0006-plan-delayed-first-runnable-version.md) | 計画の順番が、最初に動く版を遅らせた |
+| [0007](incidents/0007-dependencies-inside-cooldown.md) | 公開から7日たっていない依存の版を使った |
