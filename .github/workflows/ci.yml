@@ -27,6 +27,9 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # The version of cargo-about installed by the manual run. The cooldown check
+  # below also checks this version and its Cargo.lock (docs/incidents/0007).
+  CARGO_ABOUT_VERSION: 0.9.2
 
 jobs:
   linux:
@@ -37,6 +40,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      # Supply-chain defense: every crates.io version in the lock files, and the
+      # tools installed below, must have been public for at least 7 days, the
+      # same cooldown as .github/dependabot.yml. Local cargo runs are not
+      # covered by Dependabot's cooldown (docs/incidents/0007).
+      - name: Check dependency cooldown
+        run: |
+          python3 -I -m unittest discover -s scripts
+          tool="cargo-about-${CARGO_ABOUT_VERSION}"
+          curl -sSfL -o "$RUNNER_TEMP/$tool.crate" "https://static.crates.io/crates/cargo-about/$tool.crate"
+          tar -xzf "$RUNNER_TEMP/$tool.crate" -C "$RUNNER_TEMP" "$tool/Cargo.lock"
+          python3 -I scripts/check_publish_age.py \
+            --crate "cargo-about@${CARGO_ABOUT_VERSION}" \
+            Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock \
+            "$RUNNER_TEMP/$tool/Cargo.lock"
 
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
@@ -129,7 +147,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
         run: |
-          cargo install --locked --features cli --version 0.9.3 cargo-about
+          cargo install --locked --features cli --version $env:CARGO_ABOUT_VERSION cargo-about
           cargo about generate --locked --fail -o dist/THIRD-PARTY-LICENSES.txt about.hbs
           if ($LASTEXITCODE -ne 0) { throw 'cargo about failed' }
           # Unfilled SPDX placeholders are not caught by the exit code (T-2).
