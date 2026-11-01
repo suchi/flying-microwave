@@ -133,7 +133,9 @@ jobs:
           cargo about generate --locked --fail -o dist/THIRD-PARTY-LICENSES.txt about.hbs
           if ($LASTEXITCODE -ne 0) { throw 'cargo about failed' }
           # Unfilled SPDX placeholders are not caught by the exit code (T-2).
-          $left = Select-String -Path dist/THIRD-PARTY-LICENSES.txt -Pattern '<(copyright holders|year|owner|name of author)>|\[(yyyy|name of copyright owner)\]'
+          # Why: angle brackets only. "Copyright [yyyy] [name of copyright
+          # owner]" is part of the Apache-2.0 text itself (its appendix).
+          $left = Select-String -Path dist/THIRD-PARTY-LICENSES.txt -Pattern '<(copyright holders|year|owner|name of author)>'
           if ($left) { throw "Unfilled license placeholders: $left" }
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
