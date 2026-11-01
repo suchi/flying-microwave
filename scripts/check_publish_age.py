@@ -94,8 +94,8 @@ def check(packages, now, cooldown, fetch):
             problems.append(f"{name} {version}: crates.ioの索引に見つからない")
             continue
         pubtime = entry.get("pubtime")
-        # Why fail: every crates.io version checked on 2026-11-01 (648 versions,
-        # back to 2014) had a pubtime, so a missing one means the index format
+        # Why fail: every crates.io version checked on 2026-11-01 (256 versions
+        # in the three lock files, back to 2014) had a pubtime, so a missing one means the index format
         # changed or the entry is unusual; it must not pass silently.
         if pubtime is None:
             problems.append(f"{name} {version}: 索引に公開日時(pubtime)がない")
@@ -111,7 +111,21 @@ def check(packages, now, cooldown, fetch):
     return problems
 
 
+def use_utf8_output():
+    """Write the Japanese messages as UTF-8 on every platform.
+
+    Why: on Windows, a piped stdout uses the ANSI code page (cp1252 on English
+    Windows) with strict errors, so a Japanese message would raise
+    UnicodeEncodeError and turn a passing check into a failure. `-I` also
+    ignores PYTHONUTF8 and PYTHONIOENCODING.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
+
+
 def main(argv=None, now=None, fetch=fetch_index):
+    use_utf8_output()
     parser = argparse.ArgumentParser(description="依存の版の公開からの日数を確かめる")
     parser.add_argument("lockfiles", nargs="*", help="確かめるCargo.lock")
     parser.add_argument("--crate", action="append", default=[], metavar="NAME@VERSION")

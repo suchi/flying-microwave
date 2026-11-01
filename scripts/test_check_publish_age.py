@@ -1,6 +1,7 @@
 """Tests for check_publish_age.py. Run: python3 -I -m unittest discover -s scripts"""
 
 import datetime as dt
+import io
 import pathlib
 import sys
 import tempfile
@@ -131,6 +132,16 @@ class MainTest(unittest.TestCase):
             lock.write_text(LOCK.replace('name = "new-crate"', 'name = "new-crate-x"'))
             index = dict(INDEX, **{"new-crate-x": [{"vers": "2.0.0", "pubtime": "2026-01-01T00:00:00Z"}]})
             self.assertEqual(cpa.main([str(lock)], now=NOW, fetch=index.get), 1)
+
+    def test_main_writes_japanese_to_a_cp1252_stdout(self):
+        # On a Windows runner, a piped stdout uses the ANSI code page
+        # (cp1252 on English Windows) with strict errors.
+        saved = sys.stdout
+        sys.stdout = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+        try:
+            self.assertEqual(self.run_main(["--crate", "old-crate@1.0.0"]), 0)
+        finally:
+            sys.stdout = saved
 
     def test_main_rejects_a_malformed_crate_argument(self):
         self.assertEqual(self.run_main(["--crate", "no-version"]), 2)
