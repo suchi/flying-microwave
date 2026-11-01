@@ -1,4 +1,6 @@
-//! wgpu setup and a trivial "clear to a color" renderer.
+//! wgpu setup and a trivial renderer: clear to a dark color, then copy a small
+//! marker square onto the surface so that a person can see that frames are
+//! drawn (the dark color alone looks black; docs/incidents/0004).
 //!
 //! The hardening decisions mirror docs/design/architecture.md:
 //! - SEC-2: the DX12 shader compiler is set to `Fxc` explicitly (the default,
@@ -11,6 +13,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use wgpu::util::DeviceExt;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
@@ -50,6 +53,56 @@ pub struct Target {
     label: String,
     /// Number of non-success acquire results seen (used to limit log noise).
     problems: u32,
+    /// The marker square, or None when the surface cannot take it.
+    marker: Option<Marker>,
+}
+
+/// Pixels of the marker square, ready to copy onto the surface texture.
+struct Marker {
+    buffer: wgpu::Buffer,
+    side: u32,
+    bytes_per_row: u32,
+}
+
+impl Marker {
+    /// Builds the marker for a surface of `width` x `height`. Returns None
+    /// (with the reason) when the surface format is not 8-bit RGBA or BGRA.
+    fn new(
+        gpu: &Gpu,
+        format: wgpu::TextureFormat,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, String> {
+        let [r, g, b] = policy::MARKER_RGB;
+        let pixel = match format {
+            wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb => [b, g, r, 255],
+            wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Rgba8UnormSrgb => [r, g, b, 255],
+            other => return Err(format!("surface format {other:?} is not 8-bit RGBA/BGRA")),
+        };
+        let side = policy::marker_side(width, height);
+        // Why: buffer-to-texture copies need rows aligned to 256 bytes.
+        let bytes_per_row = (side * 4).div_ceil(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT)
+            * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let row: Vec<u8> = pixel
+            .iter()
+            .copied()
+            .cycle()
+            .take(bytes_per_row as usize)
+            .collect();
+        let contents = row.repeat(side as usize);
+        let buffer = gpu
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("saver-spike marker"),
+                contents: &contents,
+                usage: wgpu::BufferUsages::COPY_SRC,
+            });
+        Ok(Self {
+            buffer,
+            side,
+            bytes_per_row,
+        })
+    }
 }
 
 /// Creates the wgpu instance with the explicit backend and shader compiler.
@@ -158,8 +211,17 @@ impl Target {
             .find(|f| !f.is_srgb())
             .or_else(|| capabilities.formats.first().copied())
             .ok_or_else(|| format!("{label}: surface supports no formats"))?;
+        // Why: the marker is copied onto the surface texture, which needs
+        // COPY_DST (offered by the DX12 backend). Without it, only the dark
+        // color is drawn.
+        let can_copy = capabilities.usages.contains(wgpu::TextureUsages::COPY_DST);
+        let usage = if can_copy {
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
+        } else {
+            wgpu::TextureUsages::RENDER_ATTACHMENT
+        };
         let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage,
             format,
             color_space: wgpu::SurfaceColorSpace::Auto,
             width: size.width,
@@ -182,12 +244,45 @@ impl Target {
             config.format,
             config.present_mode,
         );
-        Ok(Self {
+        let mut target = Self {
             surface,
             config,
             label: label.to_owned(),
             problems: 0,
-        })
+            marker: None,
+        };
+        if can_copy {
+            target.rebuild_marker(gpu);
+        } else {
+            log!("{label}: marker not drawn: the surface does not allow COPY_DST");
+        }
+        Ok(target)
+    }
+
+    /// Recreates the marker for the current surface size.
+    fn rebuild_marker(&mut self, gpu: &Gpu) {
+        match Marker::new(
+            gpu,
+            self.config.format,
+            self.config.width,
+            self.config.height,
+        ) {
+            Ok(marker) => {
+                log!(
+                    "{}: marker square {}x{} px for {}x{}",
+                    self.label,
+                    marker.side,
+                    marker.side,
+                    self.config.width,
+                    self.config.height
+                );
+                self.marker = Some(marker);
+            }
+            Err(reason) => {
+                log!("{}: marker not drawn: {reason}", self.label);
+                self.marker = None;
+            }
+        }
     }
 
     /// Reconfigures the surface for a new size (ignored while the size is zero).
@@ -200,6 +295,9 @@ impl Target {
         self.config.height = size.height;
         self.surface.configure(&gpu.device, &self.config);
         log!("{}: surface reconfigured to {size:?}", self.label);
+        if self.marker.is_some() {
+            self.rebuild_marker(gpu);
+        }
     }
 
     /// Draws one frame: clears the surface to the dark color for `elapsed`.
@@ -262,6 +360,32 @@ impl Target {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
+        }
+        if let Some(marker) = &self.marker {
+            // Recorded after the clear pass, so the square is drawn on top.
+            let (x, y) =
+                policy::marker_origin(elapsed, self.config.width, self.config.height, marker.side);
+            encoder.copy_buffer_to_texture(
+                wgpu::TexelCopyBufferInfo {
+                    buffer: &marker.buffer,
+                    layout: wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(marker.bytes_per_row),
+                        rows_per_image: Some(marker.side),
+                    },
+                },
+                wgpu::TexelCopyTextureInfo {
+                    texture: &texture.texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d { x, y, z: 0 },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::Extent3d {
+                    width: marker.side,
+                    height: marker.side,
+                    depth_or_array_layers: 1,
+                },
+            );
         }
         gpu.queue.submit([encoder.finish()]);
         // Release our view of the texture before presenting it.
