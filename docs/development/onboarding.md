@@ -137,20 +137,66 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
 - Python 3(依存の7日の検査とフックの検査に使う。この節のコマンドはWindowsの`python`で書いている。LinuxとmacOSでは`python3`にする)
 - jq(フックが入力の解析に使い、フックの検査にも要る。導入の方法は6.3)
 
-手順:
+以下のコマンドは、Windowsでは PowerShell で、リポジトリのルートで実行する(フックの検査だけは Git Bash で実行する)。
 
-1. ツールチェーンのインストール: `rustup toolchain install`。`rust-toolchain.toml`のとおり、版を固定したRustと、Windowsの2つのターゲット、rustfmt、clippyが入る。
-2. テストとリント: `cargo test --workspace --locked`、`cargo fmt --all --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`。
-3. ビルド: `cargo build --release --locked --target x86_64-pc-windows-msvc`。CIと同じく、ターゲットを明示する。実行ファイルは`target\x86_64-pc-windows-msvc\release\flying-microwave.exe`にできる。VC++ランタイムは静的にリンクする(`.cargo/config.toml`の`+crt-static`)。
-4. スクリーンセーバーとしての動作確認: 実行ファイルを`FlyingMicrowave.scr`という名前でコピーし、右クリックの「インストール」か「テスト」で動かす(Windows 11では、先に「その他のオプションを確認」を選ぶことがある)。ログは`%TEMP%\flying-microwave.log`に書かれる。
-5. 依存の7日の検査: `python -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock`。`Cargo.lock`を変えたときは、コミットの前に必ず実行する(AGENTS.md)。
-6. フックの検査: `python -I scripts/check_hooks.py`。`sh`と`jq`を使うため、WindowsではGit Bashの中で実行する。
+1. ツールチェーンのインストール。`rust-toolchain.toml`のとおり、版を固定したRustと、Windowsの2つのターゲット、rustfmt、clippyが入る。
 
-Linuxでは、手順2・5・6(`python3`で実行する。手順6には`jq`が要る)と、型チェック(`cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc`)を実行できる。Windowsの実行ファイルは作れない。ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。スパイクのビルドは[spikes/README.md](../../spikes/README.md)を参照する。
+   ```powershell
+   rustup toolchain install
+   ```
+
+2. テストとリント。
+
+   ```powershell
+   cargo test --workspace --locked
+   cargo fmt --all --check
+   cargo clippy --workspace --all-targets --locked -- -D warnings
+   ```
+
+3. ビルド。CIと同じく、ターゲットを明示する。VC++ランタイムは静的にリンクする(`.cargo/config.toml`の`+crt-static`)。実行ファイルは`target\x86_64-pc-windows-msvc\release\flying-microwave.exe`にできる。
+
+   ```powershell
+   cargo build --release --locked --target x86_64-pc-windows-msvc
+   ```
+
+4. スクリーンセーバーとしての動作確認。実行ファイルを`FlyingMicrowave.scr`という名前でコピーし、エクスプローラーで右クリックして「インストール」か「テスト」を選ぶ(Windows 11では、先に「その他のオプションを確認」を選ぶことがある)。名前を変えずに試す方法は5.2にある。
+
+   ```powershell
+   Copy-Item target\x86_64-pc-windows-msvc\release\flying-microwave.exe FlyingMicrowave.scr
+   ```
+
+5. 依存の7日の検査。`Cargo.lock`を変えたときは、コミットの前に必ず実行する(AGENTS.md)。
+
+   ```powershell
+   python -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock
+   ```
+
+6. フックの検査。`sh`と`jq`を使うため、Git Bash で実行する。
+
+   ```bash
+   python -I scripts/check_hooks.py
+   ```
+
+Linux と macOS では、手順2・5・6と型チェックを実行できる。Pythonは`python3`で実行し、手順6には`jq`が要る。Windowsの実行ファイルは作れない。
+
+```bash
+cargo test --workspace --locked
+cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc
+python3 -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock
+python3 -I scripts/check_hooks.py
+```
+
+ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。スパイクのビルドは[spikes/README.md](../../spikes/README.md)を参照する。
 
 ### 5.2 実行と動作確認
 
-開発中は、ビルドした`flying-microwave.exe`を、名前を変えずに実行できる。引数の解釈は[アーキテクチャの起動モードの判定](../design/architecture.md#起動モードの判定)のとおりで、`.exe`でも`/s`を付ければスクリーンセーバーとして動く。
+開発中は、ビルドした`flying-microwave.exe`を、名前を変えずに実行できる。引数の解釈は[アーキテクチャの起動モードの判定](../design/architecture.md#起動モードの判定)のとおりで、`.exe`でも`/s`を付ければスクリーンセーバーとして動く。リポジトリのルートの PowerShell から、次のように実行する。
+
+```powershell
+.\target\x86_64-pc-windows-msvc\release\flying-microwave.exe /s
+```
+
+引数ごとの動作:
 
 - `flying-microwave.exe /s`: スクリーンセーバーとして、すべてのモニタを覆って動く。キーの押下、マウスのボタンやホイール、タッチ、マウスを16ピクセル以上動かしたとき、ほかのウィンドウが前面に出たときに終了する。起動直後の0.5秒間のマウスの動きは無視する。
 - `flying-microwave.exe /c`: 設定は今後のバージョンで追加する旨のメッセージを表示する。`.scr`を引数なしで起動したときも同じ。
@@ -162,9 +208,19 @@ Linuxでは、手順2・5・6(`python3`で実行する。手順6には`jq`が要
 ### 5.3 ログとデバッグ
 
 - コンソールはない。スクリーンセーバーなので、デバッグのビルドでもコンソールを開かない(`main.rs`の`windows_subsystem = "windows"`)。`println!`や`eprintln!`の出力は見えない。
-- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。
+- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
+
+  ```powershell
+  Get-Content $env:TEMP\flying-microwave.log -Tail 50
+  ```
+
 - panic: panicのメッセージは標準エラー出力に出るため、見えず、ログにも残らない(panicのフックをまだ設定していない。Rustの[`std::panic::set_hook`](https://doc.rust-lang.org/std/panic/fn.set_hook.html)で、ログに書くようにできる)。GPUの初期化の中のpanicは捕まえて、panicが起きたことだけをログに書く(`GPU initialization failed: GPU initialization panicked`。`render.rs`の`guarded`)。panicのメッセージと場所は残らない。初期化の外でpanicが起きると、プロセスが終わる。
-- デバッグのビルド: `cargo build --locked --target x86_64-pc-windows-msvc`(`--release`を付けない)。実行ファイルは`target\x86_64-pc-windows-msvc\debug\flying-microwave.exe`にできる。
+- デバッグのビルド: `--release`を付けずにビルドする。実行ファイルは`target\x86_64-pc-windows-msvc\debug\flying-microwave.exe`にできる。
+
+  ```powershell
+  cargo build --locked --target x86_64-pc-windows-msvc
+  ```
+
 - デバッガ: 未整備。MSVCのターゲットでビルドしたRustの実行ファイルは、Windowsのデバッガで調べられるはずだが、使い方(Visual Studio、VS CodeのC/C++の拡張など)を公式ドキュメントで確かめられていない(この環境から`learn.microsoft.com`と`code.visualstudio.com`に接続できなかった)。6.5の推奨のドメインに`learn.microsoft.com`と`code.visualstudio.com`を加えて接続を許可したあと、Phase 1の段階2のPRで、この項目を書く。なお、`/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。
 
 ### 5.4 トラブルシューティング
