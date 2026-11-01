@@ -118,7 +118,7 @@ feat: add todo filter feature      ← 1行目: 英語・命令形・50文字以
 - 計画・調査結果・設計・レビュー記録など検討の経緯は、すべてリポジトリ内のドキュメントに残す。配置と一覧は`docs/README.md`に従う。
 - 本リポジトリは将来公開する。ドキュメント・Issue・PR本文に、個人を特定できる情報(氏名・アカウント名・メールアドレスなど)や会話のやり取りを残さない。会話で得たフィードバックは、決定事項・要件・ルールとして非人称の形で記録する。人を指すときは役割(メンテナー・開発参加者・利用者)で書く。
 - READMEの役割: ルートの`README.md`はリポジトリを見る人向け、`packaging/windows/README.txt`は配布物の利用者向けとする。開発に参加する人向けの入口は`docs/development/onboarding.md`。
-- 隠し要素(イースターエッグなど)の存在・内容・発動条件は、開発者向けの文書(`docs/`・本ファイル)だけに書く。利用者が読む文書には書かない。対象はルートの`README.md`、`packaging/windows/README.txt`、`CHANGELOG.md`と、そこから作るGitHub Releaseのリリースノート。
+- 隠し要素(イースターエッグなど)の存在・内容・発動条件は、開発者向けの文書(`docs/`・本ファイル)だけに書き、利用者が読む文書には書かない。利用者が読む文書とは、ルートの`README.md`、`packaging/windows/README.txt`、`CHANGELOG.md`と、そこから作るGitHub Releaseのリリースノートを指す。
 - ADR: 技術選択・設計判断は`docs/adr/`に記録する。運用ルール(上書き禁止・非推奨化手順・`Why:`コメント)は`docs/adr/README.md`に従う。
 
 ## セキュリティ
