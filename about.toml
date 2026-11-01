@@ -1,0 +1,18 @@
+# cargo-about configuration for THIRD-PARTY-LICENSES.txt
+# (ADR-0011, docs/plans/0002-phase1-tooling-proposal.md T-2).
+# Only the crates linked into the Windows executables are listed.
+targets = ["x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+# The workspace crates themselves are not third-party (publish = false).
+private = { ignore = true }
+# Every license found in the dependency tree on 2026-11-01. A new license
+# makes generation fail, so it is reviewed before it is shipped.
+accepted = [
+    "Apache-2.0",
+    "MIT",
+    "Zlib",
+    "ISC",
+    "BSD-2-Clause",
+    "Unicode-3.0",
+]
