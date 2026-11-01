@@ -1,8 +1,25 @@
 # 開発参加者向けオンボーディング
 
-- ステータス: 2026-10-31時点。Phase 0の着手前。実態が変わったら更新する
+- ステータス: 2026-11-01時点。Phase 1の段階1を終え、v0.1.0-alpha.2をプレリリースとして公開した。実態が変わったら更新する
 - 対象: 後から参加する開発者(人間・AIエージェント)
 - 関連: [README](../../README.md)、[AGENTS.md](../../AGENTS.md)、[ドキュメント一覧](../README.md)
+
+## この文書で扱う作業
+
+開発者が行う作業ごとに、手順を書いた節を示す。この一覧は、読者(新しく参加する開発者)が行う作業から決める。開発者が行う作業(ビルド・実行・テスト・デバッグの方法など)が変わったら、同じ変更の中で、この一覧と各節を更新する。手順がまだない作業は「未整備」とし、理由と、整える時期を書く([incidents 0010](../incidents/0010-onboarding-missed-build-steps.md))。
+
+| 作業 | 節 | 状態 |
+| --- | --- | --- |
+| 開発環境の準備 | [5.1](#51-ローカルでのビルドとテスト)の前提のツール | 整備済み |
+| ビルド | [5.1](#51-ローカルでのビルドとテスト) | 整備済み |
+| テスト(自動テスト) | [5.1](#51-ローカルでのビルドとテスト)、[8](#8-windows実機での確認) | 整備済み |
+| 実行と動作確認(`/s`・`/c`・`/p`と長いオプション) | [5.2](#52-実行と動作確認) | 整備済み(`/p`はまだ何もしない。Phase 1の段階2で作る) |
+| ログの確認 | [5.3](#53-ログとデバッグ) | 整備済み |
+| デバッガによるデバッグ | [5.3](#53-ログとデバッグ) | 未整備(公式ドキュメントに接続できないため。接続を許可したあとの、Phase 1の段階2のPRで書く) |
+| トラブルシューティング | [5.4](#54-トラブルシューティング) | 整備済み |
+| 変更の進め方(ブランチ、コミット、レビュー、マージ) | [3](#3-開発の進め方)、[4](#4-レビューとマージ) | 整備済み |
+| リリース | [8](#8-windows実機での確認)、[計画の7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順) | 整備済み(プレリリースだけ。正式なリリースはarm64のビルドを加えてから) |
+| AIエージェントとの協働 | [6](#6-aiエージェントとの協働) | 整備済み |
 
 ## 1. このプロジェクトについて
 
@@ -11,8 +28,8 @@ Flying Microwaveは、電子レンジが画面を飛ぶWindowsスクリーンセ
 現在の状況:
 
 - 実装計画: 合意済み。[0001: 初期実装計画](../plans/0001-initial-implementation-plan.md)に従って進める
-- 次の作業: Phase 0(基盤整備。リリースなし)。Cargoワークスペースの雛形、CI、Windows実機での技術スパイクS1〜S6を行う
-- コード: 製品コードはまだない
+- 次の作業: Phase 1の段階2(`/p`のプレビュー、Settingsのメッセージ、GPUのない環境での確認S6)
+- コード: `/s`で仮の図形の電子レンジが飛ぶ、最初に動く版がある(`crates/core`と`crates/app`)
 - ライセンス: MIT([LICENSE](../../LICENSE)、[ADR-0005](../adr/0005-license-mit.md))
 - リリース: 基本機能から段階的に実装し、フェーズごとにセマンティックバージョニングでGitHub Releaseを公開する。最初のリリースはv0.1.0(Phase 1)
 - 公開: リポジトリは将来公開する。ドキュメントやコミットは公開される前提で書く
@@ -108,6 +125,112 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 
 ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では、テストとリントは必要ない。代わりに、リンク切れや記載の食い違いがないかを`/consistency-check`で確認する。
 
+### 5.1 ローカルでのビルドとテスト
+
+CIと同じ手順で、ローカルでビルドとテストを行う方法である。コマンドは、リポジトリのルートで実行する。
+
+前提のツール(Windows):
+
+- rustup(Rustのツールチェーンの管理ツール)
+- Visual Studio Build Tools の「C++ によるデスクトップ開発」(MSVCのリンカとWindows SDK)
+- Git for Windows(フックを動かすGit Bashも入る。6.3)
+- Python 3(依存の7日の検査とフックの検査に使う。この節のコマンドはWindowsの`python`で書いている。LinuxとmacOSでは`python3`にする)
+- jq(フックが入力の解析に使い、フックの検査にも要る。導入の方法は6.3)
+
+以下のコマンドは、Windowsでは PowerShell で、リポジトリのルートで実行する(フックの検査だけは Git Bash で実行する)。
+
+1. ツールチェーンのインストール。`rust-toolchain.toml`のとおり、版を固定したRustと、Windowsの2つのターゲット、rustfmt、clippyが入る。
+
+   ```powershell
+   rustup toolchain install
+   ```
+
+2. テストとリント。
+
+   ```powershell
+   cargo test --workspace --locked
+   cargo fmt --all --check
+   cargo clippy --workspace --all-targets --locked -- -D warnings
+   ```
+
+3. ビルド。CIと同じく、ターゲットを明示する。VC++ランタイムは静的にリンクする(`.cargo/config.toml`の`+crt-static`)。実行ファイルは`target\x86_64-pc-windows-msvc\release\flying-microwave.exe`にできる。
+
+   ```powershell
+   cargo build --release --locked --target x86_64-pc-windows-msvc
+   ```
+
+4. スクリーンセーバーとしての動作確認。実行ファイルを`FlyingMicrowave.scr`という名前でコピーし、エクスプローラーで右クリックして「インストール」か「テスト」を選ぶ(Windows 11では、先に「その他のオプションを確認」を選ぶことがある)。名前を変えずに試す方法は5.2にある。
+
+   ```powershell
+   Copy-Item target\x86_64-pc-windows-msvc\release\flying-microwave.exe FlyingMicrowave.scr
+   ```
+
+5. 依存の7日の検査。`Cargo.lock`を変えたときは、コミットの前に必ず実行する(AGENTS.md)。
+
+   ```powershell
+   python -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock
+   ```
+
+6. フックの検査。`sh`と`jq`を使うため、Git Bash で実行する。
+
+   ```bash
+   python -I scripts/check_hooks.py
+   ```
+
+Linux と macOS では、手順2・5・6と型チェックを実行できる。Pythonは`python3`で実行し、手順6には`jq`が要る。Windowsの実行ファイルは作れない。
+
+```bash
+cargo test --workspace --locked
+cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc
+python3 -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock
+python3 -I scripts/check_hooks.py
+```
+
+ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。スパイクのビルドは[spikes/README.md](../../spikes/README.md)を参照する。
+
+### 5.2 実行と動作確認
+
+開発中は、ビルドした`flying-microwave.exe`を、名前を変えずに実行できる。引数の解釈は[アーキテクチャの起動モードの判定](../design/architecture.md#起動モードの判定)のとおりで、`.exe`でも`/s`を付ければスクリーンセーバーとして動く。リポジトリのルートの PowerShell から、次のように実行する。
+
+```powershell
+.\target\x86_64-pc-windows-msvc\release\flying-microwave.exe /s
+```
+
+引数ごとの動作:
+
+- `flying-microwave.exe /s`: スクリーンセーバーとして、すべてのモニタを覆って動く。キーの押下、マウスのボタンやホイール、タッチ、マウスを16ピクセル以上動かしたとき、ほかのウィンドウが前面に出たときに終了する。起動直後の0.5秒間のマウスの動きは無視する。
+- `flying-microwave.exe /c`: 設定は今後のバージョンで追加する旨のメッセージを表示する。`.scr`を引数なしで起動したときも同じ。
+- `flying-microwave.exe /p <ウィンドウの番号>`: プレビューは、まだ何もしない(Phase 1の段階2で作る)。ウィンドウの番号がないか不正なときは、`/c`と同じメッセージになる。
+- `--settings`: `/c`と同じメッセージになる。`--window`と`--fullscreen`: 単独のアプリとしては、まだ動かない旨のメッセージになる(単独のアプリはPhase 6で判断する)。
+- 引数なしの`flying-microwave.exe`: 単独のアプリとしては動かない旨のメッセージを表示する。
+- スクリーンセーバーの設定画面から動作を確認するには、5.1の手順4のとおり`.scr`にしてインストールする。
+
+### 5.3 ログとデバッグ
+
+- コンソールはない。スクリーンセーバーなので、デバッグのビルドでもコンソールを開かない(`main.rs`の`windows_subsystem = "windows"`)。`println!`や`eprintln!`の出力は見えない。
+- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
+
+  ```powershell
+  Get-Content $env:TEMP\flying-microwave.log -Tail 50
+  ```
+
+- panic: panicのメッセージは標準エラー出力に出るため、見えず、ログにも残らない(panicのフックをまだ設定していない。Rustの[`std::panic::set_hook`](https://doc.rust-lang.org/std/panic/fn.set_hook.html)で、ログに書くようにできる)。GPUの初期化の中のpanicは捕まえて、panicが起きたことだけをログに書く(`GPU initialization failed: GPU initialization panicked`。`render.rs`の`guarded`)。panicのメッセージと場所は残らない。初期化の外でpanicが起きると、プロセスが終わる。
+- デバッグのビルド: `--release`を付けずにビルドする。実行ファイルは`target\x86_64-pc-windows-msvc\debug\flying-microwave.exe`にできる。
+
+  ```powershell
+  cargo build --locked --target x86_64-pc-windows-msvc
+  ```
+
+- デバッガ: 未整備。MSVCのターゲットでビルドしたRustの実行ファイルは、Windowsのデバッガで調べられるはずだが、使い方(Visual Studio、VS CodeのC/C++の拡張など)を公式ドキュメントで確かめられていない(この環境から`learn.microsoft.com`と`code.visualstudio.com`に接続できなかった)。6.5の推奨のドメインに`learn.microsoft.com`と`code.visualstudio.com`を加えて接続を許可したあと、Phase 1の段階2のPRで、この項目を書く。なお、`/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。
+
+### 5.4 トラブルシューティング
+
+- 画面が覆われたまま戻らない: キーを押すか、マウスを大きく動かす。反応しなければ、Ctrl+Alt+Delでタスクマネージャーを開き、`flying-microwave.exe`(`.scr`として起動したときは`FlyingMicrowave.scr`)を終了する。GPUの初期化が15秒で終わらないときは、ログに`GPU initialization timed out; exiting`と書いて、終了コード6で自動的に終了する。
+- ビルドでリンカが見つからない: Visual Studio Build Toolsの「C++ によるデスクトップ開発」が入っているかを確かめる(5.1の前提のツール)。
+- 依存の7日の検査が通らない: 公開から7日たっていない版を使っている。7日以上前に公開された版を選ぶか、7日たつまで待つ(6.3の「依存の公開からの日数」)。
+- フックの検査が通らない: `jq`が入っているか、Git Bashの中で実行しているかを確かめる(6.3)。
+- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`screensaver ended:`の行がある。この行がなく途中で切れていれば、panicなどで異常終了している。
+
 ## 6. AIエージェントとの協働
 
 指示の単一ソースは[AGENTS.md](../../AGENTS.md)である。`CLAUDE.md`は`@AGENTS.md`でこれを取り込むだけの薄いポインタで、GitHub CopilotとOpenAI Codexは`AGENTS.md`をそのまま読む。指示の追加・変更は`AGENTS.md`に行い、エージェント固有のファイルには書かない。
@@ -163,7 +286,7 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 
 環境(cloud environment)は、ほかのプロジェクトと共有せず、本プロジェクト専用のものを使う。環境の設定(接続を許可するドメイン、セットアップスクリプト)は環境ごとに1つで、共有すると、片方のための変更がもう片方にも効くためである。推奨の設定は次のとおり。
 
-- Network access: 「Custom」とし、標準のパッケージ置き場も許可する(「Also include default list of common package managers」にチェックを入れる)。Allowed domainsには、`docs.rs`、`doc.rust-lang.org`、`docs.github.com`を加える。商標の確認には`tmsearch.uspto.gov`と`www.j-platpat.inpit.go.jp`も使う。
+- Network access: 「Custom」とし、標準のパッケージレジストリも許可する(「Also include default list of common package managers」にチェックを入れる)。Allowed domainsには、`docs.rs`、`doc.rust-lang.org`、`docs.github.com`を加える。Windowsのデバッガの使い方を確かめるため、`learn.microsoft.com`と`code.visualstudio.com`も加える(5.3)。商標の確認には`tmsearch.uspto.gov`と`www.j-platpat.inpit.go.jp`も使う。
 - Setup script: 次のスクリプト。
   - 実行のタイミング: 公式ドキュメント([Environment caching](https://code.claude.com/docs/en/cloud-environments#environment-caching))によると、毎回のセッションではなく、最初のセッションと、環境のキャッシュを作り直すとき(スクリプトや許可するドメインを変えたとき、約7日でキャッシュが期限切れになったとき)に実行される。
   - 実行するディレクトリ: 公式ドキュメントに記載がない。本プロジェクト専用の環境では、リポジトリの1つ上のディレクトリで実行されて`cd flying-microwave`が成功したことを、actionlintが入っていたことから確かめた。
