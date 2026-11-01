@@ -89,14 +89,19 @@ class MainTest(unittest.TestCase):
         self.assertIn("- 飛ぶ。", notes)
 
     def test_fails_when_the_version_does_not_match(self):
-        self.assertEqual(self.run_main("v0.1.0")[0], 1)
+        self.assertEqual(self.run_main("v0.1.0-alpha.3")[0], 1)
 
     def test_fails_on_an_invalid_tag(self):
         self.assertEqual(self.run_main("latest")[0], 1)
 
+    def test_fails_on_a_full_release_until_arm64_is_built(self):
+        # ADR-0016: a full release ships arm64 too, and must never omit it.
+        cargo = CARGO.replace("0.1.0-alpha.2", "0.0.1")
+        self.assertEqual(self.run_main("v0.0.1", cargo=cargo)[0], 1)
+
     def test_fails_without_a_changelog_section(self):
-        cargo = CARGO.replace("0.1.0-alpha.2", "0.2.0")
-        self.assertEqual(self.run_main("v0.2.0", cargo=cargo)[0], 1)
+        cargo = CARGO.replace("0.1.0-alpha.2", "0.2.0-alpha.1")
+        self.assertEqual(self.run_main("v0.2.0-alpha.1", cargo=cargo)[0], 1)
 
 
 if __name__ == "__main__":

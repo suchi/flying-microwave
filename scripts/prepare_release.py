@@ -5,6 +5,8 @@ Used by .github/workflows/release.yml before anything is built. The tag must
 be vX.Y.Z or vX.Y.Z-alpha.N (plan 0001, section 7.3), must match the
 workspace version in Cargo.toml, and CHANGELOG.md must have a non-empty
 section "## vX.Y.Z... (date)" for it. The section body becomes the notes.
+Only pre-releases are accepted for now: a full release also needs the arm64
+build (ADR-0016), which the workflow does not have yet.
 
 Usage:
     python3 -I scripts/prepare_release.py TAG [--root DIR] [--notes FILE]
@@ -71,6 +73,11 @@ def main(argv=None):
     version = version_of_tag(args.tag)
     if version is None:
         print(f"タグの形が正しくない: {args.tag!r}(vX.Y.Z か vX.Y.Z-alpha.N)", file=sys.stderr)
+        return 1
+    if not is_prerelease(version):
+        # Why: a full release ships arm64 too and must never omit it silently
+        # (ADR-0016). Until the release workflow builds arm64, refuse.
+        print(f"{args.tag}は正式なリリースだが、リリースのワークフローはまだarm64をビルドしない(ADR-0016)", file=sys.stderr)
         return 1
     root = pathlib.Path(args.root)
     cargo = workspace_version((root / "Cargo.toml").read_text(encoding="utf-8"))
