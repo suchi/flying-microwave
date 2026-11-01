@@ -8,3 +8,6 @@ _work
 # Cargo build output
 /target
 /spikes/*/target
+
+# Temporary worktrees of Claude Code subagents (docs/development/review-process.md)
+/.claude/worktrees/
