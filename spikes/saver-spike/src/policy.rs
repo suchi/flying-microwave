@@ -152,9 +152,79 @@ pub fn dark_color(elapsed: Duration) -> [f64; 3] {
     [channel(0.0), channel(1.0), channel(2.0)]
 }
 
+/// Color of the marker square, as 8-bit RGB. A medium, warm color: bright
+/// enough to see against the dark background, but the element is small
+/// (guideline G-5) and it never flashes (G-3).
+pub const MARKER_RGB: [u8; 3] = [150, 110, 60];
+
+/// Horizontal and vertical periods of the marker movement. Different periods
+/// make the square wander over the whole area instead of along one line, so
+/// no pixel stays lit (guideline G-4).
+const MARKER_PERIODS_SECONDS: (f64, f64) = (23.0, 17.0);
+
+/// Edge length of the marker square: an eighth of the shorter edge of the
+/// area, at least 4 pixels, and never larger than the area itself.
+pub fn marker_side(width: u32, height: u32) -> u32 {
+    let shorter = width.min(height);
+    (shorter / 8).max(4).min(shorter)
+}
+
+/// Top-left corner of the marker square at `elapsed`. The square starts at
+/// the center and moves smoothly, always fully inside the area.
+pub fn marker_origin(elapsed: Duration, width: u32, height: u32, side: u32) -> (u32, u32) {
+    let t = elapsed.as_secs_f64();
+    let along = |range: u32, period: f64| {
+        let fraction = 0.5 + 0.5 * (TAU * t / period).sin();
+        // `fraction` is within 0..=1, so the result stays within 0..=range.
+        (f64::from(range) * fraction).round() as u32
+    };
+    (
+        along(width.saturating_sub(side), MARKER_PERIODS_SECONDS.0),
+        along(height.saturating_sub(side), MARKER_PERIODS_SECONDS.1),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn marker_side_is_an_eighth_of_the_shorter_edge() {
+        assert_eq!(marker_side(152, 112), 14);
+        assert_eq!(marker_side(1600, 1200), 150);
+        assert_eq!(marker_side(1280, 1024), 128);
+    }
+
+    #[test]
+    fn marker_side_never_exceeds_the_area() {
+        assert_eq!(marker_side(40, 30), 4);
+        assert_eq!(marker_side(3, 3), 3);
+        assert_eq!(marker_side(1, 500), 1);
+    }
+
+    #[test]
+    fn marker_starts_at_the_center() {
+        assert_eq!(marker_origin(Duration::ZERO, 1600, 1200, 150), (725, 525));
+    }
+
+    #[test]
+    fn marker_stays_inside_the_area_and_moves() {
+        let (width, height, side) = (152, 112, 14);
+        let mut seen = std::collections::HashSet::new();
+        for tenth in 0..1200 {
+            let (x, y) = marker_origin(Duration::from_millis(tenth * 100), width, height, side);
+            assert!(
+                x + side <= width && y + side <= height,
+                "({x}, {y}) at {tenth}"
+            );
+            seen.insert((x, y));
+        }
+        assert!(
+            seen.len() > 100,
+            "the marker barely moved: {} positions",
+            seen.len()
+        );
+    }
 
     #[test]
     fn cursor_distance_threshold() {
