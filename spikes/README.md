@@ -7,7 +7,7 @@
 
 - 位置づけ: Phase 0の技術スパイクで、Windows実機でしか確かめられない不確実性を先に潰すための使い捨てプログラムである。製品コードではない。
 - ワークスペースとの関係: ルートの`Cargo.toml`は`spikes/`を`exclude`している。各スパイクは空の`[workspace]`表を持つ独立したワークスペースで、`Cargo.lock`も個別に持つ。製品コード(`crates/`)からスパイクを参照しない。
-- 依存crate: `winit =0.30.13`、`wgpu =30.0.1`、`pollster =1.0.1`、`windows-sys =0.61.2`、`eframe =0.37.0`。すべてバージョンを完全に固定している。これ以外の直接依存は追加していない。
+- 依存crate: `winit =0.30.13`、`wgpu =30.0.1`、`pollster =1.0.1`、`windows-sys =0.61.2`、`eframe =0.37.0`、saver-spikeの`log =0.4.35`(2026-11-01に追加。wgpuが`log`クレートだけに出すエラーの理由をログファイルに書くため。名前の衝突を避けて`log_crate`という名前で取り込む)。すべてバージョンを完全に固定している。これ以外の直接依存は追加していない。
 - 扱い: Phase 0の終了時に、削除するか残すかを決める([アーキテクチャ](../docs/design/architecture.md#crateディレクトリ構成))。
 - 結果の記録先: 確認した結果は[`docs/research/spike-results.md`](../docs/research/spike-results.md)に記録する。結果の表のテンプレートと、CIのランナーで得た観察が既にある。
 

@@ -66,6 +66,34 @@ macro_rules! log {
 }
 pub(crate) use log;
 
+/// Forwards warnings and errors of the `log` crate (used by wgpu and winit)
+/// to the log file. wgpu reports the HRESULT of a failed swap chain call only
+/// this way. Call once after [`init`].
+#[cfg(windows)]
+pub fn forward_log_crate() {
+    struct Forward;
+    impl ::log_crate::Log for Forward {
+        fn enabled(&self, metadata: &::log_crate::Metadata<'_>) -> bool {
+            metadata.level() <= ::log_crate::Level::Warn
+        }
+        fn log(&self, record: &::log_crate::Record<'_>) {
+            if self.enabled(record.metadata()) {
+                write(&format!(
+                    "[{} {}] {}",
+                    record.level(),
+                    record.target(),
+                    record.args()
+                ));
+            }
+        }
+        fn flush(&self) {}
+    }
+    static FORWARD: Forward = Forward;
+    if ::log_crate::set_logger(&FORWARD).is_ok() {
+        ::log_crate::set_max_level(::log_crate::LevelFilter::Warn);
+    }
+}
+
 /// Logs panics (the GUI subsystem would otherwise swallow them silently).
 pub fn install_panic_hook() {
     std::panic::set_hook(Box::new(|info| {

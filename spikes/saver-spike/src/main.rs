@@ -61,6 +61,7 @@ mod windows_main {
 
         log::init("saver-spike");
         log::install_panic_hook();
+        log::forward_log_crate();
         log!("=== saver-spike {} started ===", env!("CARGO_PKG_VERSION"));
         match dll_search_path {
             Ok(()) => log!("SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32): succeeded"),

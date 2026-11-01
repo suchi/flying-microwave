@@ -1240,6 +1240,7 @@ dependencies = [
 name = "saver-spike"
 version = "0.0.0"
 dependencies = [
+ "log",
  "pollster",
  "wgpu",
  "windows-sys 0.61.2",
