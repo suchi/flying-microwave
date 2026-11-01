@@ -3,3 +3,7 @@
 //! This crate must not depend on any OS or GPU API (ADR-0009).
 
 #![forbid(unsafe_code)]
+
+pub mod exit_policy;
+pub mod rng;
+pub mod sim;
