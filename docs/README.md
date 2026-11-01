@@ -82,3 +82,4 @@
 | [0006](incidents/0006-plan-delayed-first-runnable-version.md) | 計画の順番が、最初に動く版を遅らせた |
 | [0007](incidents/0007-dependencies-inside-cooldown.md) | 公開から7日たっていない依存の版を使った |
 | [0008](incidents/0008-push-cancelled-running-pr-ci.md) | PRのCIの実行中にプッシュし、終わりかけのビルドを取り消した |
+| [0009](incidents/0009-guard-hooks-never-ran.md) | 防御のフックが、最初から一度も働いていなかった |

@@ -137,7 +137,7 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 
 ### 6.3 フック
 
-`.claude/hooks/`にあり、`.claude/settings.json`で登録されている。
+`.claude/hooks/`にあり、`.claude/settings.json`で登録されている。どのフックも、gitで実行権限付き(100755)にする。登録したとおりに起動できないフックは、Claude Codeでは止めないエラーとして扱われ、黙って効かなくなる。`scripts/check_hooks.py`が、登録したすべてのフックを登録したとおりに起動し、サンプル入力を止めることを確かめる(CIのLinuxのジョブでも毎回実行する。[incidents 0009](../incidents/0009-guard-hooks-never-ran.md))。フックを加えたら、このスクリプトにサンプル入力も加える。
 
 - block-dangerous-git.sh: Bashの実行前に、危険なgit操作を止める。`main`への直接プッシュ、`main`へのforce push、`--no-verify`付きのコミットとプッシュ、ルートやホームの再帰削除は拒否する。force push、`git reset --hard`、`git clean -f`、`git branch -D`、`main`上でのコミット、ダウンロードしたスクリプトを直接シェルに渡す操作、`.env`のステージは、実行前に確認を求める
 - protect-config.sh: セキュリティ設定のファイルを編集する前に確認を求める。対象は`.claude/settings.json`、`.claude/settings.local.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`
