@@ -23,7 +23,11 @@ permissions:
 
 concurrency:
   group: spikes-${{ github.ref }}
-  cancel-in-progress: true
+  # Why: cancel superseded runs on pull requests only. A manual run builds the
+  # artifacts the maintainer runs on real hardware; cancelling it threw away a
+  # finished build (docs/incidents/0003). A new manual run now waits for the
+  # running one; only an older *waiting* run is replaced by the newer one.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
