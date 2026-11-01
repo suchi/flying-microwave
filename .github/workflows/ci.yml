@@ -42,6 +42,13 @@ jobs:
         with:
           persist-credentials: false
 
+      # Every Claude Code hook in .claude/settings.json must be executable and
+      # must stop a sample input when started exactly as registered: a hook
+      # that cannot start is a non-blocking error, so a guard fails silently
+      # (docs/incidents/0009).
+      - name: Check Claude Code hooks
+        run: python3 -I scripts/check_hooks.py
+
       # Supply-chain defense: every crates.io version in the lock files, and the
       # tools installed below, must have been public for at least 7 days, the
       # same cooldown as .github/dependabot.yml. Local cargo runs are not
