@@ -157,6 +157,7 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 - Setup script: 次のスクリプト。
   - 実行のタイミング: 公式ドキュメント([Environment caching](https://code.claude.com/docs/en/cloud-environments#environment-caching))によると、毎回のセッションではなく、最初のセッションと、環境のキャッシュを作り直すとき(スクリプトや許可するドメインを変えたとき、約7日でキャッシュが期限切れになったとき)に実行される。
   - 実行するディレクトリ: 公式ドキュメントに記載がない。本プロジェクト専用の環境では、リポジトリの1つ上のディレクトリで実行されて`cd flying-microwave`が成功したことを、actionlintが入っていたことから確かめた。
+  - actionlintの版: Dependabotの`cooldown`(7日)と同じ考え方で、公開から7日を過ぎた最新の版に固定する。v1.7.12は2026-03-30の公開で、2026-11-01の時点で最新である(Goのモジュールのプロキシ`proxy.golang.org`で確かめた)。版を上げるときは、新しい版で既存のワークフローを検査してから、この節と環境のセットアップスクリプトを一緒に変える。
   - 失敗の扱い: 公式ドキュメント([Script requirements](https://code.claude.com/docs/en/cloud-environments#script-requirements))によると、0以外の終了コードではセッションが始まらない。そのため各コマンドの失敗は`|| true`で無視し、代わりにセッションの初めに`rustup show`と`actionlint -version`で、導入されたことを確かめる。
 
 ```bash
@@ -168,8 +169,9 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 cd flying-microwave || exit 0
 # Rust toolchain pinned by rust-toolchain.toml (with rustfmt, clippy, Windows targets)
 rustup toolchain install || true
-# Workflow linter, run before pushing workflow changes
-GOBIN=/usr/local/bin go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 || true
+# Workflow linter, run before pushing workflow changes.
+# Pinned to the latest release past the 7-day cooldown used for Dependabot.
+GOBIN=/usr/local/bin go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 || true
 # Download dependency sources ahead of time
 cargo fetch --locked || true
 ```
