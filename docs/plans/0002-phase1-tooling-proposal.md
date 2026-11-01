@@ -42,7 +42,7 @@ Phase 1の残りの作業のうち、次の4つで使う依存crateと道具を�
 ```mermaid
 flowchart LR
     tag["push tag vX.Y.Z"] --> check["check the tag matches Cargo.toml"]
-    check --> build["build job per target (x64, arm64 with smoke test): contents read, no cache"]
+    check --> build["build job per target (x64, arm64 with automated checks): contents read, no cache"]
     build --> artifacts["upload artifacts"]
     artifacts --> release["release job: contents write"]
     release --> sums["SHA256SUMS.txt"]
