@@ -85,6 +85,12 @@ jobs:
 
   windows:
     name: Windows (${{ matrix.target }})
+    # Why: the Windows job builds the artifacts (and, in a manual run, installs
+    # cargo-about), so it must not start before the dependency cooldown check
+    # in the Linux job has passed (docs/incidents/0007). The check stays inside
+    # the required Linux job: a separate failing job would make the required
+    # jobs "skipped", which GitHub counts as passing.
+    needs: linux
     runs-on: windows-2025
     timeout-minutes: 45
     strategy:
