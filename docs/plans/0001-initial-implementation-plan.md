@@ -421,6 +421,14 @@ flowchart LR
    - 参考情報: `blog.rust-lang.org`、`releases.rs`、`rust-lang.github.io`、`www.libsdl.org`、`www.uspto.gov`、`en.wikipedia.org`、`archive.seattletimes.com`、`www.jwz.org`
    - 追加済み: `tmsearch.uspto.gov`、`www.j-platpat.inpit.go.jp`(J-PlatPatは自動化したブラウザからの接続を拒否するため、確認はメンテナーが行う)
 
+### 13.1 メンテナーが行う残りの作業(2026-11-01時点)
+
+エージェントの開発環境では行えないため、メンテナーが行う。結果が記録されるまで、この一覧に残す。
+
+- [ ] 技術スパイクS1〜S6を、Windows 11の実機で確かめる(Phase 0の作業7)。手順は`spikes/README.md`、結果は[スパイクの結果](../research/spike-results.md)に記録する。
+- [ ] 商標の確認の残り(Phase 0の作業1。D-5)。日本(J-PlatPat)の確認と、米国(USPTO)の結果の再確認、空白なしの表記・類似の商標の確認を、通常のブラウザで行う。結果は[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認)に記録する。
+- [ ] リリース用のタグの保護([計画0002](0002-phase1-tooling-proposal.md)のT-5)。契約で設定できるかを確かめ、設定できるなら設定する。手順はエージェントが用意する。
+
 ## 参考資料
 
 - [MS-4] Microsoft Learn「ScreenSaver」(Windows無人セットアップのリファレンス、2026-10-31取得)
