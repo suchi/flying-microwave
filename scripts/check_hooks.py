@@ -8,11 +8,18 @@ and nothing was ever blocked (docs/incidents/0009). This check:
 
 1. requires every registered hook to be mode 100755 in the git index, and
 2. runs each registered command exactly as written in settings.json, through
-   `sh -c` with CLAUDE_PROJECT_DIR set, with a sample input that the hook
-   must stop, and checks the decision it prints.
+   `sh -c` with CLAUDE_PROJECT_DIR set, with sample inputs: at least one the
+   hook must stop and one it must let through (exit 0, no decision), and
+   checks the decision it prints. The passed sample also catches a hook that
+   stops everything, for example when jq is missing.
 
-A registered hook without a sample input fails the check, so that a new hook
-cannot be added without being exercised.
+A registered hook without both kinds of sample fails the check, so that a new
+hook cannot be added without being exercised.
+
+Scope: this reproduces how Claude Code starts hooks on Linux and macOS
+(`sh -c`). On Windows Claude Code uses Git Bash, or PowerShell when Git Bash
+is missing, which this check does not reproduce. Hooks registered with the
+`shell` or `args` fields fail the check for the same reason.
 
 Usage:
     python3 -I scripts/check_hooks.py [--root DIR]
@@ -26,29 +33,31 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 
 COMMAND_PATTERN = re.compile(r'"\$CLAUDE_PROJECT_DIR/(\.claude/hooks/[A-Za-z0-9_-]+\.sh)"')
 
-# A sample input per hook that the hook must stop, and the expected decision.
+# Sample inputs per hook: (input, expected decision). None means the hook
+# must let the input through (exit 0 and no decision).
 SAMPLES = {
-    ".claude/hooks/block-dangerous-git.sh": (
-        {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin main"}},
-        "deny",
-    ),
-    ".claude/hooks/protect-config.sh": (
-        {"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}},
-        "ask",
-    ),
-    ".claude/hooks/require-japanese-description.sh": (
-        {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}},
-        "deny",
-    ),
-    ".claude/hooks/require-japanese-reply.sh": (
-        {"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."},
-        "block",
-    ),
+    ".claude/hooks/block-dangerous-git.sh": [
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin main"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push -u origin fix/x"}}, None),
+    ],
+    ".claude/hooks/protect-config.sh": [
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "crates/app/src/main.rs"}}, None),
+    ],
+    ".claude/hooks/require-japanese-description.sh": [
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "ファイルを一覧表示する"}}, None),
+    ],
+    ".claude/hooks/require-japanese-reply.sh": [
+        ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
+        ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "終わりました。"}, None),
+    ],
 }
 
 
@@ -110,7 +119,24 @@ def mode_problems(paths, modes):
 
 
 def sample_problems(paths, samples):
-    return [f"{path}: 確かめるためのサンプル入力がない(check_hooks.pyのSAMPLESに加える)" for path in paths if path not in samples]
+    """A hook needs a sample it stops and a sample it lets through."""
+    problems = []
+    for path in paths:
+        expected = [e for _, e in samples.get(path, [])]
+        if not any(e is not None for e in expected) or None not in expected:
+            problems.append(f"{path}: 止めるべき入力と通すべき入力のサンプルがそろっていない(check_hooks.pyのSAMPLESに加える)")
+    return problems
+
+
+def unsupported_problems(settings):
+    """Registered hooks this check cannot start as Claude Code would."""
+    problems = []
+    for groups in settings.get("hooks", {}).values():
+        for group in groups:
+            for hook in group.get("hooks", []):
+                if hook.get("type") != "command" or "shell" in hook or "args" in hook:
+                    problems.append(f"{hook}: この検査で再現できない登録(typeがcommandで、shellとargsのないものだけを扱う)")
+    return problems
 
 
 def run_problems(commands, samples, root):
@@ -118,16 +144,16 @@ def run_problems(commands, samples, root):
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(root))
     for command in commands:
         path = hook_path(command)
-        sample, expected = samples[path]
-        # Why sh -c: Claude Code runs the command string through a shell, so
-        # this reproduces how the hook is really started.
-        result = subprocess.run(
-            ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
-        )
-        got = decision(result.stdout)
-        if result.returncode != 0 or got != expected:
-            detail = (result.stderr or result.stdout).strip()[:300]
-            problems.append(f"{path}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}")
+        for sample, expected in samples[path]:
+            # Why sh -c: on Linux and macOS, Claude Code passes the command
+            # string to sh -c (Hooks reference), so this is how it starts.
+            result = subprocess.run(
+                ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
+            )
+            got = decision(result.stdout)
+            if result.returncode != 0 or got != expected:
+                detail = (result.stderr or result.stdout).strip()[:300]
+                problems.append(f"{path}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}")
     return problems
 
 
@@ -145,15 +171,26 @@ def main(argv=None):
     args = parser.parse_args(argv)
     root = pathlib.Path(args.root).resolve()
 
-    commands = registered_commands(load_settings(root))
+    # Why: without jq every hook here either stops nothing or asks for
+    # everything, so the result would say nothing about the hooks.
+    if shutil.which("jq") is None:
+        print("jqが見つからないため、フックを確かめられない(onboardingの6.3)", file=sys.stderr)
+        return 1
+    settings = load_settings(root)
+    commands = registered_commands(settings)
     unknown = [c for c in commands if hook_path(c) is None]
-    problems = [f"{c}: 想定していない形の登録(\"$CLAUDE_PROJECT_DIR/.claude/hooks/<名前>.sh\"の形にする)" for c in unknown]
+    problems = unsupported_problems(settings)
+    problems += [f"{c}: 想定していない形の登録(\"$CLAUDE_PROJECT_DIR/.claude/hooks/<名前>.sh\"の形にする)" for c in unknown]
     commands = [c for c in commands if hook_path(c) is not None]
     paths = [hook_path(c) for c in commands]
 
-    ls_files = subprocess.run(
-        ["git", "ls-files", "-s", "--", ".claude/hooks"], capture_output=True, text=True, cwd=root, check=True
-    ).stdout
+    try:
+        ls_files = subprocess.run(
+            ["git", "ls-files", "-s", "--", ".claude/hooks"], capture_output=True, text=True, cwd=root, check=True
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as e:
+        print(f"gitでフックのモードを読めないため、確かめられない: {e}", file=sys.stderr)
+        return 1
     problems += mode_problems(paths, index_modes(ls_files))
     problems += sample_problems(paths, SAMPLES)
     if not problems:
@@ -164,7 +201,7 @@ def main(argv=None):
     if problems:
         print(f"動かないフックがある({len(problems)}件)", file=sys.stderr)
         return 1
-    print(f"{len(commands)}個のフックは、どれも登録したとおりに起動し、サンプル入力を止めた")
+    print(f"{len(commands)}個のフックは、どれも登録したとおりに起動し、止めるべき入力を止め、通すべき入力を通した")
     return 0
 
 

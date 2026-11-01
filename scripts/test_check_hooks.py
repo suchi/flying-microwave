@@ -1,7 +1,9 @@
 """Tests for check_hooks.py. Run: python3 -I -m unittest discover -s scripts"""
 
+import os
 import pathlib
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -79,12 +81,61 @@ class ProblemsTest(unittest.TestCase):
         problems = ch.sample_problems([".claude/hooks/a.sh"], {})
         self.assertEqual(len(problems), 1)
 
+    def test_a_hook_needs_both_a_stopped_and_a_passed_sample(self):
+        # A hook that stops every input must not pass the check.
+        only_stop = {".claude/hooks/a.sh": [({}, "deny")]}
+        self.assertEqual(len(ch.sample_problems([".claude/hooks/a.sh"], only_stop)), 1)
+        both = {".claude/hooks/a.sh": [({}, "deny"), ({}, None)]}
+        self.assertEqual(ch.sample_problems([".claude/hooks/a.sh"], both), [])
+
+    def test_shell_and_args_fields_are_not_supported(self):
+        # The check starts hooks with sh -c only, so it cannot reproduce them.
+        settings = {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "x", "shell": "powershell"}]}]}}
+        self.assertEqual(len(ch.unsupported_problems(settings)), 1)
+        self.assertEqual(ch.unsupported_problems(SETTINGS), [])
+
     def test_the_real_hooks_have_samples(self):
         # Every hook registered in this repository has a sample input.
         root = pathlib.Path(__file__).resolve().parent.parent
         settings = ch.load_settings(root)
         paths = [ch.hook_path(c) for c in ch.registered_commands(settings)]
         self.assertEqual(ch.sample_problems(paths, ch.SAMPLES), [])
+
+
+HOOK = """#!/bin/sh
+cat > /dev/null
+echo '{"decision":"block","reason":"x"}'
+"""
+
+
+class RunTest(unittest.TestCase):
+    def run_hook(self, executable):
+        with tempfile.TemporaryDirectory() as d:
+            hook = pathlib.Path(d, ".claude", "hooks", "a.sh")
+            hook.parent.mkdir(parents=True)
+            hook.write_text(HOOK, encoding="utf-8")
+            os.chmod(hook, 0o755 if executable else 0o644)
+            command = '"$CLAUDE_PROJECT_DIR/.claude/hooks/a.sh"'
+            return ch.run_problems([command], {".claude/hooks/a.sh": [({}, "block")]}, pathlib.Path(d))
+
+    def test_a_hook_started_as_registered_passes(self):
+        self.assertEqual(self.run_hook(executable=True), [])
+
+    def test_a_hook_without_the_executable_bit_fails_to_start(self):
+        # The case of docs/incidents/0009: sh -c exits with 126.
+        problems = self.run_hook(executable=False)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("126", problems[0])
+
+    def test_an_unexpected_decision_fails(self):
+        with tempfile.TemporaryDirectory() as d:
+            hook = pathlib.Path(d, ".claude", "hooks", "a.sh")
+            hook.parent.mkdir(parents=True)
+            hook.write_text(HOOK, encoding="utf-8")
+            os.chmod(hook, 0o755)
+            command = '"$CLAUDE_PROJECT_DIR/.claude/hooks/a.sh"'
+            problems = ch.run_problems([command], {".claude/hooks/a.sh": [({}, None)]}, pathlib.Path(d))
+            self.assertEqual(len(problems), 1)
 
 
 if __name__ == "__main__":
