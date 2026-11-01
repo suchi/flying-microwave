@@ -91,7 +91,7 @@ flowchart LR
 - 手順の詳細: [PRのレビュー手順](review-process.md)に従う
 - 指摘への対応: 指摘は検証すべき主張として扱い、一次情報で確かめてから対応する。修正するか、しない理由を記録する。各指摘に返信してから解決する
 - マージの条件: レビュー完了、CIの全ジョブがグリーン、メンテナーの承認の3つがそろってから行う。レビューの深さと再レビューの扱い(medium以上を直したときだけ最大1回)は[ADR-0014](../adr/0014-risk-based-review-depth.md)と[レビュー完了の判定](review-process.md#レビュー完了の判定)に従う。マージの実行は承認を得てからにする
-- PRを作ったあとのプッシュ: 修正はまとめて1回でプッシュし、そのPRのCIの実行中はプッシュしない(AGENTS.mdの手順6)。pull_requestのワークフローの`paths`の条件は、プッシュ1回ごとの差分ではなく、PR全体の差分(three-dot diff)で判定される([GitHubのWorkflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#git-diff-comparisons))。そのため、PRが一度でも`spikes/`の下を変えていれば、文書だけのコミットのプッシュでもスパイクのビルドが始まり、実行中のビルドは取り消される([incidents 0008](../incidents/0008-push-cancelled-running-pr-ci.md))
+- PRを作ったあとのプッシュ: 修正はまとめて1回でプッシュし、そのPRのCIの実行中はプッシュしない(AGENTS.mdの手順6)。pull_requestのワークフローの`paths`の条件は、プッシュ1回ごとの差分ではなく、PR全体の差分(three-dot diff)で判定される([GitHubのWorkflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#git-diff-comparisons))。そのため、PR全体の差分(分岐した時点からPRの最新まで)に`spikes.yml`の`paths`のファイル(`spikes/`の下、`spikes.yml`、`rust-toolchain.toml`、`.cargo/config.toml`)が含まれていれば、文書だけのコミットのプッシュでもスパイクのビルドが始まり、実行中のビルドは取り消される([incidents 0008](../incidents/0008-push-cancelled-running-pr-ci.md))
 - 禁止: レビュー未完了やCI失敗でのマージ。CIの通過とマージの状態を確認する前に「完了」と報告すること(未確認なら「プッシュ済み、CIの確認待ち」と報告する)
 
 ## 5. 開発環境
