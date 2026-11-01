@@ -151,6 +151,24 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 
 ネットワークポリシーの外にあるサイトには接続できない。必要なドメインがある場合は、メンテナーに、環境の設定の「Network access」の「Allowed domains」へドメインを追加するよう依頼する。手順は[公式ドキュメント](https://code.claude.com/docs/en/cloud-environments#network-access)を参照。
 
+環境(cloud environment)は、ほかのプロジェクトと共有せず、本プロジェクト専用のものを使う。環境の設定(接続を許可するドメイン、セットアップスクリプト)は環境ごとに1つで、共有すると、片方のための変更がもう片方にも効くためである。推奨の設定は次のとおり。
+
+- Network access: 「Custom」とし、標準のパッケージ置き場も許可する(「Also include default list of common package managers」にチェックを入れる)。Allowed domainsには、`docs.rs`、`doc.rust-lang.org`、`docs.github.com`を加える。商標の確認には`tmsearch.uspto.gov`と`www.j-platpat.inpit.go.jp`も使う。
+- Setup script: 次のスクリプト。セッションの開始時に、リポジトリの1つ上のディレクトリで実行される。
+
+```bash
+#!/bin/bash
+# Flying Microwave: setup for cloud sessions.
+# The script starts one directory above the repository.
+cd flying-microwave || exit 0
+# Rust toolchain pinned by rust-toolchain.toml (1.99.1, rustfmt, clippy, Windows targets)
+rustup toolchain install || true
+# Workflow linter, run before pushing workflow changes
+GOBIN=/usr/local/bin go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7 || true
+# Download dependency sources ahead of time
+cargo fetch --locked || true
+```
+
 ## 7. ドキュメントのルール
 
 詳細は[AGENTS.md](../../AGENTS.md)の「言語ルール」「情報源」「ドキュメント」に従う。
