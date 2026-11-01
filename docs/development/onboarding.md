@@ -55,6 +55,7 @@ flowchart LR
 - Agentic Coding: 完全お任せ(vibe coding)ではなく、人間が判断して進める。曖昧な点は勝手に判断せず、選択肢とpros/consを示して確認する
 - 事前に確認が必要なこと: 破壊的操作(force push、`reset --hard`、ブランチやファイルの削除)、アーキテクチャ・依存関係・データ形式に関わる判断、PRのマージ。他の人の変更を、明示的な依頼なしに巻き戻したり上書きしたりしない
 - 想定外の挙動: 原因を特定してから対処する。原因不明のままワークアラウンドで迂回しない。やむを得ず回避策を採る場合は、調査の経緯と理由を`Why:`コメントやADRに記録して報告する
+- 異常への対応: 規則や手順が守られなかった、規則や手順に欠けがあった、同じ種類の問題が再発した、メンテナーが異常と指摘した、という場合は、作業を止めて知らせ、なぜなぜ分析で真因に対策する。手順と記録は[異常の記録](../incidents/README.md)
 - GitHub Flow: `main`への直接コミット・プッシュは禁止。作業は必ずブランチで行い、PRを出す
 - ブランチ名: 英語kebab-caseで`feature/xxx`、`fix/xxx`、`docs/xxx`、`chore/xxx`。Claude Code on the Webなどのツールが指定するブランチ名も認める
 - TDD: Red(失敗するテストを書く)、Green(最小の実装で通す)、Refactor(テストを通したまま整理する)の順に進める
@@ -76,15 +77,16 @@ feat: add exit policy for screensaver mode
 
 ```mermaid
 flowchart LR
-    pr["pull request"] --> review["adversarial review"]
+    commit["ブランチにコミットする"] --> review["PRを作る前に敵対的レビュー"]
+    review --> pr["PRを作る"]
     pr --> ci["CI"]
-    review --> gate{"all three met?"}
+    review --> gate{"3つがそろったか"}
     ci --> gate
-    approval["maintainer approval"] --> gate
-    gate -->|"yes"| merge["merge"]
+    approval["メンテナーの承認"] --> gate
+    gate -->|"はい"| merge["マージする"]
 ```
 
-- 敵対的レビュー: すべてのPRで、作成者とは別のコンテキストを持つエージェントに、差分と要件だけを渡して欠陥を探させる。作成者の結論や仮説は渡さない。再レビューでは、例外として前回の指摘と対応の一覧も渡す
+- 敵対的レビュー: すべての変更で、PRを作る前に、作成者とは別のコンテキストを持つエージェントに、差分と要件だけを渡して欠陥を探させる([ADR-0018](../adr/0018-review-before-opening-pr.md))。作成者の結論や仮説は渡さない。再レビューでは、例外として前回の指摘と対応の一覧も渡す
 - GitHub Copilot: このリポジトリでは、プロジェクト概要のとおりレビューを含めて利用しない(レビューの方法は[ADR-0007](../adr/0007-adversarial-review-without-copilot.md))。Copilotを使う場合の手順も、同じループの参考としてレビュー手順に残している
 - 手順の詳細: [PRのレビュー手順](review-process.md)に従う
 - 指摘への対応: 指摘は検証すべき主張として扱い、一次情報で確かめてから対応する。修正するか、しない理由を記録する。各指摘に返信してから解決する
