@@ -11,6 +11,7 @@
 | `development/` | 開発の進め方(オンボーディング、レビュー手順) |
 | `ideas/` | 将来のアイデア。採用したものは計画・設計に移す |
 | `reviews/` | 敵対的レビューの指摘と対応の記録 |
+| `incidents/` | 開発の中で起きた異常の、なぜなぜ分析と対策の記録。手順は[incidents/README.md](incidents/README.md) |
 
 リポジトリ内のほかの文書:
 
@@ -68,3 +69,10 @@
 | --- | --- |
 | [0001](reviews/0001-plan-adversarial-review.md) | 初期実装計画と関連ドキュメント |
 | [0002](reviews/0002-decision-round-review.md) | 決定事項の反映(ADR、運用ルール、READMEなど) |
+
+## 異常の記録
+
+| 番号 | 異常 |
+| --- | --- |
+| [0001](incidents/0001-english-text-shown-to-maintainer.md) | メンテナーに英語の文章が表示された |
+| [0002](incidents/0002-extra-ci-run-after-review.md) | レビューの指摘の修正で、不要なCIが走った |
