@@ -18,9 +18,12 @@ command -v jq >/dev/null 2>&1 || exit 0
 description=$(printf '%s' "$input" | jq -r '.tool_input.description // empty' 2>/dev/null) || exit 0
 [ -n "$description" ] || exit 0
 
-if printf '%s' "$description" | jq -Rse 'test("[\\p{Hiragana}\\p{Katakana}\\p{Han}]")' >/dev/null 2>&1; then
-  exit 0
-fi
+# jq -e exits 1 only when the result is false. Any other failure (for
+# example a jq built without regex support) must not block, so only an
+# exit status of exactly 1 counts as "no Japanese".
+status=0
+printf '%s' "$description" | jq -Rse 'test("[\\p{Hiragana}\\p{Katakana}\\p{Han}]")' >/dev/null 2>&1 || status=$?
+[ "$status" -eq 1 ] || exit 0
 
 jq -cn --arg reason "ツールの説明文(description)に日本語が含まれていません。説明文はメンテナーに表示されるため、日本語で書き直してから呼び出してください(AGENTS.mdの言語ルールの原則)。" \
   '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'

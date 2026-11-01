@@ -24,9 +24,12 @@ active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null) 
 message=$(printf '%s' "$input" | jq -r '.last_assistant_message // empty' 2>/dev/null) || exit 0
 [ -n "$message" ] || exit 0
 
-if printf '%s' "$message" | jq -Rse 'test("[\\p{Hiragana}\\p{Katakana}\\p{Han}]")' >/dev/null 2>&1; then
-  exit 0
-fi
+# jq -e exits 1 only when the result is false. Any other failure (for
+# example a jq built without regex support) must not block, so only an
+# exit status of exactly 1 counts as "no Japanese".
+status=0
+printf '%s' "$message" | jq -Rse 'test("[\\p{Hiragana}\\p{Katakana}\\p{Han}]")' >/dev/null 2>&1 || status=$?
+[ "$status" -eq 1 ] || exit 0
 
 jq -cn --arg reason "直前の返答(または報告)に日本語が含まれていません。メンテナーに表示される文章は日本語で書く決まりです(AGENTS.mdの言語ルールの原則)。同じ内容を日本語で書き直してください。" \
   '{decision: "block", reason: $reason}'
