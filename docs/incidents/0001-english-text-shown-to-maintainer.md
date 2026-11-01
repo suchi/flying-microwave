@@ -43,6 +43,7 @@ Claude Code on the Webで、メンテナーに英語の文章が表示された�
    - PreToolUseのフックの入力には、ツールの`tool_input`が含まれ、Bashでは`description`(ツールの説明文)が入る。フックは`permissionDecision`を`deny`にして、理由を添えて呼び出しを拒否できる。
    - Stopのフックの入力の`last_assistant_message`で、返答の文面を確かめられる。
    - 考える過程は、どのフックの入力にも含まれない(確かめた範囲)。このため、考える過程は仕組みでは確かめられず、原則の規則に頼る。
+   - 説明文の確認の対象は、BashとAgentのツールに限る。WindowsのPowerShellのツールなど、ほかのツールの説明文は確かめていない(既存のblock-dangerous-git.shも、Bashだけが対象である)。
 
 ## 確かめ方
 
