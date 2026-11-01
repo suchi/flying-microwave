@@ -142,7 +142,9 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 - protect-config.sh: セキュリティ設定のファイルを編集する前に確認を求める。対象は`.claude/settings.json`、`.claude/settings.local.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`
 - require-japanese-description.sh: BashとAgentの実行前に、ツールの説明文(`description`)に日本語(ひらがな・カタカナ・漢字)が含まれるかを確かめ、含まれなければ拒否して日本語での書き直しを求める([incidents 0001](../incidents/0001-english-text-shown-to-maintainer.md))
 - require-japanese-reply.sh: 返答とサブエージェントの報告(StopとSubagentStop)の最後のメッセージに日本語が含まれなければ、会話を続けさせて日本語での書き直しを求める。表示そのものは止められない。続けさせるのは1回だけで、`stop_hook_active`がtrueのときは止めない。考える過程はフックで確かめられないため、規則に頼る
-- jqが必要: どのフックも`jq`で入力を解析する。block-dangerous-git.shとprotect-config.shは、`jq`がない環境では判断を保留して毎回確認を求める動作になるため、事前に`jq`を導入しておく。日本語の確認の2つは、セキュリティの防御ではないため、`jq`がないときは何も止めない。パッケージマネージャーは問わない(例: Windowsでは`winget install jqlang.jq`または`scoop install jq`、Ubuntu・WSL2では`sudo apt-get install jq`)
+- flag-non-japanese-display.sh: 表示されるassistantのメッセージ(MessageDisplay)を、すべて確かめる。ツール呼び出しの合間の短い文も対象である。メッセージ全体に日本語がなければ、表示の末尾に日本語の注意書きを付け、違反を一時ファイル(`$TMPDIR/claude-japanese-check/`)に記録する。表示を止めることはできない([incidents 0005](../incidents/0005-english-notes-between-tool-calls.md))
+- require-japanese-display.sh: 上の違反の記録があれば、次のツールの呼び出し(PreToolUse。すべてのツール)を拒否するか、ターンの終わり(Stop)で会話を続けさせる。どちらも、表示された文を示して、日本語での書き直しを求める。サブエージェントの中では動かない
+- jqが必要: どのフックも`jq`で入力を解析する。block-dangerous-git.shとprotect-config.shは、`jq`がない環境では判断を保留して毎回確認を求める動作になるため、事前に`jq`を導入しておく。日本語の確認のフックは、セキュリティの防御ではないため、`jq`がないときは何も止めない。パッケージマネージャーは問わない(例: Windowsでは`winget install jqlang.jq`または`scoop install jq`、Ubuntu・WSL2では`sudo apt-get install jq`)
 
 `.claude/settings.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`の変更は、メンテナーの承認を得てから行う。Dependabotの`cooldown`はサプライチェーン攻撃への対策なので、承認なしに削除・無効化しない。
 
