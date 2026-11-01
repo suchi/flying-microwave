@@ -69,6 +69,13 @@ class LockParseTest(unittest.TestCase):
             [("old-crate", "1.0.0"), ("new-crate", "2.0.0")],
         )
 
+    def test_packages_from_other_sources_are_reported(self):
+        # Local path packages have no source and are not dependencies to check.
+        self.assertEqual(
+            cpa.other_sources(LOCK),
+            [("git-crate", "0.1.0", "git+https://example.invalid/repo#abc")],
+        )
+
 
 class CheckTest(unittest.TestCase):
     def check(self, packages):
@@ -88,10 +95,12 @@ class CheckTest(unittest.TestCase):
         problems = cpa.check([("edge", "1.0.0")], NOW, dt.timedelta(days=7), index.get)
         self.assertEqual(problems, [])
 
-    def test_a_version_without_pubtime_is_treated_as_old(self):
-        # crates.io records pubtime only for versions published after the
-        # field was introduced, so a missing value means an old version.
-        self.assertEqual(self.check([("ancient-crate", "0.1.0")]), [])
+    def test_a_version_without_pubtime_fails(self):
+        # Every crates.io version checked so far has a pubtime, so a missing
+        # one is unexpected and must not pass (fail closed).
+        problems = self.check([("ancient-crate", "0.1.0")])
+        self.assertEqual(len(problems), 1)
+        self.assertIn("ancient-crate 0.1.0", problems[0])
 
     def test_an_unknown_version_fails(self):
         problems = self.check([("old-crate", "9.9.9")])
@@ -115,6 +124,13 @@ class MainTest(unittest.TestCase):
     def test_main_checks_an_extra_crate(self):
         self.assertEqual(self.run_main(["--crate", "old-crate@1.0.0"]), 0)
         self.assertEqual(self.run_main(["--crate", "new-crate@2.0.0"]), 1)
+
+    def test_main_fails_on_a_dependency_from_another_source(self):
+        with tempfile.TemporaryDirectory() as d:
+            lock = pathlib.Path(d, "Cargo.lock")
+            lock.write_text(LOCK.replace('name = "new-crate"', 'name = "new-crate-x"'))
+            index = dict(INDEX, **{"new-crate-x": [{"vers": "2.0.0", "pubtime": "2026-01-01T00:00:00Z"}]})
+            self.assertEqual(cpa.main([str(lock)], now=NOW, fetch=index.get), 1)
 
     def test_main_rejects_a_malformed_crate_argument(self):
         self.assertEqual(self.run_main(["--crate", "no-version"]), 2)

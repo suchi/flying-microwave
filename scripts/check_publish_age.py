@@ -54,14 +54,26 @@ def fetch_index(name):
     return [json.loads(line) for line in body.splitlines() if line.strip()]
 
 
-def registry_packages(lock_text):
-    """(name, version) of every crates.io package in a Cargo.lock."""
+def lock_packages(lock_text):
+    """(name, version, source) of every package in a Cargo.lock. Local path
+    packages (the workspace itself) have no source and are left out."""
     packages = []
     for block in lock_text.split("[[package]]")[1:]:
         fields = dict(re.findall(r'^(name|version|source) = "([^"]*)"', block, re.M))
-        if fields.get("source") == REGISTRY_SOURCE:
-            packages.append((fields["name"], fields["version"]))
+        if "source" in fields:
+            packages.append((fields["name"], fields["version"], fields["source"]))
     return packages
+
+
+def registry_packages(lock_text):
+    """(name, version) of every crates.io package in a Cargo.lock."""
+    return [(n, v) for n, v, s in lock_packages(lock_text) if s == REGISTRY_SOURCE]
+
+
+def other_sources(lock_text):
+    """Packages from another source (git, another registry). Their publish
+    time cannot be checked here, so they fail the check."""
+    return [(n, v, s) for n, v, s in lock_packages(lock_text) if s != REGISTRY_SOURCE]
 
 
 def parse_time(text):
@@ -82,9 +94,11 @@ def check(packages, now, cooldown, fetch):
             problems.append(f"{name} {version}: crates.ioの索引に見つからない")
             continue
         pubtime = entry.get("pubtime")
-        # Why: crates.io records pubtime only for versions published after the
-        # field was added to the index, so a missing value means an old version.
+        # Why fail: every crates.io version checked on 2026-11-01 (648 versions,
+        # back to 2014) had a pubtime, so a missing one means the index format
+        # changed or the entry is unusual; it must not pass silently.
         if pubtime is None:
+            problems.append(f"{name} {version}: 索引に公開日時(pubtime)がない")
             continue
         published = parse_time(pubtime)
         if published > limit:
@@ -105,6 +119,7 @@ def main(argv=None, now=None, fetch=fetch_index):
     args = parser.parse_args(argv)
 
     packages = []
+    others = []
     for spec in args.crate:
         name, sep, version = spec.partition("@")
         if not sep or not name or not version:
@@ -112,7 +127,9 @@ def main(argv=None, now=None, fetch=fetch_index):
             return 2
         packages.append((name, version))
     for lock in args.lockfiles:
-        packages += registry_packages(pathlib.Path(lock).read_text(encoding="utf-8"))
+        text = pathlib.Path(lock).read_text(encoding="utf-8")
+        packages += registry_packages(text)
+        others += [f"{n} {v}: crates.io以外の依存({s})で、公開日時を確かめられない({lock})" for n, v, s in other_sources(text)]
 
     now = now or dt.datetime.now(dt.timezone.utc)
     try:
@@ -121,9 +138,10 @@ def main(argv=None, now=None, fetch=fetch_index):
         # Fail closed: an unverified version must not pass.
         print(f"crates.ioの索引を読めなかったため、確かめられない: {e}", file=sys.stderr)
         return 1
+    problems = others + problems
     for problem in problems:
         print(problem, file=sys.stderr)
-    count = len(set(packages))
+    count = len(set(packages)) + len(others)
     if problems:
         print(f"公開から{args.days}日たっていない版、または確かめられない版がある({len(problems)}件 / {count}件)", file=sys.stderr)
         return 1
