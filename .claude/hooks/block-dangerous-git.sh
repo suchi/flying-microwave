@@ -20,12 +20,12 @@ emit() {
 }
 
 if ! command -v jq >/dev/null 2>&1; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"jq is required by this hook but was not found. Install jq (see docs/development/onboarding.md, section 6.3)."}}\n'
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"このフックにはjqが必要ですが、見つかりません。jqを導入してください(docs/development/onboarding.mdの6.3)。"}}\n'
   exit 0
 fi
 
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null) ||
-  emit ask "Failed to parse the hook payload as JSON. Confirm with the user first."
+  emit ask "フックの入力をJSONとして解析できませんでした。先にユーザーに確認してください。"
 
 [ -n "$cmd" ] || exit 0
 
@@ -49,52 +49,52 @@ if has '[[:space:]:](main|master)([^[:alnum:]_-]|$)'; then touches_main=true; fi
 # --- Never allowed ------------------------------------------------------
 
 if [ "$force_push" = true ] && [ "$touches_main" = true ]; then
-  emit deny "Force-pushing to main/master is not allowed (AGENTS.md: development flow)."
+  emit deny "main・masterへのforce pushは禁止です(AGENTS.mdの開発フロー)。"
 fi
 
 if has 'git[[:space:]]+push[^|;&]*[[:space:]](HEAD:)?(main|master)([^[:alnum:]_/-]|$)'; then
-  emit deny "Direct push to main/master is not allowed. Use a feature branch and a pull request (AGENTS.md)."
+  emit deny "main・masterへの直接のプッシュは禁止です。フィーチャーブランチとPRを使ってください(AGENTS.md)。"
 fi
 
 if has 'git[[:space:]]+(commit|push)[^|;&]*--no-verify'; then
-  emit deny "--no-verify skips hooks and checks, and is not allowed."
+  emit deny "--no-verifyはフックと検査を飛ばすため、禁止です。"
 fi
 
 if has '(^|[;&|[:space:]"])rm[[:space:]]+-[[:alnum:]]*r[[:alnum:]]*[[:space:]]+(/|~/?)([[:space:]"]|$)'; then
-  emit deny "Refusing to delete the filesystem root or the home directory."
+  emit deny "ファイルシステムのルートやホームディレクトリの削除は拒否します。"
 fi
 
 # --- Ask the user first ---------------------------------------------------
 
 if [ "$force_push" = true ]; then
-  emit ask "Force push detected. Confirm with the user first; prefer --force-with-lease on feature branches (AGENTS.md)."
+  emit ask "force pushです。先にユーザーに確認してください。フィーチャーブランチでは--force-with-leaseを使ってください(AGENTS.md)。"
 fi
 
 if has 'git[[:space:]]+reset[^|;&]*--hard'; then
-  emit ask "git reset --hard discards local changes. Confirm with the user first (AGENTS.md)."
+  emit ask "git reset --hardは手元の変更を捨てます。先にユーザーに確認してください(AGENTS.md)。"
 fi
 
 if has 'git[[:space:]]+clean[^|;&]*[[:space:]]-[[:alnum:]]*f'; then
-  emit ask "git clean -f deletes untracked files. Confirm with the user first (AGENTS.md)."
+  emit ask "git clean -fは追跡していないファイルを削除します。先にユーザーに確認してください(AGENTS.md)。"
 fi
 
 if has 'git[[:space:]]+branch[^|;&]*[[:space:]]-D([[:space:]]|$)'; then
-  emit ask "Force-deleting a branch. Confirm with the user first (AGENTS.md)."
+  emit ask "ブランチを強制的に削除します。先にユーザーに確認してください(AGENTS.md)。"
 fi
 
 if has 'git[[:space:]]+commit'; then
   current_branch=$(git branch --show-current 2>/dev/null || true)
   if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
-    emit ask "Committing directly on $current_branch. The workflow requires a feature branch (AGENTS.md). Confirm with the user first."
+    emit ask "$current_branchに直接コミットしようとしています。開発フローではフィーチャーブランチが必要です(AGENTS.md)。先にユーザーに確認してください。"
   fi
 fi
 
 if has '(curl|wget)[^|;&]*\|[[:space:]]*(sudo[[:space:]]+)?[a-z]*sh([[:space:]]|$)'; then
-  emit ask "Piping a downloaded script directly into a shell. Inspect the script and confirm with the user first (AGENTS.md: security)."
+  emit ask "ダウンロードしたスクリプトをシェルに直接流そうとしています。内容を確かめ、先にユーザーに確認してください(AGENTS.mdのセキュリティ)。"
 fi
 
 if has 'git[[:space:]]+add[^|;&]*\.env' && ! has '\.env\.(example|sample|template)'; then
-  emit ask "Staging a .env file. Secrets must not be committed (AGENTS.md: security). Confirm with the user first."
+  emit ask ".envファイルをステージしようとしています。シークレットはコミットしない決まりです(AGENTS.mdのセキュリティ)。先にユーザーに確認してください。"
 fi
 
 exit 0
