@@ -15,10 +15,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use winit::application::ApplicationHandler;
+use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::monitor::MonitorHandle;
-use winit::window::{Fullscreen, Window, WindowId, WindowLevel};
+use winit::window::{Window, WindowId, WindowLevel};
 
 use crate::gpu::{self, Frame};
 use crate::log::log;
@@ -152,7 +153,7 @@ impl SaverApp {
                 monitor.refresh_rate_millihertz(),
             );
         }
-        // Without any monitor information, fullscreen on the current monitor.
+        // Without any monitor information, a maximized window on the current monitor.
         let targets: Vec<Option<MonitorHandle>> = if monitors.is_empty() {
             vec![None]
         } else {
@@ -164,8 +165,22 @@ impl SaverApp {
                 .with_title("saver-spike")
                 .with_decorations(false)
                 // Spike S4 also checks that the windows end up above the taskbar.
-                .with_window_level(WindowLevel::AlwaysOnTop)
-                .with_fullscreen(Some(Fullscreen::Borderless(monitor)));
+                .with_window_level(WindowLevel::AlwaysOnTop);
+            // Why: winit 0.30.13 calls force_window_active after creating a
+            // window with `with_fullscreen`, which injects an extended (right)
+            // Alt press and release with SendInput. That key press ended every
+            // /s run of the second real-device test. A borderless window that
+            // covers the monitor avoids it (see docs/research/spike-results.md).
+            let attributes = match &monitor {
+                Some(monitor) => {
+                    let position = monitor.position();
+                    let size = monitor.size();
+                    attributes
+                        .with_position(PhysicalPosition::new(position.x, position.y))
+                        .with_inner_size(PhysicalSize::new(size.width, size.height))
+                }
+                None => attributes.with_maximized(true),
+            };
             let window = match event_loop.create_window(attributes) {
                 Ok(window) => Arc::new(window),
                 Err(e) => {
@@ -179,12 +194,11 @@ impl SaverApp {
             let black = hwnd.map_or("no HWND", win::fill_black);
             log!(
                 "window[{index}] created: id={:?} hwnd={hwnd:?} inner_size={:?} outer_position={:?} \
-                 scale_factor={} fullscreen={:?} cursor hidden, black fill: {black}",
+                 scale_factor={} cursor hidden, black fill: {black}",
                 window.id(),
                 window.inner_size(),
                 window.outer_position(),
                 window.scale_factor(),
-                window.fullscreen(),
             );
             self.windows.push(SaverWindow {
                 window,
@@ -197,6 +211,15 @@ impl SaverApp {
                 retry_at: None,
                 black_fills_logged: 0,
             });
+        }
+        // Keyboard input only reaches the foreground window. Why: winit's
+        // focus_window would inject the same Alt key press when the window is
+        // not in the foreground, so call SetForegroundWindow directly, once.
+        if let Some(hwnd) = self.windows.first().and_then(|w| win::hwnd_of(&w.window)) {
+            log!(
+                "SetForegroundWindow(window[0]) = {}",
+                win::set_foreground(hwnd)
+            );
         }
     }
 

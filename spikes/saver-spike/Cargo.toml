@@ -23,6 +23,11 @@ winit = { version = "=0.30.13", default-features = false, features = ["rwh_06"] 
 # optional backend-vulkan.flag experiment. No wgsl: the spike draws no shaders.
 wgpu = { version = "=30.0.1", default-features = false, features = ["std", "parking_lot", "dx12", "vulkan"] }
 pollster = "=1.0.1"
+# Why: wgpu reports the HRESULT of a failed swap chain call only through the
+# log crate (wgpu-hal dx12 `configure`); the spike forwards it to its log file.
+# Same version as already in Cargo.lock through wgpu. Why `package`: the
+# spike has its own `log` module and `log!` macro, which the crate name would clash with.
+log_crate = { package = "log", version = "=0.4.35" }
 windows-sys = { version = "=0.61.2", features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",

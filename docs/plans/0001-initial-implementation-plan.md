@@ -175,7 +175,7 @@ flowchart LR
 4. CIワークフローを追加する(`.github/workflows/`の変更はセキュリティ設定のため要承認)。Windowsランナーでfmt・clippy・テスト・x64ビルド(2026-11-01に変更: arm64はLinuxランナーでの型チェックだけ。[ADR-0016](../adr/0016-arm64-without-guarantee.md))・依存DLLの確認(システムDLLだけか)・依存crateの重複検出(`cargo tree -d`)を行う。Linuxランナーでワークスペース全体のビルド・clippy・テストを行う(アーキテクチャのA-7)。ActionsはコミットSHAで固定し、ジョブごとの権限を最小にする。非公開リポジトリではWindowsランナーが無料枠を消費することに留意する。
 5. Dependabotにcargoを追加する(`.github/dependabot.yml`の変更は要承認。`cooldown`は維持する)。0.x系のcrateはマイナー更新でも破壊的変更になりうるため、egui系・winit・wgpuは一緒に更新されるようにグループを分ける。
 6. `CHANGELOG.md`を追加する。
-7. 技術スパイクS1〜S6を行う。スパイク用の依存(winit・wgpu・pollster・windows-sys・eframe)について事前に承認を得る。スパイクは`spikes/`に置き、ワークスペースに含めず製品コードから参照しない。CIまたはメンテナーのWindows環境でビルドし、メンテナーがWindows 11実機で実行して結果を`docs/research/spike-results.md`に記録する。
+7. 技術スパイクS1〜S6を行う。スパイク用の依存(winit・wgpu・pollster・windows-sys・eframe。2026-11-01にsaver-spikeへlogを追加)について事前に承認を得る。スパイクは`spikes/`に置き、ワークスペースに含めず製品コードから参照しない。CIまたはメンテナーのWindows環境でビルドし、メンテナーがWindows 11実機で実行して結果を`docs/research/spike-results.md`に記録する。
 8. GitHubのWindowsランナーでGUIを伴うスモークテスト([8.1 自動テスト](#81-自動テスト))が実行できるかを確認する。
 
 検証コマンド表(Phase 0でAGENTS.mdに確定した):

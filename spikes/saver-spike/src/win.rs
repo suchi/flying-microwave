@@ -14,6 +14,7 @@ use windows_sys::Win32::System::SystemInformation::GetSystemDirectoryW;
 use windows_sys::Win32::System::Threading::{GetCurrentProcess, TerminateProcess};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetCursorPos, IsWindow, MB_ICONINFORMATION, MB_ICONWARNING, MB_OK, MessageBoxW,
+    SetForegroundWindow,
 };
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
@@ -117,6 +118,12 @@ pub fn cursor_pos() -> Option<(i32, i32)> {
     // SAFETY: `point` is a valid, writable POINT for the duration of the call.
     let ok = unsafe { GetCursorPos(&mut point) };
     (ok != 0).then_some((point.x, point.y))
+}
+
+/// Brings `hwnd` to the foreground. Returns whether Windows agreed.
+pub fn set_foreground(hwnd: HWND) -> bool {
+    // SAFETY: SetForegroundWindow only reads the handle; an invalid one fails.
+    unsafe { SetForegroundWindow(hwnd) != 0 }
 }
 
 /// Returns the HWND of a winit window (Win32 only).
