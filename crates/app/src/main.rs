@@ -1,6 +1,9 @@
 //! Flying Microwave screensaver executable.
 
 mod cli;
+// Used by the Windows renderer; tested on every host.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod layout;
 
 use std::ffi::OsString;
 
