@@ -45,22 +45,41 @@ jobs:
     name: Check
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      sha: ${{ steps.tag.outputs.sha }}
     steps:
+      # Why two checkouts: the check scripts come from the workflow's own
+      # commit, and the tagged commit is only read as data (its Cargo.toml,
+      # CHANGELOG.md and Cargo.lock). A tag made before a script existed can
+      # then still be released by a manual run.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ env.TAG }}
+          path: tag
           fetch-depth: 0
           persist-credentials: false
 
-      # The tag format, the Cargo.toml version and the CHANGELOG section.
+      # The tag format, the Cargo.toml version and the CHANGELOG section. The
+      # commit checked here is passed on, so that the later jobs use the same
+      # commit even if the tag were moved meanwhile.
       - name: Check the tag and write the release notes
+        id: tag
         run: |
+          # Why: a manual run must use the reviewed workflow on main.
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "手動実行はmainから起動する($GITHUB_REF から起動された)" >&2
+            exit 1
+          fi
           python3 -I -m unittest discover -s scripts
-          python3 -I scripts/prepare_release.py "$TAG" --notes "$RUNNER_TEMP/release-notes.md"
-          if ! git merge-base --is-ancestor HEAD origin/main; then
+          python3 -I scripts/prepare_release.py "$TAG" --root tag --notes "$RUNNER_TEMP/release-notes.md"
+          if ! git -C tag merge-base --is-ancestor HEAD origin/main; then
             echo "$TAG はmainの上にない" >&2
             exit 1
           fi
+          echo "sha=$(git -C tag rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       # Same check as ci.yml (docs/incidents/0007).
       - name: Check dependency cooldown
@@ -70,7 +89,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$tool.crate" -C "$RUNNER_TEMP" "$tool/Cargo.lock"
           python3 -I scripts/check_publish_age.py \
             --crate "cargo-about@${CARGO_ABOUT_VERSION}" \
-            Cargo.lock "$RUNNER_TEMP/$tool/Cargo.lock"
+            tag/Cargo.lock "$RUNNER_TEMP/$tool/Cargo.lock"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -87,7 +106,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: refs/tags/${{ env.TAG }}
+          ref: ${{ needs.check.outputs.sha }}
           persist-credentials: false
 
       - name: Install toolchain from rust-toolchain.toml
@@ -148,7 +167,7 @@ jobs:
 
   publish:
     name: Create draft release
-    needs: build
+    needs: [check, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -161,8 +180,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          SHA: ${{ needs.check.outputs.sha }}
         run: |
           set -euo pipefail
+          # The tag must still point at the commit that was checked and built.
+          actual=$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)
+          if [[ "$actual" != "$SHA" ]]; then
+            echo "$TAG が、検査したコミット($SHA)ではなく $actual を指している" >&2
+            exit 1
+          fi
           gh run download "$GITHUB_RUN_ID" --name release --dir dist
           gh run download "$GITHUB_RUN_ID" --name release-notes --dir notes
           (cd dist && sha256sum -- *.zip > SHA256SUMS.txt && cat SHA256SUMS.txt)
