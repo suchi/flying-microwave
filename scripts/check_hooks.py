@@ -18,8 +18,10 @@ hook cannot be added without being exercised.
 
 Scope: this reproduces how Claude Code starts hooks on Linux and macOS
 (`sh -c`). On Windows Claude Code uses Git Bash, or PowerShell when Git Bash
-is missing, which this check does not reproduce. Hooks registered with the
-`shell` or `args` fields fail the check for the same reason.
+is missing, which this check does not reproduce: on Windows the check only
+says that it is out of scope and exits with 0 (docs/incidents/0012). Hooks
+registered with the `shell` or `args` fields fail the check for the same
+reason.
 
 Usage:
     python3 -I scripts/check_hooks.py [--root DIR]
@@ -164,12 +166,24 @@ def use_utf8_output():
             stream.reconfigure(encoding="utf-8")
 
 
+def running_on_windows():
+    return os.name == "nt"
+
+
 def main(argv=None):
     use_utf8_output()
     parser = argparse.ArgumentParser(description="Claude Codeのフックが実際に動くかを確かめる")
     parser.add_argument("--root", default=".", help="リポジトリのルート")
     args = parser.parse_args(argv)
     root = pathlib.Path(args.root).resolve()
+
+    # Why: the check reproduces how Claude Code starts hooks on Linux and
+    # macOS (sh -c, and the executable bit of docs/incidents/0009). Windows
+    # has neither, so a run there would say nothing about those platforms
+    # (docs/incidents/0012). CI runs the check on Linux.
+    if running_on_windows():
+        print("Windowsは対象外(フックの起動はLinuxとmacOSで確かめる。CIのLinuxのジョブで毎回確かめている)")
+        return 0
 
     # Why: without jq every hook here either stops nothing or asks for
     # everything, so the result would say nothing about the hooks.

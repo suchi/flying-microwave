@@ -36,7 +36,7 @@
 | [windows-screensaver.md](research/windows-screensaver.md) | Windowsスクリーンセーバーの仕様 |
 | [tech-stack.md](research/tech-stack.md) | 言語・エコシステムの比較検討 |
 | [prior-art-and-ip.md](research/prior-art-and-ip.md) | 先行作品と知的財産上の配慮 |
-| [spike-results.md](research/spike-results.md) | 技術スパイクの結果(記録待ち) |
+| [spike-results.md](research/spike-results.md) | 技術スパイクの結果(記録中。残りの項目は製品で確かめる) |
 | [phase1-tooling.md](research/phase1-tooling.md) | Phase 1のビルド・配布用ツール(リソースの埋め込み、ライセンス表記の生成、リリースのワークフロー) |
 
 ## 設計
@@ -86,3 +86,5 @@
 | [0008](incidents/0008-push-cancelled-running-pr-ci.md) | PRのCIの実行中にプッシュし、終わりかけのビルドを取り消した |
 | [0009](incidents/0009-guard-hooks-never-ran.md) | 防御のフックが、最初から一度も働いていなかった |
 | [0010](incidents/0010-onboarding-missed-build-steps.md) | 開発参加者向けの文書に、ビルドの方法が抜けていた |
+| [0011](incidents/0011-log-written-against-requirement.md) | 診断用のログが、要件に反していつも書かれていた |
+| [0012](incidents/0012-hook-check-tests-failed-on-windows.md) | フックの検査のテストが、Windowsのスパイクのビルドで失敗した |

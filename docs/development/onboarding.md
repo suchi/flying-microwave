@@ -12,14 +12,14 @@
 | --- | --- | --- |
 | 開発環境の準備 | [5.1](#51-ローカルでのビルドとテスト)の前提のツール | 整備済み |
 | ビルド | [5.1](#51-ローカルでのビルドとテスト) | 整備済み |
-| テスト(自動テスト) | [5.1](#51-ローカルでのビルドとテスト)、[8](#8-windows実機での確認) | 整備済み |
+| テスト(自動テスト。Rustのテスト、スクリプトの単体テスト、ワークフローの検査) | [5.1](#51-ローカルでのビルドとテスト)、[8](#8-windows実機での確認) | 整備済み |
 | 実行と動作確認(`/s`・`/c`・`/p`と長いオプション) | [5.2](#52-実行と動作確認) | 整備済み |
 | ログの確認 | [5.3](#53-ログとデバッグ) | 整備済み |
 | デバッガによるデバッグ | [5.3](#53-ログとデバッグ) | 整備済み |
 | トラブルシューティング | [5.4](#54-トラブルシューティング) | 整備済み |
 | アイコンの作り直し | [5.5](#55-アイコンの作り直し) | 整備済み |
 | 変更の進め方(ブランチ、コミット、レビュー、マージ) | [3](#3-開発の進め方)、[4](#4-レビューとマージ) | 整備済み |
-| リリース | [8](#8-windows実機での確認)、[計画の7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順) | 整備済み(arm64のビルドは、v0.1.0で初めて実際に動かす。計画のD-23) |
+| リリース | [8](#8-windows実機での確認)、[計画の7.2](../plans/0001-initial-implementation-plan.md#72-リリース手順)(正式なリリース)と[7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順)(プレリリース) | 整備済み(arm64のビルドは、v0.1.0で初めて実際に動かす。計画のD-23) |
 | AIエージェントとの協働 | [6](#6-aiエージェントとの協働) | 整備済み |
 
 ## 1. このプロジェクトについて
@@ -105,7 +105,7 @@ flowchart LR
 ```
 
 - 敵対的レビュー: すべての変更で、PRを作る前に、作成者とは別のコンテキストを持つエージェントに、差分と要件だけを渡して欠陥を探させる([ADR-0018](../adr/0018-review-before-opening-pr.md))。作成者の結論や仮説は渡さない。再レビューでは、例外として前回の指摘と対応の一覧も渡す
-- GitHub Copilot: このリポジトリでは、プロジェクト概要のとおりレビューを含めて利用しない(レビューの方法は[ADR-0007](../adr/0007-adversarial-review-without-copilot.md))。Copilotを使う場合の手順も、同じループの参考としてレビュー手順に残している
+- GitHub Copilot: このリポジトリでは、プロジェクト概要のとおりレビューを含めて利用しない(レビューの方法は[ADR-0014](../adr/0014-risk-based-review-depth.md)。ADR-0007を置き換えた)。Copilotを使う場合の手順も、同じループの参考としてレビュー手順に残している
 - 手順の詳細: [PRのレビュー手順](review-process.md)に従う
 - 指摘への対応: 指摘は検証すべき主張として扱い、一次情報で確かめてから対応する。修正するか、しない理由を記録する。各指摘に返信してから解決する
 - マージの条件: レビュー完了、CIの全ジョブがグリーン、メンテナーの承認の3つがそろってから行う。レビューの深さと再レビューの扱い(medium以上を直したときだけ最大1回)は[ADR-0014](../adr/0014-risk-based-review-depth.md)と[レビュー完了の判定](review-process.md#レビュー完了の判定)に従う。マージの実行は承認を得てからにする
@@ -138,7 +138,7 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
 - Python 3(依存の7日の検査とフックの検査に使う。この節のコマンドはWindowsの`python`で書いている。LinuxとmacOSでは`python3`にする)
 - jq(フックが入力の解析に使い、フックの検査にも要る。導入の方法は6.3)
 
-以下のコマンドは、Windowsでは PowerShell で、リポジトリのルートで実行する(フックの検査だけは Git Bash で実行する)。
+以下のコマンドは、Windowsでは PowerShell で、リポジトリのルートで実行する(フックの検査はWindowsでは対象外。6の手順を参照)。
 
 1. ツールチェーンのインストール。`rust-toolchain.toml`のとおり、版を固定したRustと、Windowsの2つのターゲット、rustfmt、clippyが入る。
 
@@ -152,6 +152,18 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
    cargo test --workspace --locked
    cargo fmt --all --check
    cargo clippy --workspace --all-targets --locked -- -D warnings
+   ```
+
+   `scripts/`のPythonのスクリプトを変えたときは、その単体テストも実行する(CIのLinuxのジョブと、リリースのワークフローの検査のジョブも実行する)。
+
+   ```powershell
+   python -I -m unittest discover -s scripts
+   ```
+
+   ワークフロー(`.github/workflows/`)を変えたときは、actionlintで検査する(ワークフローの変更はメンテナーの承認が要る)。actionlintは、Claude Code on the Webの環境には導入済みである(6.5)。Windowsでローカルに使う場合は、actionlintのGitHubのリリースからWindows用のバイナリ(版は6.5と同じv1.7.12)を入れる。
+
+   ```powershell
+   actionlint
    ```
 
 3. ビルド。CIと同じく、ターゲットを明示する。VC++ランタイムは静的にリンクする(`.cargo/config.toml`の`+crt-static`)。実行ファイルは`target\x86_64-pc-windows-msvc\release\flying-microwave.exe`にできる。
@@ -172,10 +184,10 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
    python -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock
    ```
 
-6. フックの検査。`sh`と`jq`を使うため、Git Bash で実行する。
+6. フックの検査。LinuxとmacOSでのフックの起動(`sh -c`と実行権限)を確かめるもので、LinuxかmacOS(WindowsではWSL)で実行する。`sh`と`jq`を使う。Windowsのpythonで実行すると、対象外と表示して終わる。CIのLinuxのジョブが毎回実行するので、フックを変えないときは、ローカルで実行しなくてよい。
 
    ```bash
-   python -I scripts/check_hooks.py
+   python3 -I scripts/check_hooks.py
    ```
 
 Linux と macOS では、手順2・5・6と型チェックを実行できる。Pythonは`python3`で実行し、手順6には`jq`が要る。Windowsの実行ファイルは作れない。
@@ -202,6 +214,8 @@ python3 -I scripts/check_hooks.py
 - `flying-microwave.exe /s`: スクリーンセーバーとして、すべてのモニタを覆って動く。キーの押下、マウスのボタンやホイール、タッチ、マウスを16ピクセル以上動かしたとき、ほかのウィンドウが前面に出たときに終了する。起動直後の0.5秒間のマウスの動きは無視する。
 - `flying-microwave.exe /c`: 設定は今後のバージョンで追加する旨のメッセージを表示する。`.scr`を引数なしで起動したときも同じ。
 - `flying-microwave.exe /p <ウィンドウの番号>`: 指定したウィンドウのクライアント領域に子ウィンドウを作り、プレビューを表示する。入力は無視し、親のウィンドウが閉じられたとき(500ミリ秒ごとに確かめる)か、自分のウィンドウが閉じられたときに終了する。ウィンドウの番号はスクリーンセーバーの設定画面が渡すので、ふつうは設定画面のプレビュー枠で確かめる(5.1の手順4)。番号が有効なウィンドウでないときは、何も表示せず終了コード2で終わる。番号がないか数字でないときは、`/c`と同じメッセージになる。
+- `/s`をすでに動いている間に起動すると、何も表示せずにすぐ終わる(単一起動。N-15)。
+- 認識できない最初の引数: `/c`と同じメッセージになる。
 - `--settings`: `/c`と同じメッセージになる。`--window`と`--fullscreen`: 単独のアプリとしては、まだ動かない旨のメッセージになる(単独のアプリはPhase 6で判断する)。
 - 引数なしの`flying-microwave.exe`: 単独のアプリとしては動かない旨のメッセージを表示する。
 - スクリーンセーバーの設定画面から動作を確認するには、5.1の手順4のとおり`.scr`にしてインストールする。
@@ -209,13 +223,13 @@ python3 -I scripts/check_hooks.py
 ### 5.3 ログとデバッグ
 
 - コンソールはない。スクリーンセーバーなので、デバッグのビルドでもコンソールを開かない(`main.rs`の`windows_subsystem = "windows"`)。`println!`や`eprintln!`の出力は見えない。
-- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
+- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`。正確には`std::env::temp_dir()`の場所で、Windowsでは環境変数`TMP`を`TEMP`より先に見る。ふつうは同じ場所である)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
 
   ```powershell
   Get-Content $env:TEMP\flying-microwave.log -Tail 50
   ```
 
-- panic: panicのメッセージは標準エラー出力に出るため、見えず、ログにも残らない(panicのフックをまだ設定していない。Rustの[`std::panic::set_hook`](https://doc.rust-lang.org/std/panic/fn.set_hook.html)で、ログに書くようにできる)。GPUの初期化の中のpanicは捕まえて、panicが起きたことだけをログに書く(`GPU initialization failed: GPU initialization panicked`。`render.rs`の`guarded`)。panicのメッセージと場所は残らない。初期化の外でpanicが起きると、プロセスが終わる。
+- panic: panicのメッセージは標準エラー出力に出るため、見えず、ログにも残らない(panicのフックをまだ設定していない。Rustの[`std::panic::set_hook`](https://doc.rust-lang.org/std/panic/fn.set_hook.html)で、ログに書くようにできる)。GPUの初期化の中のpanicは捕まえて、panicが起きたことだけをログに書く(`/s`では`GPU initialization failed: GPU initialization panicked`、`/p`では`preview: setup failed: GPU initialization panicked`。`render.rs`の`guarded`)。panicのメッセージと場所は残らない。初期化の外でpanicが起きると、プロセスが終わる。
 - デバッグのビルド: `--release`を付けずにビルドする。実行ファイルは`target\x86_64-pc-windows-msvc\debug\flying-microwave.exe`にできる。
 
   ```powershell
@@ -250,10 +264,16 @@ python3 -I scripts/check_hooks.py
 - 画面が覆われたまま戻らない: キーを押すか、マウスを大きく動かす。反応しなければ、Ctrl+Alt+Delでタスクマネージャーを開き、`flying-microwave.exe`(`.scr`として起動したときは`FlyingMicrowave.scr`)を終了する。GPUの初期化が15秒で終わらないときは、ログに`GPU initialization timed out; exiting`と書いて、終了コード6で自動的に終了する。
 - ビルドでリンカが見つからない: Visual Studio Build Toolsの「C++ によるデスクトップ開発」が入っているかを確かめる(5.1の前提のツール)。
 - 依存の7日の検査が通らない: 公開から7日たっていない版を使っている。7日以上前に公開された版を選ぶか、7日たつまで待つ(6.3の「依存の公開からの日数」)。
-- フックの検査が通らない: `jq`が入っているか、Git Bashの中で実行しているかを確かめる(6.3)。
+- フックの検査が通らない: `jq`が入っているか、LinuxかmacOS(WindowsではWSL)で実行しているかを確かめる(5.1の手順6、6.3)。
 - 描画が始まらない: ログに`first frame presented`の行(`/s`ではウィンドウごとに`window N: first frame presented`、`/p`では`preview: first frame presented`)があれば、少なくとも1枚は描画できている。この行で、起動の速さ(計画のN-01)のうち「最初のアニメーションのフレームまで1秒以内」を測る。同じ`pid=`の行だけを使い(ログには複数のプロセスが追記する)、起点は`started`の行(`+0ms`)とする。プロセスの起動からこの行までの時間(ローダーが依存を解決する時間)は含まない。`/s`で複数のモニタがあるときは、ウィンドウごとの行のうち最も遅いもので判定する。「全モニタが黒で覆われるまで0.5秒以内」のほうは、`window N: inner ...`の行(黒く塗った直後に書く)の時刻で測り、複数のモニタがあるときは、ウィンドウごとの行のうち最も遅いもので判定する。
-- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。この行がなく途中で切れていれば、panicなどで異常終了している。
-- プレビューの終了の理由: ログの`preview exit:`の行に出る。終了コードは、0が正常、2が親のウィンドウが無効(引数の番号が不正か、すでに閉じられていた)、4が初期化の失敗、6がGPUの初期化が15秒で終わらなかったことを表す。
+- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。ただし、次の場合は、その行を書かずに終わる。最後の行で見分ける。
+  - `another screensaver instance is running; exiting`: `/s`の2つめの起動。終了コード0。
+  - `preview: N is not a valid window; exiting`: `/p`の番号が有効なウィンドウでない。終了コード2。
+  - `GPU initialization timed out; exiting`: GPUの初期化が15秒で終わらなかった。終了コード6。
+  - `EventLoop::new failed:`、`event loop error:`、`preview: EventLoop::new failed:`、`preview: event loop returned an error:`: イベントループの失敗。終了コード1。
+  - どれにも当たらずに行が途中で切れていれば、panicなどで異常終了している。
+- `/s`の終了コード: 0が正常、1がイベントループの失敗、5がウィンドウを1つも作れなかった(`no window could be created`)、6がGPUの初期化が15秒で終わらなかったことを表す。
+- プレビューの終了の理由: ログの`preview exit:`の行に出る。終了コードは、0が正常、1がイベントループの失敗、2が親のウィンドウが無効(引数の番号が不正か、すでに閉じられていた)、4が初期化の失敗、6がGPUの初期化が15秒で終わらなかったことを表す。
 - プレビューのプロセスが残る: 設定画面を閉じたあとも、タスクマネージャーに`FlyingMicrowave.scr`が残っていれば、ログの最後の行を添えて報告する。通常は、親のウィンドウが閉じられてから500ミリ秒以内に終了する。
 
 ### 5.5 アイコンの作り直し
@@ -292,7 +312,7 @@ python3 -I scripts/check_hooks.py
 | --- | --- |
 | [/commit](../../.claude/commands/commit.md) | 変更を確認し、簡易整合性チェックと検証コマンドを実行して、関連ファイルを明示的にステージする。メッセージを提示し、承認後にコミットする |
 | [/ship](../../.claude/commands/ship.md) | 整合性チェックで見つけた問題を直し、`/commit`の手順でコミットして、確認後に現在のブランチをプッシュする |
-| [/consistency-check](../../.claude/commands/consistency-check.md) | READMEとAGENTS.mdの記載と実態、ADRの一覧、ドキュメント間のリンクを確認して報告する。ファイルは変更しない |
+| [/consistency-check](../../.claude/commands/consistency-check.md) | READMEとAGENTS.mdの記載と実態、ADRの一覧、ドキュメント間のリンク、オンボーディングの作業の一覧と手順、計画の要件と実装(先送りした決定の登録を含む)を確認して報告する。ファイルは変更しない。フェーズの区切りとリリースの前に実行する |
 | [/babysit-pr](../../.claude/commands/babysit-pr.md) | PRの未解決のレビュー指摘に、修正・返信・スレッドの解決で対応し、新規の指摘がなくなるまで繰り返す。マージはしない |
 | [/merge-pr](../../.claude/commands/merge-pr.md) | 前提条件(レビュー完了、CIグリーン、承認)を確認してPRをマージし、ブランチの削除とmainの同期を行う。バージョンタグの指定があればタグも付ける |
 
@@ -311,7 +331,7 @@ python3 -I scripts/check_hooks.py
 
 `.claude/hooks/`にあり、`.claude/settings.json`で登録されている。どのフックも、gitで実行権限付き(100755)にする。登録したとおりに起動できないフックは、Claude Codeでは止めないエラーとして扱われ、黙って効かなくなる。`scripts/check_hooks.py`が、登録したすべてのフックを登録したとおりに起動し、止めるべき入力を止め、通すべき入力を通すことを確かめる(CIのLinuxのジョブでも毎回実行する。[incidents 0009](../incidents/0009-guard-hooks-never-ran.md))。フックを加えたら、このスクリプトに両方のサンプル入力も加える。
 
-- 確かめる範囲: Claude Codeは、LinuxとmacOSでは登録の文字列を`sh -c`に渡し、WindowsではGit Bash(なければPowerShell)に渡す(公式ドキュメント「Hooks reference」)。`check_hooks.py`が再現するのは`sh -c`だけである。Windowsでは、Git for Windows(Git Bash)を入れておく。PowerShellでは、登録の形のフックは起動しないおそれがある(未確認)
+- 確かめる範囲: Claude Codeは、LinuxとmacOSでは登録の文字列を`sh -c`に渡し、WindowsではGit Bash(なければPowerShell)に渡す(公式ドキュメント「Hooks reference」)。`check_hooks.py`が再現するのは`sh -c`だけで、Windowsでは対象外と表示して終わる([incidents 0012](../incidents/0012-hook-check-tests-failed-on-windows.md))。WindowsでのClaude Codeのフックの動作は未確認である(Git BashでもPowerShellでも、メンテナーが実機で確かめていない。開発はクラウドのLinuxのエージェントで行う)。使うときは、先にフックが働くことを確かめる([incidents 0012](../incidents/0012-hook-check-tests-failed-on-windows.md))
 - 既知の誤検知: block-dangerous-git.shは、コマンドの文字列全体を見るため、gitを実行しないコマンド(`echo`の引数、ヒアドキュメントの中のサンプル入力など)に、mainへのプッシュなどの文字列が含まれるだけでも止める。また、mainの上では、`git commit`という文字列を含むだけのコマンドにも確認を求める。そのような文字列を含むファイルは、Writeのツールで書いてから実行する。PRの本文は`--body-file`で渡す
 
 - block-dangerous-git.sh: Bashの実行前に、危険なgit操作を止める。`main`への直接プッシュ、`main`へのforce push、`--no-verify`付きのコミットとプッシュ、ルートやホームの再帰削除は拒否する。force push、`git reset --hard`、`git clean -f`、`git branch -D`、`main`上でのコミット、ダウンロードしたスクリプトを直接シェルに渡す操作、`.env`のステージは、実行前に確認を求める
@@ -416,7 +436,7 @@ cargo fetch --locked || true
 
 | 用語 | 意味 |
 | --- | --- |
-| スクリーンセーバーのモード(`/s`、`/p`、`/c`) | Windowsがスクリーンセーバー(`.scr`)に引数で伝える動作モード。`/s`は全画面で実行、`/p <HWND>`は設定画面のプレビュー枠への表示、`/c`は設定画面の表示。引数なし(実行ファイルの拡張子が`.scr`の場合)や認識できない引数も設定画面として扱う。拡張子が`.exe`のときに引数なしで起動すると単独アプリとして動く([ADR-0012](../adr/0012-standalone-app-mode.md))。仕様は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md) |
+| スクリーンセーバーのモード(`/s`、`/p`、`/c`) | Windowsがスクリーンセーバー(`.scr`)に引数で伝える動作モード。`/s`は全画面で実行、`/p <HWND>`は設定画面のプレビュー枠への表示、`/c`は設定画面の表示。引数なし(実行ファイルの拡張子が`.scr`の場合)や認識できない引数も設定画面として扱う。拡張子が`.exe`のときに引数なしで起動すると単独アプリと判定する([ADR-0012](../adr/0012-standalone-app-mode.md))。単独アプリはまだなく、今はその旨のメッセージを表示する。仕様は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md) |
 | Standalone mode | スクリーンセーバーとしてではなく、通常のアプリ(ウィンドウ表示または全画面)として起動するモードで、計画中のもの。決定内容は[ADR-0012](../adr/0012-standalone-app-mode.md)を参照 |
 | flyer | 飛行物体。電子レンジと食べ物を同じ構造で表す。`core`のシミュレーションが扱う |
 | core / app | Cargoワークスペースの2つのcrate。`core`(`flying-microwave-core`)はOSやGPUに依存しないロジック(シミュレーション、設定モデル、終了判定など)、`app`(`flying-microwave`)は実行ファイル(起動モード、描画、設定画面、プラットフォーム固有処理) |

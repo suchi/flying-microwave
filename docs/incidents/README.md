@@ -41,3 +41,4 @@
 | [0009](0009-guard-hooks-never-ran.md) | 防御のフックが、最初から一度も働いていなかった | 2026-11-01 |
 | [0010](0010-onboarding-missed-build-steps.md) | 開発参加者向けの文書に、ビルドの方法が抜けていた | 2026-11-01 |
 | [0011](0011-log-written-against-requirement.md) | 診断用のログが、要件に反していつも書かれていた | 2026-11-02 |
+| [0012](0012-hook-check-tests-failed-on-windows.md) | フックの検査のテストが、Windowsのスパイクのビルドで失敗した | 2026-11-02 |

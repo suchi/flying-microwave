@@ -115,6 +115,12 @@ jobs:
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
 
+      # Why: the scripts also run on Windows (spikes.yml, and the maintainer's
+      # machine), and a failure there must show up in every PR, not only when
+      # spikes/ changes (docs/incidents/0012).
+      - name: Script tests
+        run: python -I -m unittest discover -s scripts
+
       # The default key includes neither the matrix target nor the root
       # Cargo.toml, so add both: the target keeps caches for different
       # targets apart (ADR-0017).
