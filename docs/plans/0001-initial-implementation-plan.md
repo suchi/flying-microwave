@@ -241,7 +241,7 @@ PRは、段階ごとのまとまりで作る。実機での確認も、段階ご
 10. Windowsリソースの埋め込み(アイコン、バージョン情報、String Tableの序数1)、`.scr`へのリネーム、VC++ランタイムを静的リンクしていることのCIでの確認。
 11. 依存crateのライセンス表記ファイル(`THIRD-PARTY-LICENSES.txt`)の生成(ADR-0011)。Windowsで開きやすいよう、拡張子を付けたテキスト形式にする。フォントなどcrateのメタデータ外のライセンスも確認する。
 12. リリースワークフロー(要承認): タグのプッシュでビルドし、zip・チェックサム・(利用できれば)アーティファクト証明を作り、GitHub Releaseの下書きを作る。
-13. 利用者向けREADME(`packaging/windows/README.txt`)を確定する。インストール手順はスパイクS5の結果に合わせ、既知の制限(SmartScreenの警告、Smart App Controlによるブロック、グループポリシーで固定された環境)を書く。ルートのREADMEの「状況」と「利用者の方へ」を更新する。
+13. 利用者向けREADME(`packaging/windows/README.md`。2026-11-02にテキスト形式からMarkdownに変えた)を確定する。インストール手順はスパイクS5の結果に合わせ、既知の制限(SmartScreenの警告、Smart App Controlによるブロック、グループポリシーで固定された環境)を書く。ルートのREADMEの「状況」と「利用者の方へ」を更新する。
 14. Phase 0で実行可能と分かった場合は、Windowsランナーでのスモークテストを追加する。
 
 完了条件: [全フェーズ共通のリリース条件](#71-全フェーズ共通のリリース条件)に加えて、Phase 0から移した次の項目(D-20)。
@@ -373,7 +373,7 @@ flowchart LR
     draft --> publish["maintainer publishes the release"]
 ```
 
-- 配布物(案): `FlyingMicrowave-<version>-windows-x64.zip`、`FlyingMicrowave-<version>-windows-arm64.zip`、`SHA256SUMS.txt`。zipには`FlyingMicrowave.scr`、利用者向けの`README.txt`(`packaging/windows/README.txt`)、`LICENSE.txt`(ルートの`LICENSE`の写し)、`THIRD-PARTY-LICENSES.txt`を入れる。単独アプリとしての実行を実装したら、`.exe`の同梱方法を決める(ADR-0012)。
+- 配布物(案): `FlyingMicrowave-<version>-windows-x64.zip`、`FlyingMicrowave-<version>-windows-arm64.zip`、`SHA256SUMS.txt`。zipには`FlyingMicrowave.scr`、利用者向けの`README.md`(`packaging/windows/README.md`)、`LICENSE.txt`(ルートの`LICENSE`の写し)、`THIRD-PARTY-LICENSES.txt`を入れる。単独アプリとしての実行を実装したら、`.exe`の同梱方法を決める(ADR-0012)。
 - `.scr`単体はメールやブラウザで危険なファイルとして扱われやすいため、zipで配布する。
 - ワークフローの安全対策: ActionsはコミットSHAで固定する、ジョブごとの`permissions`を最小にする、`--locked`でビルドする、リリース用のタグを保護する。リリースのワークフローではビルドのキャッシュを復元せず、毎回最初からビルドする(CIのキャッシュは[ADR-0017](../adr/0017-ci-build-cache-and-x64-spike-builds.md))。
 - ビルドの出所を検証できるよう、GitHubのアーティファクト証明(artifact attestations)を付ける。非公開リポジトリで利用できるプランは限られるとレビューで指摘されており(GitHubのドキュメントは調査環境から接続できず未確認)、利用できない間は付けない。利用するActionは実装時に公式ドキュメントで確認する[GH-1]。
@@ -450,7 +450,7 @@ flowchart LR
 - ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では、テスト・リントは不要とする(Phase 0で検証コマンド表を確定した後も同じ)。
 - 深い検討(計画・設計・敵対的レビュー・整合性の確認)は最も高性能なモデルで行い、決まった設計の実装・簡単なコード・定型的な文書は安価なモデルに任せてよい。互いに依存しない作業は並行して進めてよい。
 - 必要なWebサイトに接続できない場合は推測で補わず、ホスト名を挙げてネットワーク設定への追加を依頼する。
-- ルートのREADMEはリポジトリを見る人向け、`packaging/windows/README.txt`は配布物の利用者向けとし、開発参加者向けの入口は[オンボーディング](../development/onboarding.md)とする。
+- ルートのREADMEはリポジトリを見る人向け、`packaging/windows/README.md`は配布物の利用者向けとし、開発参加者向けの入口は[オンボーディング](../development/onboarding.md)とする。
 - コミットは1つの論理変更ごとに細かく分け、行き詰まったときに戻しやすくする。
 
 ## 13. 次のアクション
