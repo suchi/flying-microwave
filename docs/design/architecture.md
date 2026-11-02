@@ -246,7 +246,7 @@ Phase 1の暫定の扱い(スパイクS4と実機の結果で見直す):
 
 | ID | 対策 | 理由 |
 | --- | --- | --- |
-| SEC-1 | 起動直後にDLLの検索パスをシステムディレクトリに制限する(`SetDefaultDllDirectories`)。読み込み時の依存DLLにも同じ制限をかけるリンカ設定(`/DEPENDENTLOADFLAG`)を使う | `.scr`は任意のフォルダに置かれて自動実行される。wgpu-halは`d3d12.dll`などをパスなしの名前で読み込む(仕様調査のW-11)。GPUのない環境で使うソフトウェアの描画(WARP)も、[Microsoftのドキュメント](https://learn.microsoft.com/en-us/windows/win32/direct3darticles/directx-warp)によると、アプリの`.exe`の隣に置いた`D3d10warp.dll`を使う。この制限で塞げる想定だが、ランタイムがフルパスで読み込む場合は塞げないため、実機で確かめる(計画の8.2の手動テスト)。APIとリンカ設定の詳細はPhase 1で公式ドキュメントを確認してから適用する |
+| SEC-1 | 起動直後にDLLの検索パスをシステムディレクトリに制限する(`SetDefaultDllDirectories`)。読み込み時の依存DLLにも同じ制限をかけるリンカ設定(`/DEPENDENTLOADFLAG`)を使う | `.scr`は任意のフォルダに置かれて自動実行される。wgpu-halは`d3d12.dll`などをパスなしの名前で読み込む(仕様調査のW-11)。GPUのない環境で使うソフトウェアの描画(WARP)も、[Microsoftのドキュメント](https://learn.microsoft.com/en-us/windows/win32/direct3darticles/directx-warp)によると、アプリの`.exe`の隣に置いた`D3d10warp.dll`を使う。この制限で塞げる想定だが、ランタイムがフルパスで読み込む場合は塞げないため、実機で確かめる(計画の8.2の手動テスト)。実装: `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32)`(`crates/app/src/win.rs`)と、実行ファイルのリンカ設定`/DEPENDENTLOADFLAG:0x800`(`crates/app/build.rs`。値は`LOAD_LIBRARY_SEARCH_SYSTEM32`で、MicrosoftのMSVCのリンカのリファレンスで確かめた。Windows 10 RS1以降で効く)。CIとリリースのワークフローで、`dumpbin /loadconfig`により設定が入ったことを確かめる |
 | SEC-2 | wgpuのDX12シェーダーコンパイラを`Fxc`に明示し、使うバックエンドも明示する | 既定値の`Auto`は`dxcompiler.dll`の読み込みを先に試すため |
 | SEC-3 | 引数のHWNDと前面のウィンドウは、有効なウィンドウかを確認してから使う | 仕様調査のW-6 |
 | SEC-4 | 設定ファイルはサイズの上限を設け、すべての値を検証する | A-6 |
