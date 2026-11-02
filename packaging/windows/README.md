@@ -1,8 +1,12 @@
-<!-- Draft. Finalized before v0.1.0, after the steps are checked on Windows 11 (S5). Remove this comment then. -->
+<!-- draft -->
 
 # Flying Microwave
 
 [日本語](#日本語) | [English](#english)
+
+> この説明書は下書きです。正式なリリースまでに、Windows 11 で手順を確かめて確定します。
+>
+> This document is a draft. It will be finalized after the steps are checked on Windows 11, before the first full release.
 
 ## 日本語
 
@@ -46,7 +50,7 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 ### プライバシー
 
-このプログラムはネットワークを使用せず、データの収集や送信(テレメトリ)も行いません。不具合の調査のため、一時フォルダーに診断用のログ(`%TEMP%\flying-microwave.log`。起動の情報、モニター、GPU、終了の理由など。1MB まで)を書きます。ログに個人のデータは含まれず、どこにも送信しません。
+このプログラムはネットワークを使用せず、データの収集や送信(テレメトリ)も行いません。不具合の調査のため、一時フォルダーに診断用のログ(`%TEMP%\flying-microwave.log`。1MB まで)を書きます。ログには、起動の情報、終了の理由と、PC の構成(GPU の名前とドライバーの版、モニターの位置と大きさ)が含まれます。文書などの利用者のデータは書かず、ログをどこかへ送信することもありません。
 
 ### ライセンス
 
@@ -54,7 +58,7 @@ Flying Microwave は MIT ライセンスで公開しています(`LICENSE.txt` �
 
 ### ヘルプ
 
-質問、不具合の報告、最新のリリースは、次のページにあります。不具合を報告するときは、診断用のログを添えてください。
+質問、不具合の報告、最新のリリースは、次のページにあります。不具合を報告するときは、診断用のログを添えてください。報告は公開されるため、添える前にログの内容を確かめてください。
 
 - プロジェクト: <https://github.com/suchi/flying-microwave>
 - 不具合の報告: <https://github.com/suchi/flying-microwave/issues>
@@ -101,7 +105,7 @@ Open Screen Saver Settings, select FlyingMicrowave, and click Settings. The curr
 
 ### Privacy
 
-This program does not use the network and does not collect or send any data (no telemetry). To help investigate problems, it writes a diagnostic log to your temporary folder (`%TEMP%\flying-microwave.log`: startup information, monitors, GPU, the reason for exiting, and similar; up to 1 MB). The log contains no personal data and is never sent anywhere.
+This program does not use the network and does not collect or send any data (no telemetry). To help investigate problems, it writes a diagnostic log to your temporary folder (`%TEMP%\flying-microwave.log`, up to 1 MB). The log contains startup information, the reason for exiting, and details of your PC's configuration (the GPU name and driver version, and the positions and sizes of your monitors). It does not record your documents or other user data, and it is never sent anywhere.
 
 ### License
 
@@ -109,7 +113,7 @@ Flying Microwave is released under the MIT License (see `LICENSE.txt`). The lice
 
 ### Help
 
-Questions, bug reports, and the latest release are on the following pages. When you report a bug, please attach the diagnostic log.
+Questions, bug reports, and the latest release are on the following pages. When you report a bug, please attach the diagnostic log. Reports are public, so check the contents of the log before you attach it.
 
 - Project: <https://github.com/suchi/flying-microwave>
 - Bug reports: <https://github.com/suchi/flying-microwave/issues>
