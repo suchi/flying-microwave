@@ -54,7 +54,7 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 ### ライセンス
 
-Flying Microwave は MIT ライセンスで公開しています(`LICENSE.txt` を参照)。第三者のコンポーネントのライセンスは `THIRD-PARTY-LICENSES.txt` に記載しています。どちらも zip に同梱しています。
+Flying Microwave は MIT ライセンスで公開しています(`LICENSE.txt` を参照)。第三者のコンポーネントのライセンスは `THIRD-PARTY-LICENSES.txt` に記載しています。実行ファイルに組み込まれるソフトウェア部品と、そのコードを生成する部品の一覧(SBOM。`THIRD-PARTY-LICENSES.txt` と同じ範囲)を、SPDX 2.3 の形式で `FlyingMicrowave-<版>-windows-<x64 または arm64>.spdx.json` に記載しています。どれも zip に同梱しています。
 
 ### ヘルプ
 
@@ -109,7 +109,7 @@ This program does not use the network and does not collect or send any data (no 
 
 ### License
 
-Flying Microwave is released under the MIT License (see `LICENSE.txt`). The licenses of third-party components are listed in `THIRD-PARTY-LICENSES.txt`. Both files are included in the zip.
+Flying Microwave is released under the MIT License (see `LICENSE.txt`). The licenses of third-party components are listed in `THIRD-PARTY-LICENSES.txt`. The software components built into the executable, and those that generate its code, are listed (an SBOM, covering the same components as `THIRD-PARTY-LICENSES.txt`) in SPDX 2.3 format in `FlyingMicrowave-<version>-windows-<x64 or arm64>.spdx.json`. All of these files are included in the zip.
 
 ### Help
 
