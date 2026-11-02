@@ -6,7 +6,9 @@ be vX.Y.Z or vX.Y.Z-alpha.N (plan 0001, section 7.3), must match the
 workspace version in Cargo.toml, and CHANGELOG.md must have a non-empty
 section "## vX.Y.Z... (date)" for it. The section body becomes the notes,
 followed by a fixed section on the arm64 build, which every release ships
-without guarantee (ADR-0016).
+without guarantee (ADR-0016). A full release also needs a finalized user
+README (packaging/windows/README.md without the draft marker; plan 0001,
+task 13). Pre-releases may ship the draft.
 
 Usage:
     python3 -I scripts/prepare_release.py TAG [--root DIR] [--notes FILE]
@@ -21,6 +23,8 @@ import re
 import sys
 import tomllib
 
+USER_README = "packaging/windows/README.md"
+DRAFT_MARKER = "<!-- draft -->"
 TAG_PATTERN = re.compile(r"v((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-alpha\.(?:0|[1-9][0-9]*))?)")
 
 
@@ -94,6 +98,14 @@ def main(argv=None):
     if cargo != version:
         print(f"Cargo.tomlのバージョン({cargo})がタグ({args.tag})と一致しない", file=sys.stderr)
         return 1
+    if not is_prerelease(version):
+        readme = root / USER_README
+        if not readme.is_file():
+            print(f"正式なリリースには{USER_README}が要る", file=sys.stderr)
+            return 1
+        if DRAFT_MARKER in readme.read_text(encoding="utf-8"):
+            print(f"{USER_README}がまだ下書き({DRAFT_MARKER}が残っている)", file=sys.stderr)
+            return 1
     notes = release_notes((root / "CHANGELOG.md").read_text(encoding="utf-8"), version)
     if notes is None:
         print(f"CHANGELOG.mdに「## v{version} (日付)」の節がないか、中身が空", file=sys.stderr)
