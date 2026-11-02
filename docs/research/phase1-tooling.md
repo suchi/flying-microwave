@@ -43,7 +43,7 @@ Phase 1の作業10(Windowsリソースの埋め込み)、作業11(依存crateの
 推測:
 
 - GitHubの`ubuntu-24.04`のx64ランナーには、`llvm-rc`が入っていない。導入スクリプトが`llvm-N`を入れるのはarm64のイメージだけで(`actions/runner-images`の`install-clang.sh`)、`llvm-rc`は`llvm-18`のパッケージに含まれるため。
-- arm64向けのビルドでも、x64のホストの`rc.exe`を使う。`.res`はマシンに依存しないため問題はない。
+- arm64向けのビルドでも、x64のホストの`rc.exe`を使う。`.res`はマシンに依存しないため問題はない。(2026-11-02の注: これはx64のホストでクロスビルドする場合の推測である。リリースのワークフローはarm64のホストでビルドするため、embed-resource 3.0.12は、Windows SDKのarm64の`rc.exe`を使う。[計画0002](../plans/0002-phase1-tooling-proposal.md)のT-3の実装の記録を参照)
 
 crateを使わない方法:
 

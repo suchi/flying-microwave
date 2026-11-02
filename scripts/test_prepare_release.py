@@ -94,10 +94,22 @@ class MainTest(unittest.TestCase):
     def test_fails_on_an_invalid_tag(self):
         self.assertEqual(self.run_main("latest")[0], 1)
 
-    def test_fails_on_a_full_release_until_arm64_is_built(self):
-        # ADR-0016: a full release ships arm64 too, and must never omit it.
+    def test_writes_the_notes_for_a_full_release(self):
         cargo = CARGO.replace("0.1.0-alpha.2", "0.0.1")
-        self.assertEqual(self.run_main("v0.0.1", cargo=cargo)[0], 1)
+        code, notes = self.run_main("v0.0.1", cargo=cargo)
+        self.assertEqual(code, 0)
+        self.assertTrue(notes.startswith("- 古い版。\n"))
+
+    def test_the_notes_say_that_arm64_is_not_guaranteed(self):
+        # ADR-0016: every release ships arm64 without guarantee, and the
+        # notes say so and name the checks that were made.
+        for tag, cargo in [("v0.1.0-alpha.2", CARGO), ("v0.0.1", CARGO.replace("0.1.0-alpha.2", "0.0.1"))]:
+            with self.subTest(tag=tag):
+                notes = self.run_main(tag, cargo=cargo)[1]
+                self.assertIn("### arm64版について", notes)
+                self.assertIn(f"FlyingMicrowave-{tag[1:]}-windows-arm64.zip", notes)
+                self.assertIn("動作を保証しない", notes)
+                self.assertIn("スモークテスト)と、実機での確認はしていない", notes)
 
     def test_fails_without_a_changelog_section(self):
         cargo = CARGO.replace("0.1.0-alpha.2", "0.2.0-alpha.1")
