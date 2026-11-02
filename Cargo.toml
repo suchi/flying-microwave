@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/core", "crates/app"]
+members = ["crates/core", "crates/app", "crates/smoke"]
 # Technical spikes are throwaway programs and stay outside the workspace
 # (docs/plans/0001-initial-implementation-plan.md, Phase 0).
 exclude = ["spikes"]

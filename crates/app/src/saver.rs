@@ -127,6 +127,14 @@ impl SaverApp {
         if self.policy.handle(event, self.now()) == Decision::Exit && self.exit_reason.is_none() {
             log!("exit: {event:?}");
             self.exit_reason = Some(format!("{event:?}"));
+            // Why: winit destroys the windows only after the loop has ended,
+            // and the GPU is released before that, so without hiding them
+            // here the screen would stay until the process ends (N-02 counts
+            // until the screen is gone; plan 0003, D-6). set_visible runs
+            // synchronously on the event loop thread (winit 0.30.13).
+            for w in &self.windows {
+                w.window.set_visible(false);
+            }
             event_loop.exit();
         }
     }

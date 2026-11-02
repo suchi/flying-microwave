@@ -70,7 +70,7 @@ flowchart TB
 
 ## crate・ディレクトリ構成
 
-Cargoワークスペースで2つのcrateに分ける。描画モジュールも将来は独立crateにできるが、必要になるまで分けない。
+製品は、Cargoワークスペースの2つのcrate(`core`と`app`)に分ける([ADR-0009](../adr/0009-cargo-workspace-core-and-app.md))。ほかに、製品に含めないテスト用のcrate(`smoke`)がある([計画0003](../plans/0003-v0.1.1-smoke-test.md)のD-1)。描画モジュールも将来は独立crateにできるが、必要になるまで分けない。
 
 | パス | 内容 |
 | --- | --- |
@@ -80,6 +80,7 @@ Cargoワークスペースで2つのcrateに分ける。描画モジュールも
 | `crates/core/` | `flying-microwave-core`。OS・GPUに依存しない純粋なロジック |
 | `crates/app/` | `flying-microwave`。実行ファイル(起動モード、描画、設定画面、設定ファイル入出力、プラットフォーム固有処理) |
 | `crates/app/build.rs` | Windowsリソース(アイコン、バージョン情報、String Tableの序数1)の埋め込み。バージョン情報は`Cargo.toml`のバージョンから生成する |
+| `crates/smoke/` | `flying-microwave-smoke`。ビルドした実行ファイルを各モードで起動し、起動と終了を確かめるスモークテスト(Windows専用。[計画0003](../plans/0003-v0.1.1-smoke-test.md))。製品には含めない |
 | `crates/app/res/` | リソース定義ファイル(`app.rc`)と、アイコン(`icon.svg`と、そこから作る`flying-microwave.ico`) |
 | `assets/sprites/` | SVG素材と、作者・ライセンスを記録する`README.md`(Phase 3から) |
 | `spikes/` | Phase 0の技術スパイク。ワークスペースには含めず、製品コードから参照しない。Phase 2の終わりに削除する(計画のD-28) |

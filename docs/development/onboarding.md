@@ -30,7 +30,7 @@ Flying Microwaveは、電子レンジが画面を飛ぶWindowsスクリーンセ
 
 - 実装計画: 合意済み。[0001: 初期実装計画](../plans/0001-initial-implementation-plan.md)に従って進める
 - 次の作業: v0.1.1(スモークテスト、メンテナーによる実機での確認(手動テスト、S5、S6、N-01〜N-04)、商標の確認。計画のD-30)。そのあとPhase 2
-- コード: `/s`の全画面と`/p`のプレビュー枠で、仮の図形の電子レンジが飛ぶ(`crates/core`と`crates/app`)
+- コード: `/s`の全画面と`/p`のプレビュー枠で、仮の図形の電子レンジが飛ぶ(`crates/core`と`crates/app`。スモークテストは`crates/smoke`)
 - ライセンス: MIT([LICENSE](../../LICENSE)、[ADR-0005](../adr/0005-license-mit.md))
 - リリース: 基本機能から段階的に実装し、フェーズごとにセマンティックバージョニングでGitHub Releaseを公開する。最初のリリースはv0.1.0(Phase 1)
 - 公開: リポジトリは将来公開する。ドキュメントやコミットは公開される前提で書く
@@ -170,6 +170,12 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
 
    ```powershell
    cargo build --release --locked --target x86_64-pc-windows-msvc
+   ```
+
+   ビルドのあとに、CIと同じスモークテスト(計画0003)を実行できる。ビルドした実行ファイルを`/s`、`/p`、認識できない引数で起動し、起動と終了を確かめる。テストの間は全画面になり、キー入力が送られるので、ほかの操作をしない。テストする実行ファイルのログは、一時フォルダの下の`flying-microwave-smoke-<番号>`のフォルダに書かれ、ふだんの`%TEMP%\flying-microwave.log`は変えない。この手順は、エージェントが実行できないWindowsの手順のため、メンテナーが実行して確かめるまで未確認である。
+
+   ```powershell
+   target\x86_64-pc-windows-msvc\release\flying-microwave-smoke.exe target\x86_64-pc-windows-msvc\release\flying-microwave.exe
    ```
 
 4. スクリーンセーバーとしての動作確認。実行ファイルを`FlyingMicrowave.scr`という名前でコピーし、エクスプローラーで右クリックして「インストール」か「テスト」を選ぶ(Windows 11では、先に「その他のオプションを確認」を選ぶことがある)。名前を変えずに試す方法は5.2にある。
@@ -439,7 +445,7 @@ cargo fetch --locked || true
 | スクリーンセーバーのモード(`/s`、`/p`、`/c`) | Windowsがスクリーンセーバー(`.scr`)に引数で伝える動作モード。`/s`は全画面で実行、`/p <HWND>`は設定画面のプレビュー枠への表示、`/c`は設定画面の表示。引数なし(実行ファイルの拡張子が`.scr`の場合)や認識できない引数も設定画面として扱う。拡張子が`.exe`のときに引数なしで起動すると単独アプリと判定する([ADR-0012](../adr/0012-standalone-app-mode.md))。単独アプリはまだなく、今はその旨のメッセージを表示する。仕様は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md) |
 | Standalone mode | スクリーンセーバーとしてではなく、通常のアプリ(ウィンドウ表示または全画面)として起動するモードで、計画中のもの。決定内容は[ADR-0012](../adr/0012-standalone-app-mode.md)を参照 |
 | flyer | 飛行物体。電子レンジと食べ物を同じ構造で表す。`core`のシミュレーションが扱う |
-| core / app | Cargoワークスペースの2つのcrate。`core`(`flying-microwave-core`)はOSやGPUに依存しないロジック(シミュレーション、設定モデル、終了判定など)、`app`(`flying-microwave`)は実行ファイル(起動モード、描画、設定画面、プラットフォーム固有処理) |
+| core / app | 製品を作るCargoワークスペースの2つのcrate(ほかにテスト用の`smoke`がある)。`core`(`flying-microwave-core`)はOSやGPUに依存しないロジック(シミュレーション、設定モデル、終了判定など)、`app`(`flying-microwave`)は実行ファイル(起動モード、描画、設定画面、プラットフォーム固有処理) |
 | スパイク | 本実装の前に、技術的な不確実性を小さなプログラムで確かめる調査。S1〜S6があり、Phase 0でWindows 11実機を使って行う |
 | ADR | アーキテクチャ決定記録。技術選択・設計判断を`docs/adr/`に1決定1ファイルで残す |
 | SOW | 作業範囲記述書。ここでは`docs/plans/`に保存する計画のこと |

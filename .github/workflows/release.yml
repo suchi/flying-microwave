@@ -213,6 +213,14 @@ jobs:
       - name: Build release
         run: cargo build --release --locked --target ${{ matrix.target }}
 
+      # Starts the built executable in each mode and checks that it starts
+      # and ends as a screensaver must (plan 0003, crates/smoke). Rendering
+      # uses whatever adapter the runner has (WARP without a GPU).
+      - name: Smoke test
+        # Every wait of the test has its own limit; this catches a hang of the test itself.
+        timeout-minutes: 5
+        run: target/${{ matrix.target }}/release/flying-microwave-smoke.exe target/${{ matrix.target }}/release/flying-microwave.exe
+
       # Same check as ci.yml (ADR-0001, R-16).
       # Why native first: a cross tool (for example bin\HostX64\arm64) needs
       # the DLLs of the host directory on PATH (find-msvc-tools 0.1.15,

@@ -116,7 +116,10 @@ class MainTest(unittest.TestCase):
                 self.assertIn("### arm64版について", notes)
                 self.assertIn(f"FlyingMicrowave-{tag[1:]}-windows-arm64.zip", notes)
                 self.assertIn("動作を保証しない", notes)
-                self.assertIn("スモークテスト)と、実機での確認はしていない", notes)
+                # The smoke test (plan 0003) also runs on arm64; real hardware is not used.
+                self.assertIn("スモークテスト", notes)
+                self.assertIn("実機での確認はしていない", notes)
+                self.assertNotIn("スモークテスト)と、実機での確認はしていない", notes)
 
     def test_a_full_release_fails_while_the_user_readme_is_a_draft(self):
         # Plan 0001, task 13: the user README ships finalized in a release.

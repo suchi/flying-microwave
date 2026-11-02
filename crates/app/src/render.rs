@@ -65,6 +65,10 @@ pub fn request_gpu(instance: &wgpu::Instance, surface: &wgpu::Surface<'_>) -> Re
         info.backend,
         info.driver
     );
+    // Why these progress lines: on a runner without a GPU (WARP) setup did not
+    // finish within the watchdog's limit, and the log could not tell which
+    // call was waiting (plan 0003, smoke test of PR #41).
+    log!("requesting the device");
     let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
         label: Some("flying-microwave device"),
         // Why: ask for what the adapter offers, so large (4K) surfaces are
@@ -73,6 +77,7 @@ pub fn request_gpu(instance: &wgpu::Instance, surface: &wgpu::Surface<'_>) -> Re
         ..Default::default()
     }))
     .map_err(|e| format!("request_device failed: {e}"))?;
+    log!("device ready");
     // By default wgpu panics on uncaptured errors; log them instead.
     device.on_uncaptured_error(Arc::new(|error| log!("wgpu error: {error}")));
     Ok(Gpu {
@@ -123,6 +128,12 @@ impl Target {
             return Err(format!("window size is {size:?}"));
         }
         let capabilities = surface.get_capabilities(&gpu.adapter);
+        log!(
+            "surface capabilities: formats {:?}, present modes {:?}, usages {:?}",
+            capabilities.formats,
+            capabilities.present_modes,
+            capabilities.usages
+        );
         // Why: a non-sRGB format writes the colors as they are; an sRGB
         // format would brighten the dark background.
         let format = capabilities
@@ -162,6 +173,11 @@ impl Target {
                 .unwrap_or(wgpu::CompositeAlphaMode::Auto),
             view_formats: vec![],
         };
+        log!(
+            "configuring the surface: {}x{} {format:?} {usage:?}",
+            config.width,
+            config.height
+        );
         surface.configure(&gpu.device, &config);
         log!(
             "surface configured: {}x{} {format:?} {:?}",
