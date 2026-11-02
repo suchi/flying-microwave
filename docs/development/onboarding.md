@@ -13,9 +13,9 @@
 | 開発環境の準備 | [5.1](#51-ローカルでのビルドとテスト)の前提のツール | 整備済み |
 | ビルド | [5.1](#51-ローカルでのビルドとテスト) | 整備済み |
 | テスト(自動テスト) | [5.1](#51-ローカルでのビルドとテスト)、[8](#8-windows実機での確認) | 整備済み |
-| 実行と動作確認(`/s`・`/c`・`/p`と長いオプション) | [5.2](#52-実行と動作確認) | 整備済み(`/p`はまだ何もしない。Phase 1の段階2で作る) |
+| 実行と動作確認(`/s`・`/c`・`/p`と長いオプション) | [5.2](#52-実行と動作確認) | 整備済み |
 | ログの確認 | [5.3](#53-ログとデバッグ) | 整備済み |
-| デバッガによるデバッグ | [5.3](#53-ログとデバッグ) | 未整備(公式ドキュメントに接続できないため。接続を許可したあとの、Phase 1の段階2のPRで書く) |
+| デバッガによるデバッグ | [5.3](#53-ログとデバッグ) | 整備済み |
 | トラブルシューティング | [5.4](#54-トラブルシューティング) | 整備済み |
 | 変更の進め方(ブランチ、コミット、レビュー、マージ) | [3](#3-開発の進め方)、[4](#4-レビューとマージ) | 整備済み |
 | リリース | [8](#8-windows実機での確認)、[計画の7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順) | 整備済み(プレリリースだけ。正式なリリースはarm64のビルドを加えてから) |
@@ -200,7 +200,7 @@ python3 -I scripts/check_hooks.py
 
 - `flying-microwave.exe /s`: スクリーンセーバーとして、すべてのモニタを覆って動く。キーの押下、マウスのボタンやホイール、タッチ、マウスを16ピクセル以上動かしたとき、ほかのウィンドウが前面に出たときに終了する。起動直後の0.5秒間のマウスの動きは無視する。
 - `flying-microwave.exe /c`: 設定は今後のバージョンで追加する旨のメッセージを表示する。`.scr`を引数なしで起動したときも同じ。
-- `flying-microwave.exe /p <ウィンドウの番号>`: プレビューは、まだ何もしない(Phase 1の段階2で作る)。ウィンドウの番号がないか不正なときは、`/c`と同じメッセージになる。
+- `flying-microwave.exe /p <ウィンドウの番号>`: 指定したウィンドウのクライアント領域に子ウィンドウを作り、プレビューを表示する。入力は無視し、親のウィンドウが閉じられたとき(500ミリ秒ごとに確かめる)か、自分のウィンドウが閉じられたときに終了する。ウィンドウの番号はスクリーンセーバーの設定画面が渡すので、ふつうは設定画面のプレビュー枠で確かめる(5.1の手順4)。番号が有効なウィンドウでないときは、何も表示せず終了コード2で終わる。番号がないか数字でないときは、`/c`と同じメッセージになる。
 - `--settings`: `/c`と同じメッセージになる。`--window`と`--fullscreen`: 単独のアプリとしては、まだ動かない旨のメッセージになる(単独のアプリはPhase 6で判断する)。
 - 引数なしの`flying-microwave.exe`: 単独のアプリとしては動かない旨のメッセージを表示する。
 - スクリーンセーバーの設定画面から動作を確認するには、5.1の手順4のとおり`.scr`にしてインストールする。
@@ -221,7 +221,27 @@ python3 -I scripts/check_hooks.py
   cargo build --locked --target x86_64-pc-windows-msvc
   ```
 
-- デバッガ: 未整備。MSVCのターゲットでビルドしたRustの実行ファイルは、Windowsのデバッガで調べられるはずだが、使い方(Visual Studio、VS CodeのC/C++の拡張など)を公式ドキュメントで確かめられていない(この環境から`learn.microsoft.com`と`code.visualstudio.com`に接続できなかった)。6.5の推奨のドメインに`learn.microsoft.com`と`code.visualstudio.com`を加えて接続を許可したあと、Phase 1の段階2のPRで、この項目を書く。なお、`/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。
+- デバッガ: MSVCのターゲットでビルドしたRustの実行ファイルは、Windowsのデバッガで調べられる。デバッグのビルドを使う。
+  - VS Code: rust-analyzerと、Windowsでは「Microsoft C++」拡張(`ms-vscode.cpptools`)を入れる([VS CodeのRustの説明](https://code.visualstudio.com/docs/languages/rust))。`.vscode/launch.json`に、Visual StudioのWindowsのデバッガ(`cppvsdbg`)の構成を置く([launch.jsonのリファレンス](https://code.visualstudio.com/docs/cpp/launch-json-reference))。
+
+    ```json
+    {
+      "version": "0.2.0",
+      "configurations": [
+        {
+          "name": "Flying Microwave /s",
+          "type": "cppvsdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/target/x86_64-pc-windows-msvc/debug/flying-microwave.exe",
+          "args": ["/s"],
+          "cwd": "${workspaceFolder}"
+        }
+      ]
+    }
+    ```
+
+  - Visual Studio: 「File > Open > Project」で実行ファイル(`.exe`)を開き、「Debug > Start Debugging」で始める([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/how-to-debug-an-executable-not-part-of-a-visual-studio-solution))。
+  - 注意: `/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。ブレークポイントで止めて調べるときは、`/c`や`/p`で動く部分を対象にするか、ログ(上の項目)と組み合わせる。
 
 ### 5.4 トラブルシューティング
 

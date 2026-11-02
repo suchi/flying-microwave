@@ -245,7 +245,7 @@ Phase 1の暫定の扱い(スパイクS4と実機の結果で見直す):
 
 | ID | 対策 | 理由 |
 | --- | --- | --- |
-| SEC-1 | 起動直後にDLLの検索パスをシステムディレクトリに制限する(`SetDefaultDllDirectories`)。読み込み時の依存DLLにも同じ制限をかけるリンカ設定(`/DEPENDENTLOADFLAG`)を使う | `.scr`は任意のフォルダに置かれて自動実行される。wgpu-halは`d3d12.dll`などをパスなしの名前で読み込む(仕様調査のW-11)。APIとリンカ設定の詳細はPhase 1で公式ドキュメントを確認してから適用する |
+| SEC-1 | 起動直後にDLLの検索パスをシステムディレクトリに制限する(`SetDefaultDllDirectories`)。読み込み時の依存DLLにも同じ制限をかけるリンカ設定(`/DEPENDENTLOADFLAG`)を使う | `.scr`は任意のフォルダに置かれて自動実行される。wgpu-halは`d3d12.dll`などをパスなしの名前で読み込む(仕様調査のW-11)。GPUのない環境で使うソフトウェアの描画(WARP)も、Microsoftのドキュメント(Windows Advanced Rasterization Platform)によると、アプリの`.exe`の隣に置いた`D3d10warp.dll`を使うため、この制限で塞ぐ。APIとリンカ設定の詳細はPhase 1で公式ドキュメントを確認してから適用する |
 | SEC-2 | wgpuのDX12シェーダーコンパイラを`Fxc`に明示し、使うバックエンドも明示する | 既定値の`Auto`は`dxcompiler.dll`の読み込みを先に試すため |
 | SEC-3 | 引数のHWNDと前面のウィンドウは、有効なウィンドウかを確認してから使う | 仕様調査のW-6 |
 | SEC-4 | 設定ファイルはサイズの上限を設け、すべての値を検証する | A-6 |
