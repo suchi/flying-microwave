@@ -7,8 +7,8 @@
 # first release made with this workflow, or after a failed run).
 #
 # Security (same rules as ci.yml, plus):
-# - the check and build jobs have a read-only token (the build job can also
-#   read the artifacts of the run, for the SBOM); only the publish job can
+# - every job but publish has a read-only token (the build and package jobs
+#   can also read the artifacts of the run); only the publish job can
 #   write, and it runs no code from this repository or its dependencies, so a
 #   compromised build dependency never gets a token that writes,
 # - the publish job uses the gh CLI of the runner image instead of another
@@ -184,8 +184,10 @@ jobs:
       # D-23), and its image documentation does not list the Visual Studio
       # components. Show the tools a failure would depend on, so that one run
       # tells what is missing. ring (built by cargo-about) compiles its C code
-      # with clang on Windows arm64 (ring 0.17.14, build.rs), so put the
-      # LLVM of the image on PATH when clang is not there yet.
+      # with clang on Windows arm64 (ring 0.17.14, build.rs); cargo-about is
+      # now built by the licenses job on Linux, but the LLVM of the image is
+      # still put on PATH when clang is not there, in case another crate's
+      # build script needs it (plan 0002, D-31 note).
       - name: Show and prepare arm64 build tools
         if: matrix.arch == 'arm64'
         shell: pwsh
@@ -276,36 +278,101 @@ jobs:
           $version = $env:TAG.Substring(1)
           Copy-Item "$env:RUNNER_TEMP/sbom/FlyingMicrowave-$version-windows-$env:ARCH.spdx.json" package/ -ErrorAction Stop
 
-      # Same steps as the manual run of ci.yml (plan 0002, T-2).
-      - name: License notices
-        shell: pwsh
-        run: |
-          cargo install --locked --features cli --version $env:CARGO_ABOUT_VERSION cargo-about
-          cargo about generate --locked --fail -o package/THIRD-PARTY-LICENSES.txt about.hbs
-          if ($LASTEXITCODE -ne 0) { throw 'cargo about failed' }
-          $left = Select-String -Path package/THIRD-PARTY-LICENSES.txt -Pattern '<(copyright holders|year|owner|name of author)>'
-          if ($left) { throw "Unfilled license placeholders: $left" }
+      # The license notices are added and the zip is made by the package job.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: build-${{ matrix.arch }}
+          path: package/
+          if-no-files-found: error
+          retention-days: 7
 
-      # The zip name follows ADR-0016 (FlyingMicrowave-<version>-windows-<arch>.zip).
-      - name: Zip
-        shell: pwsh
-        env:
-          ARCH: ${{ matrix.arch }}
+  # THIRD-PARTY-LICENSES.txt, once for both targets (about.toml lists both).
+  # Why a job of its own: installing cargo-about (built from source) took
+  # most of each build job (about 6 minutes on x64 in the v0.1.0 run), and it
+  # does not depend on the build, so it runs in parallel with the build jobs
+  # (plan 0001, D-31). Same steps as the manual run of ci.yml (plan 0002, T-2).
+  licenses:
+    name: License notices
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.check.outputs.sha }}
+          persist-credentials: false
+
+      - name: Install toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+
+      - name: License notices
         run: |
-          New-Item -ItemType Directory -Path dist | Out-Null
-          $version = $env:TAG.Substring(1)
-          Compress-Archive -Path package/* -DestinationPath "dist/FlyingMicrowave-$version-windows-$env:ARCH.zip"
+          mkdir -p "$RUNNER_TEMP/licenses"
+          cargo install --locked --features cli --version "$CARGO_ABOUT_VERSION" cargo-about
+          cargo about generate --locked --fail -o "$RUNNER_TEMP/licenses/THIRD-PARTY-LICENSES.txt" about.hbs
+          if grep -E '<(copyright holders|year|owner|name of author)>' "$RUNNER_TEMP/licenses/THIRD-PARTY-LICENSES.txt"; then
+            echo "ライセンスの表示に、埋められていない箇所がある" >&2
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release-${{ matrix.arch }}
-          path: dist/
+          name: licenses
+          path: ${{ runner.temp }}/licenses/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Puts the files of each build and the license notices into the zips. It
+  # runs no code from this repository or its dependencies; Python's zipfile
+  # (deflate) makes the zips. The zip name follows ADR-0016
+  # (FlyingMicrowave-<version>-windows-<arch>.zip).
+  package:
+    name: Package
+    needs: [build, licenses]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+    steps:
+      - name: Zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          gh run download "$GITHUB_RUN_ID" --name licenses --dir licenses
+          mkdir -p dist
+          for arch in x64 arm64; do
+            gh run download "$GITHUB_RUN_ID" --name "build-$arch" --dir "pkg-$arch"
+            cp licenses/THIRD-PARTY-LICENSES.txt "pkg-$arch/"
+            for f in FlyingMicrowave.scr README.md LICENSE.txt THIRD-PARTY-LICENSES.txt "FlyingMicrowave-$version-windows-$arch.spdx.json"; do
+              if [[ ! -f "pkg-$arch/$f" ]]; then
+                echo "$arch のzipに入れる $f がない" >&2
+                exit 1
+              fi
+            done
+            python3 -I -m zipfile -c "dist/FlyingMicrowave-$version-windows-$arch.zip" "pkg-$arch"/*
+            python3 -I -m zipfile -l "dist/FlyingMicrowave-$version-windows-$arch.zip"
+          done
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-x64
+          path: dist/FlyingMicrowave-*-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-arm64
+          path: dist/FlyingMicrowave-*-windows-arm64.zip
           if-no-files-found: error
           retention-days: 7
 
   publish:
     name: Create draft release
-    needs: [check, build]
+    needs: [check, package]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
