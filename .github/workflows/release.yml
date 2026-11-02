@@ -187,7 +187,7 @@ jobs:
       # with clang on Windows arm64 (ring 0.17.14, build.rs); cargo-about is
       # now built by the licenses job on Linux, but the LLVM of the image is
       # still put on PATH when clang is not there, in case another crate's
-      # build script needs it (plan 0002, D-31 note).
+      # build script needs it (plan 0001 D-31; plan 0002, change of 2026-11-02).
       - name: Show and prepare arm64 build tools
         if: matrix.arch == 'arm64'
         shell: pwsh
@@ -290,7 +290,9 @@ jobs:
   # Why a job of its own: installing cargo-about (built from source) took
   # most of each build job (about 6 minutes on x64 in the v0.1.0 run), and it
   # does not depend on the build, so it runs in parallel with the build jobs
-  # (plan 0001, D-31). Same steps as the manual run of ci.yml (plan 0002, T-2).
+  # (plan 0001, D-31). Same cargo-about commands as the manual run of ci.yml
+  # (plan 0002, T-2), on Linux; the output was checked to be identical to the
+  # one made on Windows for v0.1.0.
   licenses:
     name: License notices
     needs: check
@@ -310,7 +312,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/licenses"
           cargo install --locked --features cli --version "$CARGO_ABOUT_VERSION" cargo-about
           cargo about generate --locked --fail -o "$RUNNER_TEMP/licenses/THIRD-PARTY-LICENSES.txt" about.hbs
-          if grep -E '<(copyright holders|year|owner|name of author)>' "$RUNNER_TEMP/licenses/THIRD-PARTY-LICENSES.txt"; then
+          # Why -i: same as Select-String (case-insensitive) in ci.yml.
+          if grep -iE '<(copyright holders|year|owner|name of author)>' "$RUNNER_TEMP/licenses/THIRD-PARTY-LICENSES.txt"; then
             echo "ライセンスの表示に、埋められていない箇所がある" >&2
             exit 1
           fi
@@ -346,6 +349,10 @@ jobs:
           for arch in x64 arm64; do
             gh run download "$GITHUB_RUN_ID" --name "build-$arch" --dir "pkg-$arch"
             cp licenses/THIRD-PARTY-LICENSES.txt "pkg-$arch/"
+            if [[ $(ls -A "pkg-$arch" | wc -l) -ne 5 ]]; then
+              echo "$arch のzipに入れるファイルが5つではない: $(ls -A "pkg-$arch")" >&2
+              exit 1
+            fi
             for f in FlyingMicrowave.scr README.md LICENSE.txt THIRD-PARTY-LICENSES.txt "FlyingMicrowave-$version-windows-$arch.spdx.json"; do
               if [[ ! -f "pkg-$arch/$f" ]]; then
                 echo "$arch のzipに入れる $f がない" >&2
