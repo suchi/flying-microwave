@@ -1,6 +1,6 @@
 # 開発参加者向けオンボーディング
 
-- ステータス: 2026-11-01時点。Phase 1の段階1を終え、v0.1.0-alpha.2をプレリリースとして公開した。実態が変わったら更新する
+- ステータス: 2026-11-02時点。Phase 1の段階1を終えてv0.1.0-alpha.2を公開し、段階2(`/p`のプレビュー)を進めている。実態が変わったら更新する
 - 対象: 後から参加する開発者(人間・AIエージェント)
 - 関連: [README](../../README.md)、[AGENTS.md](../../AGENTS.md)、[ドキュメント一覧](../README.md)
 
@@ -28,8 +28,8 @@ Flying Microwaveは、電子レンジが画面を飛ぶWindowsスクリーンセ
 現在の状況:
 
 - 実装計画: 合意済み。[0001: 初期実装計画](../plans/0001-initial-implementation-plan.md)に従って進める
-- 次の作業: Phase 1の段階2(`/p`のプレビュー、Settingsのメッセージ、GPUのない環境での確認S6)
-- コード: `/s`で仮の図形の電子レンジが飛ぶ、最初に動く版がある(`crates/core`と`crates/app`)
+- 次の作業: Phase 1の段階2の仕上げ(`/p`のプレビューの実機での確認、GPUのない環境での確認S6)と、段階3(配布の準備、v0.1.0)
+- コード: `/s`の全画面と`/p`のプレビュー枠で、仮の図形の電子レンジが飛ぶ(`crates/core`と`crates/app`)
 - ライセンス: MIT([LICENSE](../../LICENSE)、[ADR-0005](../adr/0005-license-mit.md))
 - リリース: 基本機能から段階的に実装し、フェーズごとにセマンティックバージョニングでGitHub Releaseを公開する。最初のリリースはv0.1.0(Phase 1)
 - 公開: リポジトリは将来公開する。ドキュメントやコミットは公開される前提で書く
@@ -241,6 +241,7 @@ python3 -I scripts/check_hooks.py
     ```
 
   - Visual Studio: 「File > Open > Project」で実行ファイル(`.exe`)を開き、「Debug > Start Debugging」で始める([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/how-to-debug-an-executable-not-part-of-a-visual-studio-solution))。
+  - プレビュー(`/p`)は、設定画面がウィンドウの番号を渡して起動するので、デバッガから起動できない。設定画面でスクリーンセーバーを選んでプレビューを動かし、そのプロセス(`FlyingMicrowave.scr`)にあとからデバッガを接続する。Visual Studioでは「Debug > Attach to Process」(Ctrl+Alt+P)を使う([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/attach-to-running-processes-with-the-visual-studio-debugger))。VS Codeでは、`cppvsdbg`の`"request": "attach"`の構成で、`processId`を既定の`${command:pickProcess}`のままにして、一覧から選ぶ([launch.jsonのリファレンス](https://code.visualstudio.com/docs/cpp/launch-json-reference))。
   - 注意: `/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。ブレークポイントで止めて調べるときは、`/c`や`/p`で動く部分を対象にするか、ログ(上の項目)と組み合わせる。
 
 ### 5.4 トラブルシューティング
@@ -249,7 +250,9 @@ python3 -I scripts/check_hooks.py
 - ビルドでリンカが見つからない: Visual Studio Build Toolsの「C++ によるデスクトップ開発」が入っているかを確かめる(5.1の前提のツール)。
 - 依存の7日の検査が通らない: 公開から7日たっていない版を使っている。7日以上前に公開された版を選ぶか、7日たつまで待つ(6.3の「依存の公開からの日数」)。
 - フックの検査が通らない: `jq`が入っているか、Git Bashの中で実行しているかを確かめる(6.3)。
-- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`screensaver ended:`の行がある。この行がなく途中で切れていれば、panicなどで異常終了している。
+- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。この行がなく途中で切れていれば、panicなどで異常終了している。
+- プレビューの終了の理由: ログの`preview exit:`の行に出る。終了コードは、0が正常、2が親のウィンドウが無効(引数の番号が不正か、すでに閉じられていた)、4が初期化の失敗、6がGPUの初期化が15秒で終わらなかったことを表す。
+- プレビューのプロセスが残る: 設定画面を閉じたあとも、タスクマネージャーに`FlyingMicrowave.scr`が残っていれば、ログの最後の行を添えて報告する。通常は、親のウィンドウが閉じられてから500ミリ秒以内に終了する。
 
 ## 6. AIエージェントとの協働
 
