@@ -6,17 +6,18 @@ use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
 use flying_microwave_smoke::{Progress, lines_of};
-use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN,
     MOUSEEVENTF_LEFTUP, MOUSEINPUT, SendInput, VK_SPACE,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, EnumWindows, GetClassNameW,
-    GetForegroundWindow, GetSystemMetrics, GetWindowRect, GetWindowThreadProcessId,
-    IsWindowVisible, MSG, PM_REMOVE, PeekMessageW, PostMessageW, RegisterClassW, SM_CXSCREEN,
-    SM_CYSCREEN, TranslateMessage, WM_CLOSE, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, EnumWindows, GA_ROOT,
+    GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow, GetSystemMetrics, GetWindowRect,
+    GetWindowThreadProcessId, IsWindowVisible, MSG, PM_REMOVE, PeekMessageW, PostMessageW,
+    RegisterClassW, SM_CXSCREEN, SM_CYSCREEN, SetCursorPos, TranslateMessage, WM_CLOSE, WNDCLASSW,
+    WS_OVERLAPPEDWINDOW, WS_VISIBLE, WindowFromPoint,
 };
 
 /// Limit for the first frame. GPU setup itself gives up after 15 seconds
@@ -51,7 +52,7 @@ struct Env<'a> {
 /// Runs every case and returns the process exit code (0 when all passed).
 pub fn run(exe: &Path) -> i32 {
     let cases: [Case; 3] = [
-        ("F-01 /s ends on a key press", screensaver_ends_on_key),
+        ("F-01 /s ends on user input", screensaver_ends_on_input),
         ("F-02 /p ends with its parent", preview_ends_with_parent),
         (
             "F-03 unknown argument shows the settings message",
@@ -218,7 +219,13 @@ fn expect_reason(progress: &Progress, expected: &[&str]) -> Result<(), String> {
     }
 }
 
-fn screensaver_ends_on_key(env: &Env) -> Result<(), String> {
+fn screensaver_ends_on_input(env: &Env) -> Result<(), String> {
+    // Why before the start: a click is sent where the cursor is, and moving
+    // the cursor after the grace period would end the screensaver by itself.
+    let (cx, cy) = screen_center();
+    // SAFETY: SetCursorPos takes plain coordinates; a failure only leaves
+    // the cursor where it was, which the check before the click reports.
+    unsafe { SetCursorPos(cx, cy) };
     with_target(env, &["/s"], |target| {
         let progress = target.wait_ready(Progress::screensaver_ready)?;
         report(&progress);
@@ -239,21 +246,45 @@ fn screensaver_ends_on_key(env: &Env) -> Result<(), String> {
         if !shown() {
             return Err("no full-screen window is shown before the input".to_owned());
         }
-        // Why the click: a key press goes to the foreground window, and
-        // Windows may refuse SetForegroundWindow to a process started by a
-        // background one (seen on the windows-11-arm runner). A click goes
-        // to the window under the cursor, which the topmost full-screen
-        // window covers (plan 0003, D-7).
-        let input = if is_foreground(target.pid()) {
+        // Why the click: a key press goes to the foreground window, and on
+        // the windows-11-arm runner SetForegroundWindow returned false (the
+        // cause is assumed to be the foreground lock). A click goes to the
+        // window under the cursor (plan 0003, D-7). The click is allowed only
+        // when the product tried and Windows refused, so that losing the
+        // call in the product still fails the test.
+        let (fg_pid, fg_class) = foreground_owner();
+        println!("  foreground window: process {fg_pid}, class {fg_class}");
+        let input = if fg_pid == target.pid() {
             send_key(VK_SPACE)?;
             Input::Key
         } else {
+            let refused = lines_of(&target.log_text(), target.pid())
+                .iter()
+                .any(|line| line.ends_with("SetForegroundWindow: false"));
+            if !refused {
+                return Err(
+                    "not in the foreground, and the log has no \"SetForegroundWindow: false\""
+                        .to_owned(),
+                );
+            }
+            let under = window_under_cursor();
+            if !windows_of(target.pid())
+                .iter()
+                .any(|w| w.covers_screen && w.hwnd == under)
+            {
+                return Err(
+                    "not in the foreground, and the cursor is not over its full-screen window"
+                        .to_owned(),
+                );
+            }
+            // GitHub Actions shows this line as a warning in the run summary.
             println!(
-                "  the screensaver is not in the foreground: testing with a click instead of a key"
+                "::warning::F-01: SetForegroundWindow was refused; tested with a click instead of a key"
             );
             send_click()?;
             Input::Click
         };
+        println!("  input: {}", input.name());
         let start = Instant::now();
         while shown() {
             if start.elapsed() > EXIT_AFTER_INPUT {
@@ -364,18 +395,53 @@ impl Input {
     }
 }
 
-/// Whether the foreground window belongs to process `pid`.
-fn is_foreground(pid: u32) -> bool {
+/// The process id and class name of the foreground window (0 and "none"
+/// when there is none).
+fn foreground_owner() -> (u32, String) {
     let mut owner = 0;
-    // SAFETY: GetForegroundWindow takes no arguments; a null result is
-    // handled by GetWindowThreadProcessId leaving owner at 0.
-    unsafe {
+    let mut name = [0u16; 64];
+    // SAFETY: a null foreground window is checked before use; owner and
+    // name are local buffers that outlive the calls, with their sizes passed.
+    let len = unsafe {
         let hwnd = GetForegroundWindow();
-        if !hwnd.is_null() {
-            GetWindowThreadProcessId(hwnd, &mut owner);
+        if hwnd.is_null() {
+            return (0, "none".to_owned());
+        }
+        GetWindowThreadProcessId(hwnd, &mut owner);
+        GetClassNameW(hwnd, name.as_mut_ptr(), name.len() as i32)
+    };
+    (
+        owner,
+        String::from_utf16_lossy(&name[..len.max(0) as usize]),
+    )
+}
+
+/// The center of the primary monitor.
+fn screen_center() -> (i32, i32) {
+    // SAFETY: GetSystemMetrics takes a constant and returns a number.
+    unsafe {
+        (
+            GetSystemMetrics(SM_CXSCREEN) / 2,
+            GetSystemMetrics(SM_CYSCREEN) / 2,
+        )
+    }
+}
+
+/// The top-level window under the cursor (null if it cannot be found).
+fn window_under_cursor() -> HWND {
+    let mut point = POINT::default();
+    // SAFETY: point is a local buffer; a failed GetCursorPos returns null.
+    unsafe {
+        if GetCursorPos(&mut point) == 0 {
+            return std::ptr::null_mut();
+        }
+        let hwnd = WindowFromPoint(point);
+        if hwnd.is_null() {
+            hwnd
+        } else {
+            GetAncestor(hwnd, GA_ROOT)
         }
     }
-    owner == pid
 }
 
 /// Presses and releases the left mouse button where the cursor is, without
