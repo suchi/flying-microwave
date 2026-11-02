@@ -331,7 +331,7 @@ python3 -I scripts/check_hooks.py
 
 `.claude/hooks/`にあり、`.claude/settings.json`で登録されている。どのフックも、gitで実行権限付き(100755)にする。登録したとおりに起動できないフックは、Claude Codeでは止めないエラーとして扱われ、黙って効かなくなる。`scripts/check_hooks.py`が、登録したすべてのフックを登録したとおりに起動し、止めるべき入力を止め、通すべき入力を通すことを確かめる(CIのLinuxのジョブでも毎回実行する。[incidents 0009](../incidents/0009-guard-hooks-never-ran.md))。フックを加えたら、このスクリプトに両方のサンプル入力も加える。
 
-- 確かめる範囲: Claude Codeは、LinuxとmacOSでは登録の文字列を`sh -c`に渡し、WindowsではGit Bash(なければPowerShell)に渡す(公式ドキュメント「Hooks reference」)。`check_hooks.py`が再現するのは`sh -c`だけで、Windowsでは対象外と表示して終わる([incidents 0012](../incidents/0012-hook-check-tests-failed-on-windows.md))。Windowsでフックを動かすには、Git for Windows(Git Bash)を入れておく。PowerShellでは、登録の形のフックは起動しないおそれがある(未確認)
+- 確かめる範囲: Claude Codeは、LinuxとmacOSでは登録の文字列を`sh -c`に渡し、WindowsではGit Bash(なければPowerShell)に渡す(公式ドキュメント「Hooks reference」)。`check_hooks.py`が再現するのは`sh -c`だけで、Windowsでは対象外と表示して終わる([incidents 0012](../incidents/0012-hook-check-tests-failed-on-windows.md))。WindowsでのClaude Codeのフックの動作は未確認である(Git BashでもPowerShellでも、メンテナーが実機で確かめていない。開発はクラウドのLinuxのエージェントで行う)。使うときは、先にフックが働くことを確かめる([incidents 0012](../incidents/0012-hook-check-tests-failed-on-windows.md))
 - 既知の誤検知: block-dangerous-git.shは、コマンドの文字列全体を見るため、gitを実行しないコマンド(`echo`の引数、ヒアドキュメントの中のサンプル入力など)に、mainへのプッシュなどの文字列が含まれるだけでも止める。また、mainの上では、`git commit`という文字列を含むだけのコマンドにも確認を求める。そのような文字列を含むファイルは、Writeのツールで書いてから実行する。PRの本文は`--body-file`で渡す
 
 - block-dangerous-git.sh: Bashの実行前に、危険なgit操作を止める。`main`への直接プッシュ、`main`へのforce push、`--no-verify`付きのコミットとプッシュ、ルートやホームの再帰削除は拒否する。force push、`git reset --hard`、`git clean -f`、`git branch -D`、`main`上でのコミット、ダウンロードしたスクリプトを直接シェルに渡す操作、`.env`のステージは、実行前に確認を求める
