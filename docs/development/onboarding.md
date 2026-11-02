@@ -138,7 +138,7 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
 - Python 3(依存の7日の検査とフックの検査に使う。この節のコマンドはWindowsの`python`で書いている。LinuxとmacOSでは`python3`にする)
 - jq(フックが入力の解析に使い、フックの検査にも要る。導入の方法は6.3)
 
-以下のコマンドは、Windowsでは PowerShell で、リポジトリのルートで実行する(フックの検査だけは Git Bash で実行する)。
+以下のコマンドは、Windowsでは PowerShell で、リポジトリのルートで実行する(フックの検査はWindowsでは対象外。6の手順を参照)。
 
 1. ツールチェーンのインストール。`rust-toolchain.toml`のとおり、版を固定したRustと、Windowsの2つのターゲット、rustfmt、clippyが入る。
 
@@ -184,10 +184,10 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
    python -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock
    ```
 
-6. フックの検査。`sh`と`jq`を使うため、Git Bash で実行する。
+6. フックの検査。LinuxとmacOSでのフックの起動(`sh -c`と実行権限)を確かめるもので、LinuxかmacOS(WindowsではWSL)で実行する。`sh`と`jq`を使う。Windowsのpythonで実行すると、対象外と表示して終わる。CIのLinuxのジョブが毎回実行するので、フックを変えないときは、ローカルで実行しなくてよい。
 
    ```bash
-   python -I scripts/check_hooks.py
+   python3 -I scripts/check_hooks.py
    ```
 
 Linux と macOS では、手順2・5・6と型チェックを実行できる。Pythonは`python3`で実行し、手順6には`jq`が要る。Windowsの実行ファイルは作れない。
@@ -264,7 +264,7 @@ python3 -I scripts/check_hooks.py
 - 画面が覆われたまま戻らない: キーを押すか、マウスを大きく動かす。反応しなければ、Ctrl+Alt+Delでタスクマネージャーを開き、`flying-microwave.exe`(`.scr`として起動したときは`FlyingMicrowave.scr`)を終了する。GPUの初期化が15秒で終わらないときは、ログに`GPU initialization timed out; exiting`と書いて、終了コード6で自動的に終了する。
 - ビルドでリンカが見つからない: Visual Studio Build Toolsの「C++ によるデスクトップ開発」が入っているかを確かめる(5.1の前提のツール)。
 - 依存の7日の検査が通らない: 公開から7日たっていない版を使っている。7日以上前に公開された版を選ぶか、7日たつまで待つ(6.3の「依存の公開からの日数」)。
-- フックの検査が通らない: `jq`が入っているか、Git Bashの中で実行しているかを確かめる(6.3)。
+- フックの検査が通らない: `jq`が入っているか、LinuxかmacOS(WindowsではWSL)で実行しているかを確かめる(5.1の手順6、6.3)。
 - 描画が始まらない: ログに`first frame presented`の行(`/s`ではウィンドウごとに`window N: first frame presented`、`/p`では`preview: first frame presented`)があれば、少なくとも1枚は描画できている。この行で、起動の速さ(計画のN-01)のうち「最初のアニメーションのフレームまで1秒以内」を測る。同じ`pid=`の行だけを使い(ログには複数のプロセスが追記する)、起点は`started`の行(`+0ms`)とする。プロセスの起動からこの行までの時間(ローダーが依存を解決する時間)は含まない。`/s`で複数のモニタがあるときは、ウィンドウごとの行のうち最も遅いもので判定する。「全モニタが黒で覆われるまで0.5秒以内」のほうは、`window N: inner ...`の行(黒く塗った直後に書く)の時刻で測り、複数のモニタがあるときは、ウィンドウごとの行のうち最も遅いもので判定する。
 - 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。ただし、次の場合は、その行を書かずに終わる。最後の行で見分ける。
   - `another screensaver instance is running; exiting`: `/s`の2つめの起動。終了コード0。
@@ -331,7 +331,7 @@ python3 -I scripts/check_hooks.py
 
 `.claude/hooks/`にあり、`.claude/settings.json`で登録されている。どのフックも、gitで実行権限付き(100755)にする。登録したとおりに起動できないフックは、Claude Codeでは止めないエラーとして扱われ、黙って効かなくなる。`scripts/check_hooks.py`が、登録したすべてのフックを登録したとおりに起動し、止めるべき入力を止め、通すべき入力を通すことを確かめる(CIのLinuxのジョブでも毎回実行する。[incidents 0009](../incidents/0009-guard-hooks-never-ran.md))。フックを加えたら、このスクリプトに両方のサンプル入力も加える。
 
-- 確かめる範囲: Claude Codeは、LinuxとmacOSでは登録の文字列を`sh -c`に渡し、WindowsではGit Bash(なければPowerShell)に渡す(公式ドキュメント「Hooks reference」)。`check_hooks.py`が再現するのは`sh -c`だけである。Windowsでは、Git for Windows(Git Bash)を入れておく。PowerShellでは、登録の形のフックは起動しないおそれがある(未確認)
+- 確かめる範囲: Claude Codeは、LinuxとmacOSでは登録の文字列を`sh -c`に渡し、WindowsではGit Bash(なければPowerShell)に渡す(公式ドキュメント「Hooks reference」)。`check_hooks.py`が再現するのは`sh -c`だけで、Windowsでは対象外と表示して終わる([incidents 0012](../incidents/0012-hook-check-tests-failed-on-windows.md))。Windowsでフックを動かすには、Git for Windows(Git Bash)を入れておく。PowerShellでは、登録の形のフックは起動しないおそれがある(未確認)
 - 既知の誤検知: block-dangerous-git.shは、コマンドの文字列全体を見るため、gitを実行しないコマンド(`echo`の引数、ヒアドキュメントの中のサンプル入力など)に、mainへのプッシュなどの文字列が含まれるだけでも止める。また、mainの上では、`git commit`という文字列を含むだけのコマンドにも確認を求める。そのような文字列を含むファイルは、Writeのツールで書いてから実行する。PRの本文は`--body-file`で渡す
 
 - block-dangerous-git.sh: Bashの実行前に、危険なgit操作を止める。`main`への直接プッシュ、`main`へのforce push、`--no-verify`付きのコミットとプッシュ、ルートやホームの再帰削除は拒否する。force push、`git reset --hard`、`git clean -f`、`git branch -D`、`main`上でのコミット、ダウンロードしたスクリプトを直接シェルに渡す操作、`.env`のステージは、実行前に確認を求める

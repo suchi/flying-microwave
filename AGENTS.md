@@ -34,7 +34,7 @@ GitHub Copilot・Claude Code・Codexすべてに対する指示の単一ソー�
 | ワークフローの検査   | `actionlint`(`.github/workflows/`を変えたとき)                                                                                      |
 | フックの動作         | `python3 -I scripts/check_hooks.py`(`.claude/settings.json`に登録したすべてのフックを、LinuxとmacOSでの起動(`sh -c`)のとおりに起動して確かめる)            |
 
-コミット前に必ずテスト・リントを実行する。ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では不要とする。シェルスクリプト(`.claude/hooks/`など)を変更した場合は、表の有無にかかわらず`sh -n`による構文チェックと、サンプル入力での動作確認を行う。フックの動作確認は、`sh ファイル名`ではなく、設定に登録したとおりの起動で行う(検証コマンドの表の「フックの動作」)。`sh ファイル名`では、実行権限がなくても動いてしまうため([docs/incidents/0009](docs/incidents/0009-guard-hooks-never-ran.md))。フックを加えたときは、`scripts/check_hooks.py`にサンプル入力も加える。
+コミット前に必ずテスト・リントを実行する。ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では不要とする。シェルスクリプト(`.claude/hooks/`など)を変更した場合は、表の有無にかかわらず`sh -n`による構文チェックと、サンプル入力での動作確認を行う。フックの動作確認は、`sh ファイル名`ではなく、設定に登録したとおりの起動で行う(検証コマンドの表の「フックの動作」)。`sh ファイル名`では、実行権限がなくても動いてしまうため([docs/incidents/0009](docs/incidents/0009-guard-hooks-never-ran.md))。フックを加えたときは、`scripts/check_hooks.py`にサンプル入力も加える。`scripts/`のスクリプトやそのテストを変えたときは、`.github/workflows/`でそれを実行するワークフローを探し、そのPRで動かないジョブ(`paths`の条件で動かないものなど)があれば、手動実行で確かめる。エージェントが実行できない環境(Windowsなど)の手順は、メンテナーが実行して確かめるまで、文書で「未確認」と示す([docs/incidents/0012](docs/incidents/0012-hook-check-tests-failed-on-windows.md))。
 
 ## 進め方(Agentic Coding)
 
