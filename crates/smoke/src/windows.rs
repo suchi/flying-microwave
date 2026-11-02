@@ -1,11 +1,11 @@
 //! The Windows part of the smoke test: starting the executable, sending
 //! input, making a parent window for the preview and finding the message box.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
-use flying_microwave_smoke::Progress;
+use flying_microwave_smoke::{Progress, lines_of};
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -21,10 +21,15 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 /// Limit for the first frame. GPU setup itself gives up after 15 seconds
 /// (plan 0001, D-27), so a longer wait would only hide a hang.
 const READY_LIMIT: Duration = Duration::from_secs(30);
-/// Input must not fall inside the 500 ms grace period of the exit policy.
+/// A key press ends the screensaver even inside the 500 ms grace period, but
+/// a focus loss ends it only after the grace period; waiting longer than that
+/// before the input makes such an early end show up as its own failure.
 const AFTER_READY: Duration = Duration::from_secs(1);
-/// N-02 of plan 0001: from the input to the end of the process.
-const EXIT_AFTER_INPUT: Duration = Duration::from_millis(200);
+/// N-02 of plan 0001: from the input until the screen is gone, that is, no
+/// visible top-level window of the process is left (plan 0003, D-5).
+const GONE_AFTER_INPUT: Duration = Duration::from_millis(200);
+/// The process itself may take longer to release the GPU (plan 0003, D-5).
+const EXIT_AFTER_INPUT: Duration = Duration::from_secs(2);
 /// F-02 of plan 0003: the preview checks its parent periodically.
 const EXIT_AFTER_PARENT_GONE: Duration = Duration::from_secs(2);
 const DIALOG_LIMIT: Duration = Duration::from_secs(15);
@@ -32,7 +37,15 @@ const EXIT_AFTER_DIALOG: Duration = Duration::from_secs(5);
 const POLL: Duration = Duration::from_millis(2);
 
 /// One check: its name and the function that runs it.
-type Case = (&'static str, fn(&Path) -> Result<(), String>);
+type Case = (&'static str, fn(&Env) -> Result<(), String>);
+
+/// What every case needs.
+struct Env<'a> {
+    exe: &'a Path,
+    /// The tested processes get this folder as TMP and TEMP, so that their
+    /// log is apart from the user's own `%TEMP%\flying-microwave.log`.
+    log_dir: &'a Path,
+}
 
 /// Runs every case and returns the process exit code (0 when all passed).
 pub fn run(exe: &Path) -> i32 {
@@ -44,9 +57,19 @@ pub fn run(exe: &Path) -> i32 {
             unknown_argument_shows_message,
         ),
     ];
+    let log_dir =
+        std::env::temp_dir().join(format!("flying-microwave-smoke-{}", std::process::id()));
+    if let Err(e) = std::fs::create_dir_all(&log_dir) {
+        println!("FAIL could not create {}: {e}", log_dir.display());
+        return 1;
+    }
+    println!("log folder of the tested processes: {}", log_dir.display());
     let mut failed = 0;
     for (name, case) in cases {
-        match case(exe) {
+        match case(&Env {
+            exe,
+            log_dir: &log_dir,
+        }) {
             Ok(()) => println!("PASS {name}"),
             Err(e) => {
                 println!("FAIL {name}: {e}");
@@ -62,17 +85,35 @@ pub fn run(exe: &Path) -> i32 {
 /// (F-04: no process is left behind).
 struct Target {
     child: Child,
+    log: PathBuf,
 }
 
 impl Target {
-    fn start(exe: &Path, args: &[&str]) -> Result<Self, String> {
+    fn start(env: &Env, args: &[&str]) -> Result<Self, String> {
+        let log = env.log_dir.join("flying-microwave.log");
         // A fresh log, so that only this run's lines are read.
-        let _ = std::fs::remove_file(log_path());
-        let child = Command::new(exe)
+        let _ = std::fs::remove_file(&log);
+        // Why both: std::env::temp_dir (GetTempPath2W) reads TMP first, then TEMP.
+        let child = Command::new(env.exe)
             .args(args)
+            .env("TMP", env.log_dir)
+            .env("TEMP", env.log_dir)
             .spawn()
-            .map_err(|e| format!("could not start {}: {e}", exe.display()))?;
-        Ok(Target { child })
+            .map_err(|e| format!("could not start {}: {e}", env.exe.display()))?;
+        Ok(Target { child, log })
+    }
+
+    fn log_text(&self) -> String {
+        std::fs::read_to_string(&self.log).unwrap_or_default()
+    }
+
+    /// Prints the process's own log lines, which tell why a case failed.
+    fn print_log(&self) {
+        let text = self.log_text();
+        println!("  log of process {}:", self.pid());
+        for line in lines_of(&text, self.pid()) {
+            println!("    {line}");
+        }
     }
 
     fn pid(&self) -> u32 {
@@ -80,8 +121,7 @@ impl Target {
     }
 
     fn progress(&self) -> Progress {
-        let log = std::fs::read_to_string(log_path()).unwrap_or_default();
-        Progress::read(&log, self.pid())
+        Progress::read(&self.log_text(), self.pid())
     }
 
     /// The exit code once the process has ended.
@@ -100,10 +140,7 @@ impl Target {
                 return Ok((code, start.elapsed()));
             }
             if start.elapsed() > limit {
-                return Err(format!(
-                    "still running {} ms after the limit",
-                    limit.as_millis()
-                ));
+                return Err(format!("still running after {} ms", limit.as_millis()));
             }
             pump_messages();
             std::thread::sleep(POLL);
@@ -145,11 +182,8 @@ impl Drop for Target {
     }
 }
 
-fn log_path() -> std::path::PathBuf {
-    std::env::temp_dir().join("flying-microwave.log")
-}
-
 fn report(progress: &Progress) {
+    // The facts a failure would depend on, printed even when the case passes.
     println!(
         "  adapter: {}; started to first frame: {}",
         progress.adapter.as_deref().unwrap_or("not logged"),
@@ -159,75 +193,125 @@ fn report(progress: &Progress) {
     );
 }
 
-fn screensaver_ends_on_key(exe: &Path) -> Result<(), String> {
-    let mut target = Target::start(exe, &["/s"])?;
-    let progress = target.wait_ready(Progress::screensaver_ready)?;
-    report(&progress);
-    std::thread::sleep(AFTER_READY);
-    if let Some(code) = target.exited()? {
-        return Err(format!("ended (exit code {code}) before any input"));
+/// Runs `body` on a started target and prints the target's log if it fails.
+fn with_target(
+    env: &Env,
+    args: &[&str],
+    body: impl FnOnce(&mut Target) -> Result<(), String>,
+) -> Result<(), String> {
+    let mut target = Target::start(env, args)?;
+    let result = body(&mut target);
+    if result.is_err() {
+        target.print_log();
     }
-    send_key(VK_SPACE)?;
-    let (code, elapsed) = target.wait_exit(Duration::from_secs(5))?;
-    println!("  input to exit: {} ms", elapsed.as_millis());
-    if code != 0 {
-        return Err(format!("exit code {code}"));
-    }
-    if elapsed > EXIT_AFTER_INPUT {
-        return Err(format!(
-            "took {} ms after the key press (limit {} ms)",
-            elapsed.as_millis(),
-            EXIT_AFTER_INPUT.as_millis()
-        ));
-    }
-    Ok(())
+    result
 }
 
-fn preview_ends_with_parent(exe: &Path) -> Result<(), String> {
-    let parent = ParentWindow::new()?;
-    let hwnd_arg = (parent.0 as usize).to_string();
-    let mut target = Target::start(exe, &["/p", &hwnd_arg])?;
-    let progress = target.wait_ready(Progress::preview_ready)?;
-    report(&progress);
-    drop(parent);
-    let (code, elapsed) = target.wait_exit(EXIT_AFTER_PARENT_GONE)?;
-    println!("  parent destroyed to exit: {} ms", elapsed.as_millis());
-    if code != 0 {
-        return Err(format!("exit code {code}"));
+fn expect_reason(progress: &Progress, expected: &[&str]) -> Result<(), String> {
+    let reason = progress.exit_reason.as_deref().unwrap_or("not logged");
+    println!("  exit reason: {reason}");
+    if expected.iter().any(|e| reason.starts_with(e)) {
+        Ok(())
+    } else {
+        Err(format!("ended for another reason: {reason}"))
     }
-    Ok(())
 }
 
-fn unknown_argument_shows_message(exe: &Path) -> Result<(), String> {
-    let mut target = Target::start(exe, &["/x"])?;
-    let start = Instant::now();
-    let dialog = loop {
-        let windows = windows_of(target.pid());
-        if let Some(full) = windows.iter().find(|w| w.covers_screen) {
-            return Err(format!("made a full-screen window ({})", full.class));
+fn screensaver_ends_on_key(env: &Env) -> Result<(), String> {
+    with_target(env, &["/s"], |target| {
+        let progress = target.wait_ready(Progress::screensaver_ready)?;
+        report(&progress);
+        // Whether the key press can reach the window depends on this.
+        for line in lines_of(&target.log_text(), target.pid()) {
+            if line.contains("SetForegroundWindow") {
+                println!("  {line}");
+            }
         }
-        if let Some(dialog) = windows.iter().find(|w| w.class == "#32770") {
-            break dialog.hwnd;
-        }
+        std::thread::sleep(AFTER_READY);
         if let Some(code) = target.exited()? {
-            return Err(format!("ended (exit code {code}) without a message box"));
+            return Err(format!("ended (exit code {code}) before any input"));
         }
-        if start.elapsed() > DIALOG_LIMIT {
+        send_key(VK_SPACE)?;
+        let start = Instant::now();
+        while !windows_of(target.pid()).is_empty() {
+            if start.elapsed() > EXIT_AFTER_INPUT {
+                return Err(format!(
+                    "the screen is still shown {} ms after the key press",
+                    EXIT_AFTER_INPUT.as_millis()
+                ));
+            }
+            std::thread::sleep(POLL);
+        }
+        let gone = start.elapsed();
+        let (code, _) = target.wait_exit(EXIT_AFTER_INPUT.saturating_sub(gone))?;
+        println!(
+            "  input to screen gone: {} ms; to process exit: {} ms",
+            gone.as_millis(),
+            start.elapsed().as_millis()
+        );
+        if code != 0 {
+            return Err(format!("exit code {code}"));
+        }
+        expect_reason(&target.progress(), &["KeyPressed { synthetic: false }"])?;
+        if gone > GONE_AFTER_INPUT {
             return Err(format!(
-                "no message box within {} s",
-                DIALOG_LIMIT.as_secs()
+                "the screen was gone {} ms after the key press (limit {} ms)",
+                gone.as_millis(),
+                GONE_AFTER_INPUT.as_millis()
             ));
         }
-        std::thread::sleep(Duration::from_millis(50));
-    };
-    // SAFETY: posting a message to a window handle is safe even if the
-    // window is gone by now; the call then just fails.
-    unsafe { PostMessageW(dialog, WM_CLOSE, 0, 0) };
-    let (code, _) = target.wait_exit(EXIT_AFTER_DIALOG)?;
-    if code != 0 {
-        return Err(format!("exit code {code}"));
-    }
-    Ok(())
+        Ok(())
+    })
+}
+
+fn preview_ends_with_parent(env: &Env) -> Result<(), String> {
+    let parent = ParentWindow::new()?;
+    let hwnd_arg = (parent.0 as usize).to_string();
+    let mut parent = Some(parent);
+    with_target(env, &["/p", &hwnd_arg], |target| {
+        let progress = target.wait_ready(Progress::preview_ready)?;
+        report(&progress);
+        drop(parent.take());
+        let (code, elapsed) = target.wait_exit(EXIT_AFTER_PARENT_GONE)?;
+        println!("  parent destroyed to exit: {} ms", elapsed.as_millis());
+        if code != 0 {
+            return Err(format!("exit code {code}"));
+        }
+        expect_reason(&target.progress(), &["WindowDestroyed", "ParentGone"])
+    })
+}
+
+fn unknown_argument_shows_message(env: &Env) -> Result<(), String> {
+    with_target(env, &["/x"], |target| {
+        let start = Instant::now();
+        let dialog = loop {
+            let windows = windows_of(target.pid());
+            if let Some(full) = windows.iter().find(|w| w.covers_screen) {
+                return Err(format!("made a full-screen window ({})", full.class));
+            }
+            if let Some(dialog) = windows.iter().find(|w| w.class == "#32770") {
+                break dialog.hwnd;
+            }
+            if let Some(code) = target.exited()? {
+                return Err(format!("ended (exit code {code}) without a message box"));
+            }
+            if start.elapsed() > DIALOG_LIMIT {
+                return Err(format!(
+                    "no message box within {} s",
+                    DIALOG_LIMIT.as_secs()
+                ));
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        };
+        // SAFETY: posting a message to a window handle is safe even if the
+        // window is gone by now; the call then just fails.
+        unsafe { PostMessageW(dialog, WM_CLOSE, 0, 0) };
+        let (code, _) = target.wait_exit(EXIT_AFTER_DIALOG)?;
+        if code != 0 {
+            return Err(format!("exit code {code}"));
+        }
+        Ok(())
+    })
 }
 
 /// Presses and releases one key, as a user would.

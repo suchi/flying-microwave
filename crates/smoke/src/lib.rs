@@ -16,6 +16,9 @@ pub struct Progress {
     pub first_frames_ms: Vec<u64>,
     /// The `adapter:` line without its prefix.
     pub adapter: Option<String>,
+    /// Why the process decided to end: the screensaver's `exit:` line or
+    /// the preview's `preview exit:` line, without the prefix.
+    pub exit_reason: Option<String>,
 }
 
 impl Progress {
@@ -41,6 +44,13 @@ impl Progress {
                 progress.first_frames_ms.push(ms);
             } else if let Some(adapter) = message.strip_prefix("adapter: ") {
                 progress.adapter.get_or_insert_with(|| adapter.to_owned());
+            } else if let Some(reason) = message
+                .strip_prefix("exit: ")
+                .or_else(|| message.strip_prefix("preview exit: "))
+            {
+                progress
+                    .exit_reason
+                    .get_or_insert_with(|| reason.to_owned());
             }
         }
         progress
@@ -63,6 +73,18 @@ impl Progress {
     pub fn startup_ms(&self) -> Option<u64> {
         Some(self.first_frames_ms.iter().max()? - self.started_ms?)
     }
+}
+
+/// The lines of process `pid`, to show when a case fails.
+pub fn lines_of(log: &str, pid: u32) -> Vec<&str> {
+    let pid_field = format!("pid={pid}");
+    log.lines()
+        .filter(|line| {
+            split_line(line)
+                .and_then(|(_, rest)| rest.split_once(' '))
+                .is_some_and(|(field, _)| field == pid_field)
+        })
+        .collect()
 }
 
 /// Splits `+123ms rest` into `(123, "rest")`.
@@ -131,6 +153,34 @@ mod tests {
         assert_eq!(
             Progress::read("+3ms pid=1 monitors: 1\n", 1).startup_ms(),
             None
+        );
+    }
+
+    #[test]
+    fn the_exit_reason_of_either_mode_is_read() {
+        let log = "+0ms pid=1 exit: KeyPressed { synthetic: false }\n\
+                   +1ms pid=1 screensaver ended: KeyPressed { synthetic: false }\n\
+                   +2ms pid=2 preview exit: WindowDestroyed (exit code 0)\n";
+        assert_eq!(
+            Progress::read(log, 1).exit_reason.as_deref(),
+            Some("KeyPressed { synthetic: false }")
+        );
+        assert_eq!(
+            Progress::read(log, 2).exit_reason.as_deref(),
+            Some("WindowDestroyed (exit code 0)")
+        );
+        assert_eq!(Progress::read(LOG, 10).exit_reason, None);
+    }
+
+    #[test]
+    fn the_lines_of_one_process_are_kept_for_a_failure_report() {
+        let lines = lines_of(LOG, 11);
+        assert_eq!(
+            lines,
+            vec![
+                "+1ms pid=11 Flying Microwave 0.1.0 started: Preview { parent: 5 }",
+                "+415ms pid=11 preview: first frame presented",
+            ]
         );
     }
 
