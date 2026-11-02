@@ -63,14 +63,14 @@ def arm64_notes(version):
     """The section that every release note ends with (ADR-0016).
 
     It lists the checks of the build job in release.yml: change both
-    together. A smoke test (plan 0001, Phase 1 task 14) does not exist yet.
+    together. The smoke test is plan 0003 (crates/smoke).
     """
     return (
         "\n### arm64版について\n\n"
         f"`FlyingMicrowave-{version}-windows-arm64.zip`は、動作を保証しない。"
         "リリースのワークフローで、Windows 11のarm64のランナーでのビルド、単体テスト、"
-        "依存DLLの確認、バージョン情報の確認だけを行った。"
-        "起動と描画の自動の確認(スモークテスト)と、実機での確認はしていない。\n"
+        "依存DLLの確認、バージョン情報の確認と、起動と終了の自動の確認(スモークテスト)だけを行った。"
+        "実機での確認はしていない。\n"
     )
 
 
