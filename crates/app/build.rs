@@ -1,5 +1,6 @@
 //! Embeds the Windows resources (icon, version information and the screen
-//! saver description) into the executable (plan 0002, T-1).
+//! saver description) into the executable (plan 0002, T-1), and sets the
+//! linker option of SEC-1 that restricts the import search path.
 
 use std::env;
 use std::fs;
@@ -21,6 +22,15 @@ fn main() {
     // path lets it find the icon named in the .rc file.
     let res_dir =
         PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("set by Cargo")).join("res");
+    // SEC-1 (docs/design/architecture.md): resolve the DLLs the executable
+    // imports statically (dxgi.dll, user32.dll, ...) from System32 only, so
+    // a DLL planted next to the .scr is not loaded before main() runs.
+    // 0x800 is LOAD_LIBRARY_SEARCH_SYSTEM32 (MSVC linker reference,
+    // /DEPENDENTLOADFLAG). Only the executable gets it, as with the resources.
+    if env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
+        println!("cargo:rustc-link-arg-bins=/DEPENDENTLOADFLAG:0x800");
+    }
+
     let result = embed_resource::compile(RESOURCES, embed_resource::ParamsIncludeDirs([res_dir]));
     // Why: on a Windows host a missing resource compiler must fail the
     // build, or a release would ship without version information. On other
