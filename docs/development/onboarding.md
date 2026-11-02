@@ -29,7 +29,7 @@ Flying Microwaveは、電子レンジが画面を飛ぶWindowsスクリーンセ
 現在の状況:
 
 - 実装計画: 合意済み。[0001: 初期実装計画](../plans/0001-initial-implementation-plan.md)に従って進める
-- 次の作業: Phase 1の段階3(Windowsリソースの埋め込み、arm64のビルド、利用者向けの説明書、インストールの方法S5、GPUのない環境S6、v0.1.0)
+- 次の作業: Phase 1の段階3の残り(利用者向けの説明書、インストールの方法S5、GPUのない環境S6、商標の確認、v0.1.0。arm64のビルドはv0.1.0のタグで初めて動かす)
 - コード: `/s`の全画面と`/p`のプレビュー枠で、仮の図形の電子レンジが飛ぶ(`crates/core`と`crates/app`)
 - ライセンス: MIT([LICENSE](../../LICENSE)、[ADR-0005](../adr/0005-license-mit.md))
 - リリース: 基本機能から段階的に実装し、フェーズごとにセマンティックバージョニングでGitHub Releaseを公開する。最初のリリースはv0.1.0(Phase 1)
@@ -383,7 +383,7 @@ cargo fetch --locked || true
 - 自動テスト: ロジックを`core`に寄せ、WindowsとLinuxの両方のCIで単体テストする
 - 手動テスト: メンテナーが、各リリースの前に、Windows 11実機で[実装計画の手動テストのチェックリスト](../plans/0001-initial-implementation-plan.md#82-手動テストwindows実機)を実施する。CIでビルドした成果物を使う。確認できなかった項目は、リリースノートに明記する
 - CIの成果物: `ci.yml`は、実行のたびに、`FlyingMicrowave.scr`と`LICENSE.txt`を成果物`flying-microwave-x86_64-pc-windows-msvc`として残す(PRと`main`は7日、手動実行は30日)。実機での確認には、PRの実行の成果物を使ってよい。手動実行(workflow_dispatch)は、キャッシュを使わずにビルドし、`THIRD-PARTY-LICENSES.txt`も加える。実機での確認に使う
-- リリースのワークフロー: `release.yml`は、`v*`のタグのプッシュ(または、既存のタグを指定した手動実行)で、タグのコミットをキャッシュを使わずにビルドし、zipと`SHA256SUMS.txt`を添付したGitHub Releaseの下書きを作る。公開はメンテナーが行う。x64(`windows-2025`)とarm64(`windows-11-arm`)のランナーで、それぞれのzipを作る。arm64版は動作を保証せず、ビルド、自動テスト、依存DLLの確認、バージョン情報の確認だけを行う。どちらかが失敗したら、下書きを作らない(ADR-0016)。リリースノートの最後には、arm64版についての決まった節が付く(`scripts/prepare_release.py`)。arm64のビルドは、v0.1.0のタグで初めて実際に動かす([計画のD-23](../plans/0001-initial-implementation-plan.md))
+- リリースのワークフロー: `release.yml`は、`v*`のタグのプッシュ(または、既存のタグを指定した手動実行)で、タグのコミットをキャッシュを使わずにビルドし、zipと`SHA256SUMS.txt`を添付したGitHub Releaseの下書きを作る。公開はメンテナーが行う。x64(`windows-2025`)とarm64(`windows-11-arm`)のランナーで、それぞれのzipを作る。arm64版は動作を保証せず、ビルド、単体テスト、依存DLLの確認、バージョン情報の確認だけを行う(スモークテストはまだない)。どちらかが失敗したら、下書きを作らない(ADR-0016)。リリースノートの最後には、arm64版についての決まった節が付く(`scripts/prepare_release.py`)。arm64のビルドは、v0.1.0のタグで初めて実際に動かす([計画のD-23](../plans/0001-initial-implementation-plan.md))
 - 技術スパイク: Windows実機でしか確かめられない不確実性(S1〜S6)は、Phase 0で確認した(4回の確認で終え、残りは製品で確かめる。計画のD-20)。内容は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md#未確認事項と検証方法技術スパイク)に一覧がある
 
 ## 9. セキュリティの注意
