@@ -160,7 +160,7 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
    python -I -m unittest discover -s scripts
    ```
 
-   ワークフロー(`.github/workflows/`)を変えたときは、actionlintで検査する(導入は6.5。ワークフローの変更はメンテナーの承認が要る)。
+   ワークフロー(`.github/workflows/`)を変えたときは、actionlintで検査する(ワークフローの変更はメンテナーの承認が要る)。actionlintは、Claude Code on the Webの環境には導入済みである(6.5)。Windowsでローカルに使う場合は、actionlintのGitHubのリリースからWindows用のバイナリ(版は6.5と同じv1.7.12)を入れる。
 
    ```powershell
    actionlint
@@ -265,7 +265,12 @@ python3 -I scripts/check_hooks.py
 - ビルドでリンカが見つからない: Visual Studio Build Toolsの「C++ によるデスクトップ開発」が入っているかを確かめる(5.1の前提のツール)。
 - 依存の7日の検査が通らない: 公開から7日たっていない版を使っている。7日以上前に公開された版を選ぶか、7日たつまで待つ(6.3の「依存の公開からの日数」)。
 - フックの検査が通らない: `jq`が入っているか、Git Bashの中で実行しているかを確かめる(6.3)。
-- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。ただし、次の場合は、その行を書かずに正常に終わる: `/s`の2つめの起動(`another screensaver instance is running; exiting`)、`/p`の番号が有効なウィンドウでないとき(`preview: N is not a valid window; exiting`)。どちらでもなく、行が途中で切れていれば、panicなどで異常終了している。
+- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。ただし、次の場合は、その行を書かずに終わる。最後の行で見分ける。
+  - `another screensaver instance is running; exiting`: `/s`の2つめの起動。終了コード0。
+  - `preview: N is not a valid window; exiting`: `/p`の番号が有効なウィンドウでない。終了コード2。
+  - `GPU initialization timed out; exiting`: GPUの初期化が15秒で終わらなかった。終了コード6。
+  - `EventLoop::new failed:`、`event loop error:`、`preview: EventLoop::new failed:`、`preview: event loop returned an error:`: イベントループの失敗。終了コード1。
+  - どれにも当たらずに行が途中で切れていれば、panicなどで異常終了している。
 - `/s`の終了コード: 0が正常、1がイベントループの失敗、5がウィンドウを1つも作れなかった(`no window could be created`)、6がGPUの初期化が15秒で終わらなかったことを表す。
 - プレビューの終了の理由: ログの`preview exit:`の行に出る。終了コードは、0が正常、1がイベントループの失敗、2が親のウィンドウが無効(引数の番号が不正か、すでに閉じられていた)、4が初期化の失敗、6がGPUの初期化が15秒で終わらなかったことを表す。
 - プレビューのプロセスが残る: 設定画面を閉じたあとも、タスクマネージャーに`FlyingMicrowave.scr`が残っていれば、ログの最後の行を添えて報告する。通常は、親のウィンドウが閉じられてから500ミリ秒以内に終了する。
