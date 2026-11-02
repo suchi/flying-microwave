@@ -140,6 +140,12 @@ jobs:
       - name: Build release
         run: cargo build --release --locked --target ${{ matrix.target }}
 
+      # Starts the built executable in each mode and checks that it starts
+      # and ends as a screensaver must (plan 0003, crates/smoke). Rendering
+      # uses whatever adapter the runner has (WARP without a GPU).
+      - name: Smoke test
+        run: target/${{ matrix.target }}/release/flying-microwave-smoke.exe target/${{ matrix.target }}/release/flying-microwave.exe
+
       # The executable must not depend on the Visual C++ runtime (ADR-0001, R-16).
       - name: Check DLL dependencies
         shell: pwsh
