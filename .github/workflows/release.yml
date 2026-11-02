@@ -125,8 +125,31 @@ jobs:
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
 
+      # Why: the arm64 runner is first used by the v0.1.0 tag (plan 0001,
+      # D-23), and its image documentation does not list the Visual Studio
+      # components. Show the tools a failure would depend on, so that one run
+      # tells what is missing. ring (built by cargo-about) compiles its C code
+      # with clang on Windows arm64 (ring 0.17.14, build.rs), so put the
+      # LLVM of the image on PATH when clang is not there yet.
+      - name: Show and prepare arm64 build tools
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          Write-Output "link.exe (arm64): $(& $vswhere -latest -products * -find 'VC\Tools\MSVC\**\bin\Hostarm64\arm64\link.exe')"
+          Write-Output "rc.exe (arm64): $(Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\arm64\rc.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)"
+          $clang = Get-Command clang -ErrorAction SilentlyContinue
+          if (-not $clang -and (Test-Path "$env:ProgramFiles\LLVM\bin\clang.exe")) {
+            "$env:ProgramFiles\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+            Write-Output "clang: added $env:ProgramFiles\LLVM\bin to PATH"
+          } else {
+            Write-Output "clang: $($clang.Source)"
+          }
+
       # Why no cache: a release is built from scratch (plan 0001, chapter 9).
       # Each runner builds and tests its own architecture natively.
+      # The checks of this job are listed in the release notes for arm64
+      # (scripts/prepare_release.py, arm64_notes): change both together.
       - name: Test
         run: cargo test --workspace --locked --target ${{ matrix.target }}
 
@@ -134,13 +157,19 @@ jobs:
         run: cargo build --release --locked --target ${{ matrix.target }}
 
       # Same check as ci.yml (ADR-0001, R-16).
-      # Why Host*: the arm64 runner may have only the arm64-hosted tools
-      # (bin\Hostarm64\arm64). Any dumpbin reads either executable.
+      # Why native first: a cross tool (for example bin\HostX64\arm64) needs
+      # the DLLs of the host directory on PATH (find-msvc-tools 0.1.15,
+      # find_tools.rs). The native tools need nothing else; any other one is
+      # a fallback, logged below.
       - name: Check DLL dependencies
         shell: pwsh
         run: |
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-          $dumpbin = & $vswhere -latest -products * -find 'VC\Tools\MSVC\**\bin\Host*\*\dumpbin.exe' | Select-Object -First 1
+          $native = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'Hostarm64\arm64' } else { 'Hostx64\x64' }
+          $dumpbin = & $vswhere -latest -products * -find "VC\Tools\MSVC\**\bin\$native\dumpbin.exe" | Select-Object -First 1
+          if (-not $dumpbin) {
+            $dumpbin = & $vswhere -latest -products * -find 'VC\Tools\MSVC\**\bin\Host*\*\dumpbin.exe' | Select-Object -First 1
+          }
           if (-not $dumpbin) { throw 'dumpbin.exe was not found' }
           Write-Output "dumpbin: $dumpbin"
           $exe = 'target/${{ matrix.target }}/release/flying-microwave.exe'
