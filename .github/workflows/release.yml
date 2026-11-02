@@ -94,10 +94,11 @@ jobs:
 
       # SPDX 2.3 SBOMs of the executable, one per target (ADR-0021). Made
       # here and not in the build jobs, so that the script comes from the
-      # workflow's commit like the other checks, and runs on the Python of
-      # this runner (the Python of the arm64 runner is not documented).
-      # cargo only reads the tagged commit here (metadata and tree run no
-      # build script). The creation time is the commit time, so the same
+      # workflow's commit like the other checks. cargo metadata and tree run
+      # no build script or procedural macro of the tagged commit, but they do
+      # use its cargo configuration and toolchain file (for example a
+      # rustc-wrapper); the tag was checked above to be on main, and this
+      # job's token is read-only. The creation time is the commit time, so the same
       # commit gives the same documents; the namespace is unique per
       # release, target and commit.
       - name: Install toolchain from rust-toolchain.toml
@@ -160,6 +161,21 @@ jobs:
         with:
           ref: ${{ needs.check.outputs.sha }}
           persist-credentials: false
+
+      # The SBOMs are made by the check job (scripts/make_sbom.py). Why
+      # first: the later steps run the code of the dependencies (build
+      # scripts, procedural macros), which could change PATH or the
+      # environment of the steps after them; the token must be used before
+      # that. Why gh and not another action: same as the publish job
+      # (docs/incidents/0007).
+      - name: Download the SBOMs
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh run download $env:GITHUB_RUN_ID --name sbom --dir "$env:RUNNER_TEMP/sbom"
+          if ($LASTEXITCODE -ne 0) { throw 'gh run download failed' }
 
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
@@ -252,21 +268,13 @@ jobs:
           Copy-Item LICENSE package/LICENSE.txt
           Copy-Item packaging/windows/README.md package/README.md
 
-      # The SBOMs are made by the check job (scripts/make_sbom.py). Why gh
-      # and not another action: same as the publish job (docs/incidents/0007).
-      # The token is given to this step only, so the other steps (which run
-      # the code of the dependencies) never see it.
       - name: SBOM
         shell: pwsh
         env:
           ARCH: ${{ matrix.arch }}
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
         run: |
-          gh run download $env:GITHUB_RUN_ID --name sbom --dir sbom
-          if ($LASTEXITCODE -ne 0) { throw 'gh run download failed' }
           $version = $env:TAG.Substring(1)
-          Copy-Item "sbom/FlyingMicrowave-$version-windows-$env:ARCH.spdx.json" package/ -ErrorAction Stop
+          Copy-Item "$env:RUNNER_TEMP/sbom/FlyingMicrowave-$version-windows-$env:ARCH.spdx.json" package/ -ErrorAction Stop
 
       # Same steps as the manual run of ci.yml (plan 0002, T-2).
       - name: License notices
