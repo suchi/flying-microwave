@@ -120,10 +120,16 @@ class PlatformTest(unittest.TestCase):
             self.assertEqual(ch.main(["--root", "."]), 0)
         self.assertIn("対象外", out.getvalue())
 
+    @unittest.skipIf(os.name == "nt", "checks the platforms where the hooks run")
+    def test_linux_and_macos_are_in_scope(self):
+        # A wrong platform check would turn the CI check into a silent pass
+        # (the failure mode of docs/incidents/0009).
+        self.assertFalse(ch.running_on_windows())
+
 
 # Why skip on Windows: these tests start hooks with sh -c and rely on the
 # executable bit, which only Linux and macOS have (docs/incidents/0012).
-@unittest.skipIf(os.name == "nt", "the hook launch is checked on Linux and macOS only")
+@unittest.skipIf(ch.running_on_windows(), "the hook launch is checked on Linux and macOS only")
 class RunTest(unittest.TestCase):
     def run_hook(self, executable):
         with tempfile.TemporaryDirectory() as d:
