@@ -259,8 +259,13 @@ python3 -I scripts/check_hooks.py
 
 アイコンは仮のもので、Phase 3で本番の絵にする。元の絵は`crates/app/res/icon.svg`で、実行ファイルに入るのは、そこから作る`crates/app/res/flying-microwave.ico`である。SVGを変えたら、次のコマンドで`.ico`を作り直し、両方をコミットする。
 
-- 前提: Node.jsとPlaywright(Chromium)、PythonとPillow。Playwrightは`require('playwright')`で読み込める必要がある(npmのグローバルに入れた場合は、環境変数`NODE_PATH`に`npm root -g`の出力を設定する)。各サイズ(16〜256ピクセル)を、SVGからそれぞれ描画してまとめる。大きな画像を縮小しないため、小さいサイズでも線がつぶれにくい。
-- 実行(Linux。リポジトリのルートで):
+- 前提: Python 3(標準ライブラリだけを使う)と、SVGを描画するresvgのコマンド。resvgは版を0.49.0に固定する([ADR-0008](../adr/0008-svg-assets-with-resvg.md)と同じ描画の道具)。`--locked`で、crateに同梱されたロックファイルの版を使う。版を変えるときは、`.crate`を展開してそのロックファイルを取り出し、AGENTS.mdの検証コマンドの表の「依存の公開からの日数」の検査にかけ、通らない版は使わない。各サイズ(16〜256ピクセル)を、SVGからそれぞれ描画してまとめる。大きな画像を縮小しないため、小さいサイズでも線がつぶれにくい。
+
+  ```sh
+  cargo install --locked resvg --version 0.49.0
+  ```
+
+- 実行(リポジトリのルートで。WindowsではPowerShellで`python`にする):
 
   ```sh
   python3 -I scripts/icon/make_ico.py
