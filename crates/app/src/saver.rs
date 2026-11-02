@@ -95,7 +95,7 @@ pub fn run() -> i32 {
 }
 
 /// Width divided by height (1.0 for an empty size).
-fn aspect_of(size: PhysicalSize<u32>) -> f32 {
+pub(crate) fn aspect_of(size: PhysicalSize<u32>) -> f32 {
     if size.height == 0 {
         1.0
     } else {
@@ -104,7 +104,7 @@ fn aspect_of(size: PhysicalSize<u32>) -> f32 {
 }
 
 /// A seed that differs between runs and between monitors.
-fn seed(index: usize) -> u64 {
+pub(crate) fn seed(index: usize) -> u64 {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos() as u64);

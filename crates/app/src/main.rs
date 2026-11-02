@@ -10,6 +10,8 @@ mod layout;
 #[cfg(windows)]
 mod log;
 #[cfg(windows)]
+mod preview;
+#[cfg(windows)]
 mod render;
 #[cfg(windows)]
 mod saver;
@@ -51,9 +53,7 @@ fn run(mode: Mode) -> i32 {
             };
             saver::run()
         }
-        // The preview is the next step of Phase 1 (task 7). Until then the
-        // preview area stays as the system draws it.
-        Mode::Preview { .. } => 0,
+        Mode::Preview { parent } => preview::run(parent),
         // UI labels are English (AGENTS.md, language rules).
         Mode::Settings { .. } => {
             win::message_box(

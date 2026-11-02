@@ -12,7 +12,8 @@ use windows_sys::Win32::System::LibraryLoader::{
 };
 use windows_sys::Win32::System::Threading::{CreateMutexW, GetCurrentProcess, TerminateProcess};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetClientRect, GetCursorPos, MB_ICONINFORMATION, MB_OK, MessageBoxW, SetForegroundWindow,
+    GetClientRect, GetCursorPos, IsWindow, MB_ICONINFORMATION, MB_OK, MessageBoxW,
+    SetForegroundWindow,
 };
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
@@ -111,6 +112,41 @@ pub fn fill_black(hwnd: HWND) -> bool {
         ReleaseDC(hwnd, hdc);
         filled != 0
     }
+}
+
+/// The window handle passed on the command line (`/p <HWND>`).
+///
+/// Why the cast: Windows passes the handle as a decimal number; HWND values
+/// fit in a pointer, and anything else fails the `is_window` check.
+pub fn hwnd_from_arg(value: u64) -> HWND {
+    value as usize as HWND
+}
+
+/// SEC-3: whether `hwnd` is currently a valid window. A handle from the
+/// command line must pass this check before it is used, and may stop being
+/// valid at any time afterwards.
+pub fn is_window(hwnd: HWND) -> bool {
+    // SAFETY: IsWindow accepts any value and only reads it.
+    unsafe { IsWindow(hwnd) != 0 }
+}
+
+/// Size of the client area of `hwnd` in physical pixels.
+pub fn client_size(hwnd: HWND) -> Option<(u32, u32)> {
+    let mut rect = RECT {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    };
+    // SAFETY: `rect` is a valid, writable RECT; an invalid `hwnd` makes the
+    // call fail, which is returned as None.
+    let ok = unsafe { GetClientRect(hwnd, &mut rect) };
+    if ok == 0 {
+        return None;
+    }
+    let width = u32::try_from(rect.right - rect.left).ok()?;
+    let height = u32::try_from(rect.bottom - rect.top).ok()?;
+    Some((width, height))
 }
 
 /// Shows an information message box without an owner window.
