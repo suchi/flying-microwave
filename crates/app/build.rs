@@ -17,7 +17,11 @@ fn main() {
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set by Cargo"));
     fs::write(out_dir.join("fm_version.h"), version_header()).expect("write fm_version.h");
 
-    let result = embed_resource::compile(RESOURCES, embed_resource::NONE);
+    // Why: rc.exe runs in the crate directory, not in res/; the include
+    // path lets it find the icon named in the .rc file.
+    let res_dir =
+        PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("set by Cargo")).join("res");
+    let result = embed_resource::compile(RESOURCES, embed_resource::ParamsIncludeDirs([res_dir]));
     // Why: on a Windows host a missing resource compiler must fail the
     // build, or a release would ship without version information. On other
     // hosts (type checks of the Windows target on Linux) the resources are
