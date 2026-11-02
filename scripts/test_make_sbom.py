@@ -14,14 +14,18 @@ APP = "path+file:///w/crates/app#flying-microwave@0.1.0"
 CORE = "path+file:///w/crates/core#flying-microwave-core@0.1.0"
 LOG = f"{REG}#log@0.4.34"
 WIN = f"{REG}#windows-sys@0.61.2"
+MACRO = f"{REG}#thiserror-impl@2.0.21"
 EMBED = f"{REG}#embed-resource@3.0.12"
-SYN = f"{REG}#syn@2.0.119"
+SERDE = f"{REG}#serde@1.0.228"
 
 
 def pkg(pid, name, version, license, source):
     return {"id": pid, "name": name, "version": version, "license": license, "source": source}
 
 
+# cargo metadata lists every package the target could use, including build
+# dependencies (embed-resource) and optional dependencies whose feature is
+# off (serde); the shipped set comes from cargo tree.
 METADATA = {
     "workspace_members": [CORE, APP],
     "packages": [
@@ -29,28 +33,20 @@ METADATA = {
         pkg(CORE, "flying-microwave-core", "0.1.0", "MIT", None),
         pkg(LOG, "log", "0.4.34", "MIT OR Apache-2.0", REG),
         pkg(WIN, "windows-sys", "0.61.2", "Apache-2.0/MIT", REG),
+        pkg(MACRO, "thiserror-impl", "2.0.21", None, REG),
         pkg(EMBED, "embed-resource", "3.0.12", "MIT", REG),
-        pkg(SYN, "syn", "2.0.119", None, REG),
+        pkg(SERDE, "serde", "1.0.228", "MIT OR Apache-2.0", REG),
     ],
-    "resolve": {
-        "root": None,
-        "nodes": [
-            {
-                "id": APP,
-                "deps": [
-                    {"pkg": EMBED, "dep_kinds": [{"kind": "build", "target": None}]},
-                    {"pkg": CORE, "dep_kinds": [{"kind": None, "target": None}]},
-                    {"pkg": LOG, "dep_kinds": [{"kind": None, "target": "cfg(windows)"}]},
-                ],
-            },
-            {"id": CORE, "deps": [{"pkg": WIN, "dep_kinds": [{"kind": None, "target": None}]}]},
-            {"id": LOG, "deps": [{"pkg": SYN, "dep_kinds": [{"kind": "dev", "target": None}]}]},
-            {"id": WIN, "deps": []},
-            {"id": EMBED, "deps": []},
-            {"id": SYN, "deps": []},
-        ],
-    },
 }
+
+# Output of `cargo tree -e normal --prefix depth -f '{p}'`.
+TREE = """0flying-microwave v0.1.0 (/w/crates/app)
+1flying-microwave-core v0.1.0 (/w/crates/core)
+2windows-sys v0.61.2
+2thiserror-impl v2.0.21 (proc-macro)
+1log v0.4.34
+1windows-sys v0.61.2 (*)
+"""
 
 LOCK = f"""version = 4
 
@@ -65,12 +61,19 @@ name = "windows-sys"
 version = "0.61.2"
 source = "{REG}"
 checksum = "{'b' * 64}"
+
+[[package]]
+name = "thiserror-impl"
+version = "2.0.21"
+source = "{REG}"
+checksum = "{'c' * 64}"
 """
 
 
 def document(**kw):
     args = dict(
         metadata=METADATA,
+        tree_text=TREE,
         lock_text=LOCK,
         target="x86_64-pc-windows-msvc",
         created="2026-11-02T00:00:00Z",
@@ -95,9 +98,22 @@ class DocumentTest(unittest.TestCase):
         self.assertTrue(doc["creationInfo"]["creators"][0].startswith("Tool: "))
         self.assertIn("flying-microwave", doc["name"])
 
-    def test_lists_only_the_normal_dependencies_of_the_executable(self):
-        # Build and dev dependencies are not part of the shipped executable.
-        self.assertEqual(sorted(by_name(document())), ["flying-microwave", "flying-microwave-core", "log", "windows-sys"])
+    def test_lists_the_crates_that_cargo_tree_shows(self):
+        # Procedural macros are kept (their code is generated into the
+        # executable, and THIRD-PARTY-LICENSES.txt lists them too); build
+        # dependencies and optional dependencies whose feature is off are not.
+        self.assertEqual(
+            sorted(by_name(document())),
+            ["flying-microwave", "flying-microwave-core", "log", "thiserror-impl", "windows-sys"],
+        )
+
+    def test_a_crate_shown_in_the_tree_but_not_in_metadata_fails(self):
+        with self.assertRaises(ms.SbomError):
+            document(tree_text=TREE + "1missing v1.0.0\n")
+
+    def test_the_tree_must_start_at_the_executable(self):
+        with self.assertRaises(ms.SbomError):
+            document(tree_text=TREE.replace("0flying-microwave v0.1.0", "0other v0.1.0"))
 
     def test_registry_packages_have_purl_checksum_and_download_location(self):
         log = by_name(document())["log"]
@@ -115,6 +131,13 @@ class DocumentTest(unittest.TestCase):
         # The old slash form of Cargo is an OR expression.
         self.assertEqual(packages["windows-sys"]["licenseDeclared"], "Apache-2.0 OR MIT")
         self.assertEqual(packages["log"]["licenseConcluded"], "NOASSERTION")
+        self.assertEqual(packages["thiserror-impl"]["licenseDeclared"], "NOASSERTION")
+
+    def test_a_slash_mixed_with_other_operators_fails(self):
+        # "A/B AND C" has no single meaning; it is not guessed.
+        for license in ["MIT/Apache-2.0 AND Zlib", "MIT/Apache-2.0 WITH LLVM-exception", "(MIT/Apache-2.0)"]:
+            with self.subTest(license=license), self.assertRaises(ms.SbomError):
+                ms.license_expression(license)
 
     def test_workspace_packages_have_no_download_location(self):
         app = by_name(document())["flying-microwave"]
@@ -134,6 +157,9 @@ class DocumentTest(unittest.TestCase):
         self.assertIn(("SPDXRef-DOCUMENT", "DESCRIBES", ids["flying-microwave"]), rels)
         self.assertIn((ids["flying-microwave"], "DEPENDS_ON", ids["flying-microwave-core"]), rels)
         self.assertIn((ids["flying-microwave-core"], "DEPENDS_ON", ids["windows-sys"]), rels)
+        # An edge to a crate already shown ("(*)") is kept.
+        self.assertIn((ids["flying-microwave"], "DEPENDS_ON", ids["windows-sys"]), rels)
+        self.assertIn((ids["flying-microwave-core"], "DEPENDS_ON", ids["thiserror-impl"]), rels)
         self.assertNotIn((ids["flying-microwave"], "DEPENDS_ON", "SPDXRef-Package-embed-resource-3.0.12"), rels)
 
     def test_is_json_serializable_and_stable(self):

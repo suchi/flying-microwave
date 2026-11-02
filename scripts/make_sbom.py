@@ -3,10 +3,14 @@
 
 Used by .github/workflows/release.yml: each release zip carries the SBOM of
 its target. The packages are the executable (flying-microwave) and the
-crates it depends on through normal dependencies for the target, as
-resolved by `cargo metadata --filter-platform <target>`. Build and dev
-dependencies are left out, because they are not part of the executable.
-Checksums come from Cargo.lock (the SHA-256 that crates.io publishes).
+crates used to build it: what `cargo tree -e normal --target <target>`
+shows, the same set as THIRD-PARTY-LICENSES.txt (cargo-about). Procedural
+macros are kept, because the code they generate is in the executable.
+Dependencies of build scripts and tests are left out, and so are optional
+dependencies whose feature is off (cargo tree resolves features; the
+`resolve` of cargo metadata does not). The licenses and sources come from
+`cargo metadata --filter-platform <target>`, and the checksums from
+Cargo.lock (the SHA-256 that crates.io publishes).
 
 Only the Python standard library is used, so that the release adds no
 dependency (2026-11-02, maintainer decision).
@@ -43,9 +47,14 @@ def spdx_id(name, version):
 
 def license_expression(license):
     """The SPDX expression of a Cargo license field. Cargo's old slash form
-    (`MIT/Apache-2.0`) means OR."""
+    (`MIT/Apache-2.0`) means OR. A slash mixed with other operators or
+    parentheses has no single meaning, so it fails instead of being guessed."""
     if not license:
         return "NOASSERTION"
+    if "/" not in license:
+        return license
+    if re.search(r"[()]|\b(AND|OR|WITH)\b", license):
+        raise SbomError(f"ライセンスの表記の意味が1つに決まらない: {license!r}")
     return " OR ".join(part.strip() for part in license.split("/"))
 
 
@@ -59,24 +68,46 @@ def lock_checksums(lock_text):
     }
 
 
-def normal_dependencies(metadata):
-    """Package ids reachable from the executable through normal
-    dependencies, and the edges between them."""
-    nodes = {n["id"]: n for n in metadata["resolve"]["nodes"]}
-    packages = {p["id"]: p for p in metadata["packages"]}
-    roots = [pid for pid in metadata["workspace_members"] if packages[pid]["name"] == EXECUTABLE]
+def tree_dependencies(metadata, tree_text):
+    """Package ids shown by `cargo tree --prefix depth -f '{p}'`, starting at
+    the executable, and the edges between them."""
+    by_key = {}
+    for p in metadata["packages"]:
+        key = (p["name"], p["version"])
+        if key in by_key:
+            raise SbomError(f"{p['name']} {p['version']}が2つの出所にあり、区別できない")
+        by_key[key] = p["id"]
+    ids, edges, parents = set(), [], []
+    for line in tree_text.splitlines():
+        if not line.strip():
+            continue
+        match = re.fullmatch(r"(\d+)(\S+) v(\S+)(?: .*)?", line)
+        if not match:
+            raise SbomError(f"cargo treeの出力の行を読めない: {line!r}")
+        depth, name, version = int(match[1]), match[2], match[3]
+        pid = by_key.get((name, version))
+        if pid is None:
+            raise SbomError(f"cargo treeの{name} {version}が、cargo metadataにない")
+        if depth == 0:
+            if ids or name != EXECUTABLE:
+                raise SbomError(f"cargo treeの出力が{EXECUTABLE}の1つだけから始まっていない: {line!r}")
+        elif depth > len(parents):
+            raise SbomError(f"cargo treeの出力の深さが飛んでいる: {line!r}")
+        else:
+            edges.append((parents[depth - 1], pid))
+        del parents[depth:]
+        parents.append(pid)
+        ids.add(pid)
+    if not ids:
+        raise SbomError("cargo treeの出力が空")
+    return by_key[(EXECUTABLE, metadata_version(metadata))], ids, edges
+
+
+def metadata_version(metadata):
+    roots = [p for p in metadata["packages"] if p["id"] in metadata["workspace_members"] and p["name"] == EXECUTABLE]
     if len(roots) != 1:
         raise SbomError(f"ワークスペースに{EXECUTABLE}が1つだけあるはずが、{len(roots)}個ある")
-    seen, edges, stack = {roots[0]}, [], [roots[0]]
-    while stack:
-        pid = stack.pop()
-        for dep in nodes[pid]["deps"]:
-            if any(k["kind"] is None for k in dep["dep_kinds"]):
-                edges.append((pid, dep["pkg"]))
-                if dep["pkg"] not in seen:
-                    seen.add(dep["pkg"])
-                    stack.append(dep["pkg"])
-    return roots[0], seen, edges
+    return roots[0]["version"]
 
 
 def package_entry(package, checksums):
@@ -109,11 +140,11 @@ def package_entry(package, checksums):
     return entry
 
 
-def build_document(metadata, lock_text, target, created, namespace):
+def build_document(metadata, tree_text, lock_text, target, created, namespace):
     # SPDX 2.3 creationInfo.created is YYYY-MM-DDThh:mm:ssZ (UTC).
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", created):
         raise SbomError(f"作成日時の形が正しくない: {created!r}(YYYY-MM-DDThh:mm:ssZ)")
-    root, ids, edges = normal_dependencies(metadata)
+    root, ids, edges = tree_dependencies(metadata, tree_text)
     packages = {p["id"]: p for p in metadata["packages"]}
     checksums = lock_checksums(lock_text)
     entries = sorted((package_entry(packages[pid], checksums) for pid in ids), key=lambda e: e["SPDXID"])
@@ -136,6 +167,14 @@ def build_document(metadata, lock_text, target, created, namespace):
     }
 
 
+def cargo(root, *args):
+    # Why encoding: cargo writes UTF-8, and on Windows text=True alone would
+    # decode it with the locale code page.
+    return subprocess.run(
+        ["cargo", *args], cwd=root, check=True, capture_output=True, text=True, encoding="utf-8"
+    ).stdout
+
+
 def use_utf8_output():
     # Why: same as check_publish_age.py; a Windows pipe is cp1252 and strict.
     for stream in (sys.stdout, sys.stderr):
@@ -153,17 +192,19 @@ def main(argv=None):
     parser.add_argument("--root", default=".", help="リポジトリのルート")
     args = parser.parse_args(argv)
     root = pathlib.Path(args.root)
-    metadata = json.loads(
-        subprocess.run(
-            ["cargo", "metadata", "--format-version", "1", "--locked", "--filter-platform", args.target],
-            cwd=root,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout
-    )
     try:
-        doc = build_document(metadata, (root / "Cargo.lock").read_text(encoding="utf-8"), args.target, args.created, args.namespace)
+        metadata = json.loads(
+            cargo(root, "metadata", "--format-version", "1", "--locked", "--filter-platform", args.target)
+        )
+        tree_text = cargo(
+            root, "tree", "--locked", "-p", EXECUTABLE, "-e", "normal",
+            "--target", args.target, "--prefix", "depth", "-f", "{p}",
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"{' '.join(e.cmd)}が失敗した(終了コード{e.returncode}):\n{e.stderr}", file=sys.stderr)
+        return 1
+    try:
+        doc = build_document(metadata, tree_text, (root / "Cargo.lock").read_text(encoding="utf-8"), args.target, args.created, args.namespace)
     except SbomError as e:
         print(e, file=sys.stderr)
         return 1
