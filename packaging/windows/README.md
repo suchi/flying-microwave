@@ -54,7 +54,7 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 ### ライセンス
 
-Flying Microwave は MIT ライセンスで公開しています(`LICENSE.txt` を参照)。第三者のコンポーネントのライセンスは `THIRD-PARTY-LICENSES.txt` に記載しています。実行ファイルに含まれるソフトウェアの一覧(SBOM)を、SPDX 2.3 の形式で `FlyingMicrowave-<版>-windows-<x64 または arm64>.spdx.json` に記載しています。どれも zip に同梱しています。
+Flying Microwave は MIT ライセンスで公開しています(`LICENSE.txt` を参照)。第三者のコンポーネントのライセンスは `THIRD-PARTY-LICENSES.txt` に記載しています。実行ファイルを作るのに使ったソフトウェアの一覧(SBOM)を、SPDX 2.3 の形式で `FlyingMicrowave-<版>-windows-<x64 または arm64>.spdx.json` に記載しています。どれも zip に同梱しています。
 
 ### ヘルプ
 
@@ -109,7 +109,7 @@ This program does not use the network and does not collect or send any data (no 
 
 ### License
 
-Flying Microwave is released under the MIT License (see `LICENSE.txt`). The licenses of third-party components are listed in `THIRD-PARTY-LICENSES.txt`. The software components in the executable (an SBOM) are listed in SPDX 2.3 format in `FlyingMicrowave-<version>-windows-<x64 or arm64>.spdx.json`. All of these files are included in the zip.
+Flying Microwave is released under the MIT License (see `LICENSE.txt`). The licenses of third-party components are listed in `THIRD-PARTY-LICENSES.txt`. The software components used to build the executable (an SBOM) are listed in SPDX 2.3 format in `FlyingMicrowave-<version>-windows-<x64 or arm64>.spdx.json`. All of these files are included in the zip.
 
 ### Help
 
