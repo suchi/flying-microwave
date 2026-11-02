@@ -9,13 +9,14 @@ use flying_microwave_smoke::{Progress, lines_of};
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-    INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, SendInput, VK_SPACE,
+    INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN,
+    MOUSEEVENTF_LEFTUP, MOUSEINPUT, SendInput, VK_SPACE,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, EnumWindows, GetClassNameW,
-    GetSystemMetrics, GetWindowRect, GetWindowThreadProcessId, IsWindowVisible, MSG, PM_REMOVE,
-    PeekMessageW, PostMessageW, RegisterClassW, SM_CXSCREEN, SM_CYSCREEN, TranslateMessage,
-    WM_CLOSE, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
+    GetForegroundWindow, GetSystemMetrics, GetWindowRect, GetWindowThreadProcessId,
+    IsWindowVisible, MSG, PM_REMOVE, PeekMessageW, PostMessageW, RegisterClassW, SM_CXSCREEN,
+    SM_CYSCREEN, TranslateMessage, WM_CLOSE, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE,
 };
 
 /// Limit for the first frame. GPU setup itself gives up after 15 seconds
@@ -238,13 +239,28 @@ fn screensaver_ends_on_key(env: &Env) -> Result<(), String> {
         if !shown() {
             return Err("no full-screen window is shown before the input".to_owned());
         }
-        send_key(VK_SPACE)?;
+        // Why the click: a key press goes to the foreground window, and
+        // Windows may refuse SetForegroundWindow to a process started by a
+        // background one (seen on the windows-11-arm runner). A click goes
+        // to the window under the cursor, which the topmost full-screen
+        // window covers (plan 0003, D-7).
+        let input = if is_foreground(target.pid()) {
+            send_key(VK_SPACE)?;
+            Input::Key
+        } else {
+            println!(
+                "  the screensaver is not in the foreground: testing with a click instead of a key"
+            );
+            send_click()?;
+            Input::Click
+        };
         let start = Instant::now();
         while shown() {
             if start.elapsed() > EXIT_AFTER_INPUT {
                 return Err(format!(
-                    "the screen is still shown {} ms after the key press",
-                    EXIT_AFTER_INPUT.as_millis()
+                    "the screen is still shown {} ms after the {}",
+                    EXIT_AFTER_INPUT.as_millis(),
+                    input.name()
                 ));
             }
             std::thread::sleep(POLL);
@@ -256,15 +272,16 @@ fn screensaver_ends_on_key(env: &Env) -> Result<(), String> {
             gone.as_millis(),
             start.elapsed().as_millis()
         );
-        let reason = expect_reason(&target.progress(), &["KeyPressed { synthetic: false }"]);
+        let reason = expect_reason(&target.progress(), &[input.exit_reason()]);
         if code != 0 {
             return Err(format!("exit code {code}"));
         }
         reason?;
         if gone > GONE_AFTER_INPUT {
             return Err(format!(
-                "the screen was gone {} ms after the key press (limit {} ms)",
+                "the screen was gone {} ms after the {} (limit {} ms)",
                 gone.as_millis(),
+                input.name(),
                 GONE_AFTER_INPUT.as_millis()
             ));
         }
@@ -323,6 +340,79 @@ fn unknown_argument_shows_message(env: &Env) -> Result<(), String> {
     })
 }
 
+/// The user input that F-01 sends.
+#[derive(Clone, Copy)]
+enum Input {
+    Key,
+    Click,
+}
+
+impl Input {
+    fn name(self) -> &'static str {
+        match self {
+            Input::Key => "key press",
+            Input::Click => "click",
+        }
+    }
+
+    /// The exit reason the screensaver logs for this input.
+    fn exit_reason(self) -> &'static str {
+        match self {
+            Input::Key => "KeyPressed { synthetic: false }",
+            Input::Click => "MouseButtonPressed",
+        }
+    }
+}
+
+/// Whether the foreground window belongs to process `pid`.
+fn is_foreground(pid: u32) -> bool {
+    let mut owner = 0;
+    // SAFETY: GetForegroundWindow takes no arguments; a null result is
+    // handled by GetWindowThreadProcessId leaving owner at 0.
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if !hwnd.is_null() {
+            GetWindowThreadProcessId(hwnd, &mut owner);
+        }
+    }
+    owner == pid
+}
+
+/// Presses and releases the left mouse button where the cursor is, without
+/// moving it (a move could end the screensaver for another reason).
+fn send_click() -> Result<(), String> {
+    let button = |flags| INPUT {
+        r#type: INPUT_MOUSE,
+        Anonymous: INPUT_0 {
+            mi: MOUSEINPUT {
+                dx: 0,
+                dy: 0,
+                mouseData: 0,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    };
+    send_inputs(&[button(MOUSEEVENTF_LEFTDOWN), button(MOUSEEVENTF_LEFTUP)])
+}
+
+fn send_inputs(inputs: &[INPUT]) -> Result<(), String> {
+    // SAFETY: the slice outlives the call and its length and element size are passed.
+    let sent = unsafe {
+        SendInput(
+            inputs.len() as u32,
+            inputs.as_ptr(),
+            size_of::<INPUT>() as i32,
+        )
+    };
+    if sent as usize == inputs.len() {
+        Ok(())
+    } else {
+        Err(format!("SendInput sent {sent} of {} events", inputs.len()))
+    }
+}
+
 /// Presses and releases one key, as a user would.
 fn send_key(vk: u16) -> Result<(), String> {
     let key = |flags| INPUT {
@@ -337,20 +427,7 @@ fn send_key(vk: u16) -> Result<(), String> {
             },
         },
     };
-    let inputs = [key(0), key(KEYEVENTF_KEYUP)];
-    // SAFETY: the array outlives the call and its length and element size are passed.
-    let sent = unsafe {
-        SendInput(
-            inputs.len() as u32,
-            inputs.as_ptr(),
-            size_of::<INPUT>() as i32,
-        )
-    };
-    if sent as usize == inputs.len() {
-        Ok(())
-    } else {
-        Err(format!("SendInput sent {sent} of {} events", inputs.len()))
-    }
+    send_inputs(&[key(0), key(KEYEVENTF_KEYUP)])
 }
 
 /// A plain top-level window that stands in for the Settings dialog's
