@@ -4,8 +4,9 @@
 //! A child window fills the client area of the dialog's preview frame and
 //! shows the same flying microwaves as `/s`. All input is ignored. The
 //! process ends when its window is closed or destroyed, or when the parent
-//! window is no longer valid (checked every 500 ms). No dialog is ever shown
-//! here: a failure ends quietly with an exit code.
+//! window is no longer valid (checked every 500 ms). The same check follows
+//! the size of the parent's client area. No dialog is ever shown here: a
+//! failure ends quietly with an exit code.
 
 use std::num::NonZeroIsize;
 use std::sync::Arc;
@@ -28,6 +29,8 @@ use crate::win;
 
 const PARENT_CHECK_INTERVAL: Duration = Duration::from_millis(500);
 const RETRY_DELAY: Duration = Duration::from_millis(50);
+/// Same limit as `/s`: a hung driver call must not leave the process behind.
+const GPU_INIT_TIMEOUT: Duration = Duration::from_secs(15);
 
 const EXIT_OK: i32 = 0;
 const EXIT_EVENT_LOOP_FAILED: i32 = 1;
@@ -35,6 +38,8 @@ const EXIT_EVENT_LOOP_FAILED: i32 = 1;
 /// with an error code").
 const EXIT_INVALID_PARENT: i32 = 2;
 const EXIT_INIT_FAILED: i32 = 4;
+/// Same code as `/s` uses for a GPU initialization that does not finish.
+const EXIT_GPU_INIT_TIMEOUT: u32 = 6;
 
 struct PreviewApp {
     parent: HWND,
@@ -42,6 +47,7 @@ struct PreviewApp {
     policy: ExitPolicy,
     window: Option<Arc<Window>>,
     world: Option<World>,
+    aspect: f32,
     gpu: Option<Gpu>,
     target: Option<Target>,
     last_frame: Option<Instant>,
@@ -77,6 +83,7 @@ pub fn run(parent: u64) -> i32 {
         ),
         window: None,
         world: None,
+        aspect: 1.0,
         gpu: None,
         target: None,
         last_frame: None,
@@ -113,10 +120,6 @@ impl PreviewApp {
 
     /// Creates the child window, the simulation and the GPU resources.
     fn setup(&mut self, event_loop: &ActiveEventLoop) -> Result<(), String> {
-        // Check again right before use: the dialog may already be gone.
-        if !win::is_window(self.parent) {
-            return Err("the parent window is gone".to_owned());
-        }
         let (width, height) =
             win::client_size(self.parent).ok_or("GetClientRect failed on the parent")?;
         let size = PhysicalSize::new(width.max(1), height.max(1));
@@ -149,8 +152,10 @@ impl PreviewApp {
         let inner = window.inner_size();
         log!("preview window: parent client {width}x{height}, window {inner:?}");
 
-        let world = World::new(seed(0), aspect_of(inner), SimParams::default());
+        let aspect = aspect_of(inner);
+        let world = World::new(seed(0), aspect, SimParams::default());
         let sprite_size = world.instances().first().map_or(0.12, |s| s.size);
+        let _watchdog = render::Watchdog::start(GPU_INIT_TIMEOUT, EXIT_GPU_INIT_TIMEOUT);
         let (gpu, target) = render::guarded("GPU initialization", || {
             let instance = render::create_instance();
             let surface = render::create_surface(&instance, &window)?;
@@ -160,9 +165,27 @@ impl PreviewApp {
         })?;
         self.window = Some(window);
         self.world = Some(world);
+        self.aspect = aspect;
         self.gpu = Some(gpu);
         self.target = Some(target);
         Ok(())
+    }
+
+    /// W-3: keep covering the whole client area of the parent, which can
+    /// change size (for example when the dialog moves to a monitor with
+    /// another scale). A child window gets no WM_DPICHANGED of its own.
+    fn follow_parent_size(&self) {
+        let (Some(window), Some((width, height))) =
+            (self.window.as_ref(), win::client_size(self.parent))
+        else {
+            return;
+        };
+        let wanted = PhysicalSize::new(width.max(1), height.max(1));
+        if window.inner_size() != wanted {
+            log!("preview: parent client area is now {width}x{height}");
+            // The result arrives as WindowEvent::Resized.
+            let _ = window.request_inner_size(wanted);
+        }
     }
 
     fn redraw(&mut self) {
@@ -193,6 +216,12 @@ impl ApplicationHandler for PreviewApp {
         if self.window.is_some() || self.exiting {
             return;
         }
+        // Check again right before use: the dialog may already be gone.
+        if !win::is_window(self.parent) {
+            log!("preview: the parent window is gone before setup");
+            self.finish(event_loop, EXIT_INVALID_PARENT, "parent gone before setup");
+            return;
+        }
         match self.setup(event_loop) {
             Ok(()) => {
                 if let Some(window) = &self.window {
@@ -212,8 +241,16 @@ impl ApplicationHandler for PreviewApp {
             WindowEvent::Destroyed => self.decide(event_loop, Event::WindowDestroyed),
             WindowEvent::RedrawRequested => self.redraw(),
             WindowEvent::Resized(size) => {
+                log!("preview: resized to {size:?}");
                 if let (Some(target), Some(gpu)) = (self.target.as_mut(), self.gpu.as_ref()) {
                     target.resize(gpu, size);
+                }
+                // Same rule as `/s`: a new world when the aspect changes.
+                let aspect = aspect_of(size);
+                if size.height > 0 && (aspect - self.aspect).abs() > 1e-3 {
+                    self.world = Some(World::new(seed(0), aspect, SimParams::default()));
+                    self.aspect = aspect;
+                    self.last_frame = None;
                 }
             }
             // Input is ignored in the preview (ExitPolicy, Mode::Preview).
@@ -232,6 +269,7 @@ impl ApplicationHandler for PreviewApp {
                 self.decide(event_loop, Event::ParentGone);
                 return;
             }
+            self.follow_parent_size();
         }
         let mut wake = self.next_parent_check;
         if let Some(at) = self.retry_at {

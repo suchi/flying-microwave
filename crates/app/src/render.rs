@@ -12,6 +12,8 @@
 //! - Power preference is LowPower (do not wake a discrete GPU needlessly).
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use flying_microwave_core::sim::SpriteInstance;
 use wgpu::util::DeviceExt;
@@ -321,5 +323,38 @@ impl Target {
             self.surface.configure(&gpu.device, &self.config);
         }
         true
+    }
+}
+
+/// Ends the process if GPU initialization hangs. Dropping it disarms it.
+pub struct Watchdog {
+    finished: Arc<AtomicBool>,
+}
+
+impl Watchdog {
+    /// Ends the process with `exit_code` unless dropped within `timeout`.
+    pub fn start(timeout: Duration, exit_code: u32) -> Self {
+        let finished = Arc::new(AtomicBool::new(false));
+        let flag = Arc::clone(&finished);
+        // A thread, because a hung driver call also blocks the event loop.
+        let spawned = std::thread::Builder::new()
+            .name("gpu-init-watchdog".to_owned())
+            .spawn(move || {
+                std::thread::sleep(timeout);
+                if !flag.load(Ordering::SeqCst) {
+                    log!("GPU initialization timed out; exiting");
+                    crate::win::terminate_now(exit_code);
+                }
+            });
+        if let Err(e) = spawned {
+            log!("watchdog thread could not start: {e}");
+        }
+        Self { finished }
+    }
+}
+
+impl Drop for Watchdog {
+    fn drop(&mut self) {
+        self.finished.store(true, Ordering::SeqCst);
     }
 }
