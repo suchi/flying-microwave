@@ -144,6 +144,8 @@ jobs:
       # and ends as a screensaver must (plan 0003, crates/smoke). Rendering
       # uses whatever adapter the runner has (WARP without a GPU).
       - name: Smoke test
+        # Every wait of the test has its own limit; this catches a hang of the test itself.
+        timeout-minutes: 5
         run: target/${{ matrix.target }}/release/flying-microwave-smoke.exe target/${{ matrix.target }}/release/flying-microwave.exe
 
       # The executable must not depend on the Visual C++ runtime (ADR-0001, R-16).
