@@ -1,10 +1,13 @@
 """Tests for check_hooks.py. Run: python3 -I -m unittest discover -s scripts"""
 
+import contextlib
+import io
 import os
 import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
@@ -108,6 +111,19 @@ echo '{"decision":"block","reason":"x"}'
 """
 
 
+class PlatformTest(unittest.TestCase):
+    def test_windows_is_out_of_scope(self):
+        # The check reproduces the Linux and macOS launch (sh -c and the
+        # executable bit); on Windows it says so and does not run the hooks.
+        out = io.StringIO()
+        with mock.patch.object(ch, "running_on_windows", return_value=True), contextlib.redirect_stdout(out):
+            self.assertEqual(ch.main(["--root", "."]), 0)
+        self.assertIn("対象外", out.getvalue())
+
+
+# Why skip on Windows: these tests start hooks with sh -c and rely on the
+# executable bit, which only Linux and macOS have (docs/incidents/0012).
+@unittest.skipIf(os.name == "nt", "the hook launch is checked on Linux and macOS only")
 class RunTest(unittest.TestCase):
     def run_hook(self, executable):
         with tempfile.TemporaryDirectory() as d:
