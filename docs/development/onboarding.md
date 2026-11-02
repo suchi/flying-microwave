@@ -1,6 +1,6 @@
 # 開発参加者向けオンボーディング
 
-- ステータス: 2026-11-01時点。Phase 1の段階1を終え、v0.1.0-alpha.2をプレリリースとして公開した。実態が変わったら更新する
+- ステータス: 2026-11-02時点。Phase 1の段階1を終えてv0.1.0-alpha.2を公開し、段階2(`/p`のプレビュー)を進めている。実態が変わったら更新する
 - 対象: 後から参加する開発者(人間・AIエージェント)
 - 関連: [README](../../README.md)、[AGENTS.md](../../AGENTS.md)、[ドキュメント一覧](../README.md)
 
@@ -13,9 +13,9 @@
 | 開発環境の準備 | [5.1](#51-ローカルでのビルドとテスト)の前提のツール | 整備済み |
 | ビルド | [5.1](#51-ローカルでのビルドとテスト) | 整備済み |
 | テスト(自動テスト) | [5.1](#51-ローカルでのビルドとテスト)、[8](#8-windows実機での確認) | 整備済み |
-| 実行と動作確認(`/s`・`/c`・`/p`と長いオプション) | [5.2](#52-実行と動作確認) | 整備済み(`/p`はまだ何もしない。Phase 1の段階2で作る) |
+| 実行と動作確認(`/s`・`/c`・`/p`と長いオプション) | [5.2](#52-実行と動作確認) | 整備済み |
 | ログの確認 | [5.3](#53-ログとデバッグ) | 整備済み |
-| デバッガによるデバッグ | [5.3](#53-ログとデバッグ) | 未整備(公式ドキュメントに接続できないため。接続を許可したあとの、Phase 1の段階2のPRで書く) |
+| デバッガによるデバッグ | [5.3](#53-ログとデバッグ) | 整備済み |
 | トラブルシューティング | [5.4](#54-トラブルシューティング) | 整備済み |
 | 変更の進め方(ブランチ、コミット、レビュー、マージ) | [3](#3-開発の進め方)、[4](#4-レビューとマージ) | 整備済み |
 | リリース | [8](#8-windows実機での確認)、[計画の7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順) | 整備済み(プレリリースだけ。正式なリリースはarm64のビルドを加えてから) |
@@ -28,8 +28,8 @@ Flying Microwaveは、電子レンジが画面を飛ぶWindowsスクリーンセ
 現在の状況:
 
 - 実装計画: 合意済み。[0001: 初期実装計画](../plans/0001-initial-implementation-plan.md)に従って進める
-- 次の作業: Phase 1の段階2(`/p`のプレビュー、Settingsのメッセージ、GPUのない環境での確認S6)
-- コード: `/s`で仮の図形の電子レンジが飛ぶ、最初に動く版がある(`crates/core`と`crates/app`)
+- 次の作業: Phase 1の段階2の仕上げ(`/p`のプレビューの実機での確認)と、段階3(配布の準備、GPUのない環境での確認S6、v0.1.0)
+- コード: `/s`の全画面と`/p`のプレビュー枠で、仮の図形の電子レンジが飛ぶ(`crates/core`と`crates/app`)
 - ライセンス: MIT([LICENSE](../../LICENSE)、[ADR-0005](../adr/0005-license-mit.md))
 - リリース: 基本機能から段階的に実装し、フェーズごとにセマンティックバージョニングでGitHub Releaseを公開する。最初のリリースはv0.1.0(Phase 1)
 - 公開: リポジトリは将来公開する。ドキュメントやコミットは公開される前提で書く
@@ -200,7 +200,7 @@ python3 -I scripts/check_hooks.py
 
 - `flying-microwave.exe /s`: スクリーンセーバーとして、すべてのモニタを覆って動く。キーの押下、マウスのボタンやホイール、タッチ、マウスを16ピクセル以上動かしたとき、ほかのウィンドウが前面に出たときに終了する。起動直後の0.5秒間のマウスの動きは無視する。
 - `flying-microwave.exe /c`: 設定は今後のバージョンで追加する旨のメッセージを表示する。`.scr`を引数なしで起動したときも同じ。
-- `flying-microwave.exe /p <ウィンドウの番号>`: プレビューは、まだ何もしない(Phase 1の段階2で作る)。ウィンドウの番号がないか不正なときは、`/c`と同じメッセージになる。
+- `flying-microwave.exe /p <ウィンドウの番号>`: 指定したウィンドウのクライアント領域に子ウィンドウを作り、プレビューを表示する。入力は無視し、親のウィンドウが閉じられたとき(500ミリ秒ごとに確かめる)か、自分のウィンドウが閉じられたときに終了する。ウィンドウの番号はスクリーンセーバーの設定画面が渡すので、ふつうは設定画面のプレビュー枠で確かめる(5.1の手順4)。番号が有効なウィンドウでないときは、何も表示せず終了コード2で終わる。番号がないか数字でないときは、`/c`と同じメッセージになる。
 - `--settings`: `/c`と同じメッセージになる。`--window`と`--fullscreen`: 単独のアプリとしては、まだ動かない旨のメッセージになる(単独のアプリはPhase 6で判断する)。
 - 引数なしの`flying-microwave.exe`: 単独のアプリとしては動かない旨のメッセージを表示する。
 - スクリーンセーバーの設定画面から動作を確認するには、5.1の手順4のとおり`.scr`にしてインストールする。
@@ -221,7 +221,28 @@ python3 -I scripts/check_hooks.py
   cargo build --locked --target x86_64-pc-windows-msvc
   ```
 
-- デバッガ: 未整備。MSVCのターゲットでビルドしたRustの実行ファイルは、Windowsのデバッガで調べられるはずだが、使い方(Visual Studio、VS CodeのC/C++の拡張など)を公式ドキュメントで確かめられていない(この環境から`learn.microsoft.com`と`code.visualstudio.com`に接続できなかった)。6.5の推奨のドメインに`learn.microsoft.com`と`code.visualstudio.com`を加えて接続を許可したあと、Phase 1の段階2のPRで、この項目を書く。なお、`/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。
+- デバッガ: MSVCのターゲットでビルドしたRustの実行ファイルは、Windowsのデバッガで調べられる。デバッグのビルドを使う。
+  - VS Code: rust-analyzerと、Windowsでは「Microsoft C++」拡張(`ms-vscode.cpptools`)を入れる([VS CodeのRustの説明](https://code.visualstudio.com/docs/languages/rust))。`.vscode/launch.json`に、Visual StudioのWindowsのデバッガ(`cppvsdbg`)の構成を置く([launch.jsonのリファレンス](https://code.visualstudio.com/docs/cpp/launch-json-reference))。
+
+    ```json
+    {
+      "version": "0.2.0",
+      "configurations": [
+        {
+          "name": "Flying Microwave /s",
+          "type": "cppvsdbg",
+          "request": "launch",
+          "program": "${workspaceFolder}/target/x86_64-pc-windows-msvc/debug/flying-microwave.exe",
+          "args": ["/s"],
+          "cwd": "${workspaceFolder}"
+        }
+      ]
+    }
+    ```
+
+  - Visual Studio: 「File > Open > Project」で実行ファイル(`.exe`)を開き、「Debug > Start Debugging」で始める([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/how-to-debug-an-executable-not-part-of-a-visual-studio-solution))。
+  - プレビュー(`/p`)は、設定画面がウィンドウの番号を渡して起動するので、デバッガから起動できない。設定画面でスクリーンセーバーを選んでプレビューを動かし、そのプロセス(`FlyingMicrowave.scr`)にあとからデバッガを接続する。Visual Studioでは「Debug > Attach to Process」(Ctrl+Alt+P)を使う([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/attach-to-running-processes-with-the-visual-studio-debugger))。VS Codeでは、`cppvsdbg`の`"request": "attach"`の構成で、`processId`を既定の`${command:pickProcess}`のままにして、一覧から選ぶ([launch.jsonのリファレンス](https://code.visualstudio.com/docs/cpp/launch-json-reference))。
+  - 注意: `/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。ブレークポイントで止めて調べるときは、`/c`や`/p`で動く部分を対象にするか、ログ(上の項目)と組み合わせる。
 
 ### 5.4 トラブルシューティング
 
@@ -229,7 +250,9 @@ python3 -I scripts/check_hooks.py
 - ビルドでリンカが見つからない: Visual Studio Build Toolsの「C++ によるデスクトップ開発」が入っているかを確かめる(5.1の前提のツール)。
 - 依存の7日の検査が通らない: 公開から7日たっていない版を使っている。7日以上前に公開された版を選ぶか、7日たつまで待つ(6.3の「依存の公開からの日数」)。
 - フックの検査が通らない: `jq`が入っているか、Git Bashの中で実行しているかを確かめる(6.3)。
-- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`screensaver ended:`の行がある。この行がなく途中で切れていれば、panicなどで異常終了している。
+- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。この行がなく途中で切れていれば、panicなどで異常終了している。
+- プレビューの終了の理由: ログの`preview exit:`の行に出る。終了コードは、0が正常、2が親のウィンドウが無効(引数の番号が不正か、すでに閉じられていた)、4が初期化の失敗、6がGPUの初期化が15秒で終わらなかったことを表す。
+- プレビューのプロセスが残る: 設定画面を閉じたあとも、タスクマネージャーに`FlyingMicrowave.scr`が残っていれば、ログの最後の行を添えて報告する。通常は、親のウィンドウが閉じられてから500ミリ秒以内に終了する。
 
 ## 6. AIエージェントとの協働
 

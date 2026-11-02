@@ -6,7 +6,6 @@
 //! [`flying_microwave_core::exit_policy`].
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use flying_microwave_core::exit_policy::{self, Decision, Event, ExitPolicy};
@@ -95,7 +94,7 @@ pub fn run() -> i32 {
 }
 
 /// Width divided by height (1.0 for an empty size).
-fn aspect_of(size: PhysicalSize<u32>) -> f32 {
+pub(crate) fn aspect_of(size: PhysicalSize<u32>) -> f32 {
     if size.height == 0 {
         1.0
     } else {
@@ -104,7 +103,7 @@ fn aspect_of(size: PhysicalSize<u32>) -> f32 {
 }
 
 /// A seed that differs between runs and between monitors.
-fn seed(index: usize) -> u64 {
+pub(crate) fn seed(index: usize) -> u64 {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos() as u64);
@@ -202,7 +201,7 @@ impl SaverApp {
 
     /// Initializes wgpu for every window. On failure the windows stay black (W-9).
     fn init_gpu(&mut self) {
-        let _watchdog = Watchdog::start(GPU_INIT_TIMEOUT);
+        let _watchdog = render::Watchdog::start(GPU_INIT_TIMEOUT, EXIT_GPU_INIT_TIMEOUT);
         let result = render::guarded("GPU initialization", || {
             let instance = render::create_instance();
             let surfaces: Vec<_> = self
@@ -255,38 +254,6 @@ impl SaverApp {
         } else {
             w.retry_at = Some(now + RETRY_DELAY);
         }
-    }
-}
-
-/// Ends the process if GPU initialization hangs. Dropping it disarms it.
-struct Watchdog {
-    finished: Arc<AtomicBool>,
-}
-
-impl Watchdog {
-    fn start(timeout: Duration) -> Self {
-        let finished = Arc::new(AtomicBool::new(false));
-        let flag = Arc::clone(&finished);
-        // A thread, because a hung driver call also blocks the event loop.
-        let spawned = std::thread::Builder::new()
-            .name("gpu-init-watchdog".to_owned())
-            .spawn(move || {
-                std::thread::sleep(timeout);
-                if !flag.load(Ordering::SeqCst) {
-                    log!("GPU initialization timed out; exiting");
-                    win::terminate_now(EXIT_GPU_INIT_TIMEOUT);
-                }
-            });
-        if let Err(e) = spawned {
-            log!("watchdog thread could not start: {e}");
-        }
-        Self { finished }
-    }
-}
-
-impl Drop for Watchdog {
-    fn drop(&mut self) {
-        self.finished.store(true, Ordering::SeqCst);
     }
 }
 
