@@ -7,7 +7,8 @@
 # first release made with this workflow, or after a failed run).
 #
 # Security (same rules as ci.yml, plus):
-# - the check and build jobs have a read-only token; only the publish job can
+# - the check and build jobs have a read-only token (the build job can also
+#   read the artifacts of the run, for the SBOM); only the publish job can
 #   write, and it runs no code from this repository or its dependencies, so a
 #   compromised build dependency never gets a token that writes,
 # - the publish job uses the gh CLI of the runner image instead of another
@@ -91,6 +92,40 @@ jobs:
             --crate "cargo-about@${CARGO_ABOUT_VERSION}" \
             tag/Cargo.lock "$RUNNER_TEMP/$tool/Cargo.lock"
 
+      # SPDX 2.3 SBOMs of the executable, one per target (ADR-0021). Made
+      # here and not in the build jobs, so that the script comes from the
+      # workflow's commit like the other checks, and runs on the Python of
+      # this runner (the Python of the arm64 runner is not documented).
+      # cargo only reads the tagged commit here (metadata and tree run no
+      # build script). The creation time is the commit time, so the same
+      # commit gives the same documents; the namespace is unique per
+      # release, target and commit.
+      - name: Install toolchain from rust-toolchain.toml
+        working-directory: tag
+        run: rustup toolchain install
+
+      - name: SBOM
+        env:
+          SHA: ${{ steps.tag.outputs.sha }}
+        run: |
+          created=$(TZ=UTC0 git -C tag log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ)
+          version="${TAG#v}"
+          mkdir -p "$RUNNER_TEMP/sbom"
+          for pair in x64:x86_64-pc-windows-msvc arm64:aarch64-pc-windows-msvc; do
+            arch="${pair%%:*}"
+            target="${pair#*:}"
+            python3 -I scripts/make_sbom.py --root tag --target "$target" --created "$created" \
+              --namespace "https://github.com/$GITHUB_REPOSITORY/releases/$TAG/sbom/$arch/$SHA" \
+              --out "$RUNNER_TEMP/sbom/FlyingMicrowave-$version-windows-$arch.spdx.json"
+          done
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: ${{ runner.temp }}/sbom/
+          if-no-files-found: error
+          retention-days: 7
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-notes
@@ -106,6 +141,10 @@ jobs:
     needs: check
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
+    # actions: read is for downloading the SBOM artifact of this run.
+    permissions:
+      contents: read
+      actions: read
     strategy:
       fail-fast: false
       matrix:
@@ -213,21 +252,21 @@ jobs:
           Copy-Item LICENSE package/LICENSE.txt
           Copy-Item packaging/windows/README.md package/README.md
 
-      # SPDX 2.3 SBOM of the executable for this target (scripts/make_sbom.py).
-      # The creation time is the commit time, so a rebuild of the same commit
-      # gives the same document; the namespace is unique per release and target.
+      # The SBOMs are made by the check job (scripts/make_sbom.py). Why gh
+      # and not another action: same as the publish job (docs/incidents/0007).
+      # The token is given to this step only, so the other steps (which run
+      # the code of the dependencies) never see it.
       - name: SBOM
         shell: pwsh
         env:
           ARCH: ${{ matrix.arch }}
-          TARGET: ${{ matrix.target }}
-          SHA: ${{ needs.check.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
+          gh run download $env:GITHUB_RUN_ID --name sbom --dir sbom
+          if ($LASTEXITCODE -ne 0) { throw 'gh run download failed' }
           $version = $env:TAG.Substring(1)
-          $created = [DateTimeOffset]::FromUnixTimeSeconds([long](git log -1 --format=%ct)).UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ssZ')
-          $namespace = "https://github.com/$env:GITHUB_REPOSITORY/releases/$env:TAG/sbom/$env:ARCH/$env:SHA"
-          python -I scripts/make_sbom.py --target $env:TARGET --created $created --namespace $namespace --out "package/FlyingMicrowave-$version-windows-$env:ARCH.spdx.json"
-          if ($LASTEXITCODE -ne 0) { throw 'make_sbom.py failed' }
+          Copy-Item "sbom/FlyingMicrowave-$version-windows-$env:ARCH.spdx.json" package/ -ErrorAction Stop
 
       # Same steps as the manual run of ci.yml (plan 0002, T-2).
       - name: License notices
