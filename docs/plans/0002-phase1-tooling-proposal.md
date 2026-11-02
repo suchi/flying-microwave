@@ -75,6 +75,7 @@ flowchart LR
     - clang: cargo-about 0.9.2が使うring 0.17.14は、Windowsのarm64では、Cのコードをclangでコンパイルする(`build.rs`)。clangがPATHになければ、イメージのLLVM(`C:\Program Files\LLVM\bin`)をPATHに加える。
   - 正式なリリースのタグを受け付ける。プレリリースでもarm64をビルドする。
   - 下書きを作るジョブは、2つのzipがそろっていることを確かめてから`SHA256SUMS.txt`を作る。
+- 2026-11-02の変更(作業13): 利用者向けの説明書を、テキスト形式の`README.txt`からMarkdownの`README.md`に変え(メンテナーの判断)、zipに入れるようにした。上の構成の`README.txt`は、`README.md`と読み替える。
   - リリースノートの最後に、arm64版は動作を保証しないことと、行った確認を書いた節を付ける(ADR-0016)。
 
 ## 確認事項(メンテナーの判断を待っているもの)
