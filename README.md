@@ -1,3 +1,5 @@
+![Flying Microwave](docs/assets/banner.svg)
+
 # Flying Microwave
 
 電子レンジが画面を飛び回るWindows用のスクリーンセーバー。昔の、家電が空を飛ぶスクリーンセーバーに着想を得た独自の作品で、それらの再現や移植ではない。
