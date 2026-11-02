@@ -213,6 +213,22 @@ jobs:
           Copy-Item LICENSE package/LICENSE.txt
           Copy-Item packaging/windows/README.md package/README.md
 
+      # SPDX 2.3 SBOM of the executable for this target (scripts/make_sbom.py).
+      # The creation time is the commit time, so a rebuild of the same commit
+      # gives the same document; the namespace is unique per release and target.
+      - name: SBOM
+        shell: pwsh
+        env:
+          ARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+          SHA: ${{ needs.check.outputs.sha }}
+        run: |
+          $version = $env:TAG.Substring(1)
+          $created = [DateTimeOffset]::FromUnixTimeSeconds([long](git log -1 --format=%ct)).UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ssZ')
+          $namespace = "https://github.com/$env:GITHUB_REPOSITORY/releases/$env:TAG/sbom/$env:ARCH/$env:SHA"
+          python -I scripts/make_sbom.py --target $env:TARGET --created $created --namespace $namespace --out "package/FlyingMicrowave-$version-windows-$env:ARCH.spdx.json"
+          if ($LASTEXITCODE -ne 0) { throw 'make_sbom.py failed' }
+
       # Same steps as the manual run of ci.yml (plan 0002, T-2).
       - name: License notices
         shell: pwsh
