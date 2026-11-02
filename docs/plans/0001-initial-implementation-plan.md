@@ -160,7 +160,7 @@ flowchart LR
 1. バージョンを上げるPRを作る(`Cargo.toml`のバージョンとCHANGELOGの`## vX.Y.Z (日付)`の節。実行ファイルのバージョン情報は`build.rs`で`Cargo.toml`から生成し、二重管理しない)。利用者向けREADMEを確定し、冒頭の下書きの印と注記を消す(作業13)。
 2. 共通のリリース条件を満たし、メンテナーの承認を得てからマージする。
 3. メンテナーが、`main`のそのコミットに`vX.Y.Z`のタグを付ける(タグはルールセットで保護されている)。
-4. タグのプッシュで、リリースのワークフロー(`release.yml`)が動く。検査のジョブは、タグと`Cargo.toml`のバージョン、CHANGELOGの節、利用者向けREADMEに下書きの印がないことを確かめる。ビルドのジョブは、x64とarm64のzip(実行ファイル、`README.md`、`LICENSE.txt`、`THIRD-PARTY-LICENSES.txt`)を作り、下書きを作るジョブが`SHA256SUMS.txt`とGitHub Releaseの下書きを作る。リリースノートの最後には、arm64版についての決まった節が付く。失敗したときは、7.3の手順3と同じく、エージェントが`main`から手動実行する(D-23)。
+4. タグのプッシュで、リリースのワークフロー(`release.yml`)が動く。検査のジョブは、タグと`Cargo.toml`のバージョン、CHANGELOGの節、利用者向けREADMEに下書きの印がないことを確かめる。ビルドのジョブは、x64とarm64のzip(実行ファイル、`README.md`、`LICENSE.txt`、`THIRD-PARTY-LICENSES.txt`、SBOMの`.spdx.json`)を作り、下書きを作るジョブが`SHA256SUMS.txt`とGitHub Releaseの下書きを作る。リリースノートの最後には、arm64版についての決まった節が付く。失敗したときは、7.3の手順3と同じく、エージェントが`main`から手動実行する(D-23)。
 5. メンテナーが下書きの内容を確かめて公開する。arm64のzipは、実機では確かめない(ADR-0016)。
 
 ### 7.3 プレリリースの手順
@@ -381,7 +381,7 @@ flowchart LR
     draft --> publish["maintainer publishes the release"]
 ```
 
-- 配布物(案): `FlyingMicrowave-<version>-windows-x64.zip`、`FlyingMicrowave-<version>-windows-arm64.zip`、`SHA256SUMS.txt`。zipには`FlyingMicrowave.scr`、利用者向けの`README.md`(`packaging/windows/README.md`)、`LICENSE.txt`(ルートの`LICENSE`の写し)、`THIRD-PARTY-LICENSES.txt`を入れる。単独アプリとしての実行を実装したら、`.exe`の同梱方法を決める(ADR-0012)。
+- 配布物(案): `FlyingMicrowave-<version>-windows-x64.zip`、`FlyingMicrowave-<version>-windows-arm64.zip`、`SHA256SUMS.txt`。zipには`FlyingMicrowave.scr`、利用者向けの`README.md`(`packaging/windows/README.md`)、`LICENSE.txt`(ルートの`LICENSE`の写し)、`THIRD-PARTY-LICENSES.txt`、SBOM(`FlyingMicrowave-<version>-windows-<arch>.spdx.json`。SPDX 2.3のJSON。D-29、[ADR-0021](../adr/0021-spdx-sbom-with-own-script.md))を入れる。単独アプリとしての実行を実装したら、`.exe`の同梱方法を決める(ADR-0012)。
 - `.scr`単体はメールやブラウザで危険なファイルとして扱われやすいため、zipで配布する。
 - ワークフローの安全対策: ActionsはコミットSHAで固定する、ジョブごとの`permissions`を最小にする、`--locked`でビルドする、リリース用のタグを保護する。リリースのワークフローではビルドのキャッシュを復元せず、毎回最初からビルドする(CIのキャッシュは[ADR-0017](../adr/0017-ci-build-cache-and-x64-spike-builds.md))。
 - ビルドの出所を検証できるよう、GitHubのアーティファクト証明(artifact attestations)を付ける。非公開リポジトリで利用できるプランは限られるとレビューで指摘されており(GitHubのドキュメントは調査環境から接続できず未確認)、利用できない間は付けない。利用するActionは実装時に公式ドキュメントで確認する[GH-1]。
@@ -457,6 +457,7 @@ flowchart LR
 | D-26 | Phase 3の本番の絵の作り手と方向 | 2026-11-02に決定。エージェントがSVGで描き、メンテナーが見た目を確かめて承認する。往年の空飛ぶ家電のスクリーンセーバーくらいの、立体的で本物らしい3Dの表現にするが、適度に簡略化し、全体としてはモダンでクールな印象にする。着想元の絵柄そのものには似せず、立体感の程度という表現の水準だけを参考にする(IP-1〜IP-5、G-1) | 懸念事項のK-09、[ビジュアルデザイン方針](../design/visual-design.md) |
 | D-27 | 設計の文書と、Phase 1の実装の違い | 2026-11-02に決定。v0.1.0の前の`/consistency-check`で見つかった3点は、実機で動いている実装を正とし、アーキテクチャの文書を実装に合わせる。(1) 構成: `platform`モジュールと、モードごとの表示ポリシー(A-2、A-8)はまだ作らず、Windowsの処理は`win.rs`に、モードごとの処理は`saver.rs`と`preview.rs`に置く。モードごとの終了の判定だけは`core::exit_policy`の`Mode`で分けている。整理は、2つ目のOSか単独アプリ(F-12)に着手するときに行う(先回りの抽象化をしない、YAGNI)。(2) 描画: 仮素材の四角は、シェーダーを使わず、バッファからテクスチャへのコピーで描く。インスタンス描画はPhase 3の素材(テクスチャアトラス)で導入する。(3) GPUの初期化が15秒で終わらないときは、黒い画面のまま待たずに、プロセスを終了する(終了コード6)。ドライバの呼び出しが戻らない場合に、プロセスと覆った画面が残り続けないようにするため | [アーキテクチャ](../design/architecture.md)、[incidents 0011](../incidents/0011-log-written-against-requirement.md) |
 | D-28 | 技術スパイク(`spikes/`)の扱い | 2026-11-02に決定。Phase 2の終わりに、`spikes/`とスパイクのワークフロー(`spikes.yml`)を削除する。設定画面のスパイクは、Phase 2の設定画面の参考になるため、それまで残す。削除のときにも、メンテナーの承認を得る(破壊的な操作のため) | [スパイクのREADME](../../spikes/README.md) |
+| D-29 | リリースの成果物のSBOM | 2026-11-02に決定。メンテナーの依頼で、v0.1.0から、リリースのzipごとに、実行ファイルのSBOM(SPDX 2.3のJSON)を入れる。作る道具は、Pythonの標準ライブラリだけの自前のスクリプト(`scripts/make_sbom.py`)とする | [ADR-0021](../adr/0021-spdx-sbom-with-own-script.md) |
 
 ### 12.1 あわせて決めた運用ルール(AGENTS.mdに反映)
 

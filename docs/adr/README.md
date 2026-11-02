@@ -49,3 +49,4 @@
 | [0018](0018-review-before-opening-pr.md) | 敵対的レビューをPRを作る前に行う | 採用 | 2026-11-01 |
 | [0019](0019-screensaver-windows-without-winit-fullscreen.md) | `/s`のウィンドウを、winitの全画面の指定を使わずに作る | 採用 | 2026-11-01 |
 | [0020](0020-windows-resources-with-embed-resource.md) | Windowsのリソースを、embed-resourceで自分で書いた`.rc`から埋め込む | 採用 | 2026-11-02 |
+| [0021](0021-spdx-sbom-with-own-script.md) | リリースのSBOMを、SPDX 2.3の形式で、自前のスクリプトで作る | 採用 | 2026-11-02 |
