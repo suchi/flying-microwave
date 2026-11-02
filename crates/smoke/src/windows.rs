@@ -231,9 +231,16 @@ fn screensaver_ends_on_key(env: &Env) -> Result<(), String> {
         if let Some(code) = target.exited()? {
             return Err(format!("ended (exit code {code}) before any input"));
         }
+        // Why only full-screen windows: winit also keeps a visible 0x0 window
+        // for its own messages until the process ends (winit 0.30.13,
+        // create_event_target_window), which is not part of the screen.
+        let shown = || windows_of(target.pid()).iter().any(|w| w.covers_screen);
+        if !shown() {
+            return Err("no full-screen window is shown before the input".to_owned());
+        }
         send_key(VK_SPACE)?;
         let start = Instant::now();
-        while !windows_of(target.pid()).is_empty() {
+        while shown() {
             if start.elapsed() > EXIT_AFTER_INPUT {
                 return Err(format!(
                     "the screen is still shown {} ms after the key press",
@@ -249,10 +256,11 @@ fn screensaver_ends_on_key(env: &Env) -> Result<(), String> {
             gone.as_millis(),
             start.elapsed().as_millis()
         );
+        let reason = expect_reason(&target.progress(), &["KeyPressed { synthetic: false }"]);
         if code != 0 {
             return Err(format!("exit code {code}"));
         }
-        expect_reason(&target.progress(), &["KeyPressed { synthetic: false }"])?;
+        reason?;
         if gone > GONE_AFTER_INPUT {
             return Err(format!(
                 "the screen was gone {} ms after the key press (limit {} ms)",
@@ -274,10 +282,11 @@ fn preview_ends_with_parent(env: &Env) -> Result<(), String> {
         drop(parent.take());
         let (code, elapsed) = target.wait_exit(EXIT_AFTER_PARENT_GONE)?;
         println!("  parent destroyed to exit: {} ms", elapsed.as_millis());
+        let reason = expect_reason(&target.progress(), &["WindowDestroyed", "ParentGone"]);
         if code != 0 {
             return Err(format!("exit code {code}"));
         }
-        expect_reason(&target.progress(), &["WindowDestroyed", "ParentGone"])
+        reason
     })
 }
 
