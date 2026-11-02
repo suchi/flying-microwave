@@ -109,6 +109,7 @@ class MainTest(unittest.TestCase):
                 self.assertIn("### arm64版について", notes)
                 self.assertIn(f"FlyingMicrowave-{tag[1:]}-windows-arm64.zip", notes)
                 self.assertIn("動作を保証しない", notes)
+                self.assertIn("スモークテスト)と、実機での確認はしていない", notes)
 
     def test_fails_without_a_changelog_section(self):
         cargo = CARGO.replace("0.1.0-alpha.2", "0.2.0-alpha.1")
