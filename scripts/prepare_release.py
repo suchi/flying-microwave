@@ -4,9 +4,9 @@
 Used by .github/workflows/release.yml before anything is built. The tag must
 be vX.Y.Z or vX.Y.Z-alpha.N (plan 0001, section 7.3), must match the
 workspace version in Cargo.toml, and CHANGELOG.md must have a non-empty
-section "## vX.Y.Z... (date)" for it. The section body becomes the notes.
-Only pre-releases are accepted for now: a full release also needs the arm64
-build (ADR-0016), which the workflow does not have yet.
+section "## vX.Y.Z... (date)" for it. The section body becomes the notes,
+followed by a fixed section on the arm64 build, which every release ships
+without guarantee (ADR-0016).
 
 Usage:
     python3 -I scripts/prepare_release.py TAG [--root DIR] [--notes FILE]
@@ -55,6 +55,16 @@ def release_notes(changelog_text, version):
     return None
 
 
+def arm64_notes(version):
+    """The section that every release note ends with (ADR-0016)."""
+    return (
+        "\n### arm64版について\n\n"
+        f"`FlyingMicrowave-{version}-windows-arm64.zip`は、動作を保証しない。"
+        "リリースのワークフローで、Windows 11のarm64のランナーでのビルド、自動テスト、"
+        "依存DLLの確認、バージョン情報の確認だけを行った。実機での確認はしていない。\n"
+    )
+
+
 def use_utf8_output():
     # Why: same as check_publish_age.py; a Windows pipe is cp1252 and strict.
     for stream in (sys.stdout, sys.stderr):
@@ -74,11 +84,6 @@ def main(argv=None):
     if version is None:
         print(f"タグの形が正しくない: {args.tag!r}(vX.Y.Z か vX.Y.Z-alpha.N)", file=sys.stderr)
         return 1
-    if not is_prerelease(version):
-        # Why: a full release ships arm64 too and must never omit it silently
-        # (ADR-0016). Until the release workflow builds arm64, refuse.
-        print(f"{args.tag}は正式なリリースだが、リリースのワークフローはまだarm64をビルドしない(ADR-0016)", file=sys.stderr)
-        return 1
     root = pathlib.Path(args.root)
     cargo = workspace_version((root / "Cargo.toml").read_text(encoding="utf-8"))
     if cargo != version:
@@ -88,7 +93,7 @@ def main(argv=None):
     if notes is None:
         print(f"CHANGELOG.mdに「## v{version} (日付)」の節がないか、中身が空", file=sys.stderr)
         return 1
-    pathlib.Path(args.notes).write_text(notes, encoding="utf-8")
+    pathlib.Path(args.notes).write_text(notes + arm64_notes(version), encoding="utf-8")
     kind = "プレリリース" if is_prerelease(version) else "リリース"
     print(f"{args.tag}({kind})のリリースノートを{args.notes}に書いた")
     return 0
