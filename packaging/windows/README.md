@@ -1,12 +1,6 @@
-<!-- draft -->
-
 # Flying Microwave
 
 [日本語](#日本語) | [English](#english)
-
-> この説明書は下書きです。正式なリリースまでに、Windows 11 で手順を確かめて確定します。
->
-> This document is a draft. It will be finalized after the steps are checked on Windows 11, before the first full release.
 
 ## 日本語
 
