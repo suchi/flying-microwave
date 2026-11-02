@@ -148,6 +148,22 @@ jobs:
           $bad = $out | Select-String -Pattern '(?i)\b(vcruntime|msvcp|concrt|vccorlib|ucrtbase)\w*\.dll\b|\bapi-ms-win-crt-'
           if ($bad) { throw "Dynamic C runtime dependency found: $bad" }
 
+      # The version information from build.rs must be in the executable
+      # (plan 0002, T-1). Without it the resource compiler was not run.
+      - name: Check version information
+        shell: pwsh
+        run: |
+          $meta = cargo metadata --no-deps --format-version 1 --locked --offline | ConvertFrom-Json
+          $version = ($meta.packages | Where-Object name -eq 'flying-microwave').version
+          if (-not $version) { throw 'version of flying-microwave was not found' }
+          $exe = Resolve-Path 'target/${{ matrix.target }}/release/flying-microwave.exe'
+          $info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
+          $info | Format-List ProductName, FileDescription, ProductVersion, FileVersion, IsPreRelease | Out-String | Write-Output
+          if ($info.ProductVersion -ne $version) { throw "ProductVersion is '$($info.ProductVersion)', expected '$version'" }
+          if ($info.FileVersion -ne $version) { throw "FileVersion is '$($info.FileVersion)', expected '$version'" }
+          if ($info.ProductName -ne 'Flying Microwave') { throw "ProductName is '$($info.ProductName)'" }
+          if ($info.IsPreRelease -ne $version.Contains('-')) { throw "IsPreRelease is $($info.IsPreRelease) for $version" }
+
       - name: Package
         shell: pwsh
         run: |
