@@ -1,12 +1,6 @@
-<!-- draft -->
-
 # Flying Microwave
 
 [日本語](#日本語) | [English](#english)
-
-> この説明書は下書きです。正式なリリースまでに、Windows 11 で手順を確かめて確定します。
->
-> This document is a draft. It will be finalized after the steps are checked on Windows 11, before the first full release.
 
 ## 日本語
 
@@ -46,7 +40,8 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 - このファイルにはコード署名がありません。Windows の SmartScreen が警告を表示することがあり、Smart App Control が強制モードの環境ではブロックされる可能性が高いです。
 - 管理されている PC では、グループ ポリシーによってスクリーン セーバーを選べない場合があります。
-- arm64 版は実機で確認していません。自動の確認だけを行っており、動作を保証せずに提供しています。行った確認は、リリース ノートを参照してください。
+- この版は、x64 版も含めて、Windows 11 の実機での動作の確認をしていません。自動の確認だけを行っています。行った確認は、リリース ノートを参照してください。
+- arm64 版は、動作を保証せずに提供しています。
 
 ### プライバシー
 
@@ -101,7 +96,8 @@ Open Screen Saver Settings, select FlyingMicrowave, and click Settings. The curr
 
 - The file is not code-signed. Windows SmartScreen may show a warning, and Smart App Control in enforcement mode is likely to block it.
 - Group Policy on managed PCs may prevent you from choosing a screen saver.
-- The arm64 build is not tested on real hardware. It is only checked automatically, and it is provided without any guarantee that it works. See the release notes for the checks.
+- This version, including the x64 build, has not been tested on real Windows 11 hardware. It has only been checked automatically. See the release notes for the checks.
+- The arm64 build is provided without any guarantee that it works.
 
 ### Privacy
 
