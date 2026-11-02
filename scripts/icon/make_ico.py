@@ -4,7 +4,8 @@ Each size is rendered from the SVG with the resvg command (ADR-0008, the
 same renderer as the artwork in Phase 3) instead of being scaled down from
 one large image, so that small sizes stay sharp. The images are stored in
 the .ico as PNG, which Windows Vista and later read. Only the Python
-standard library is used. Usage (from the repository root):
+standard library is used. Messages are in Japanese because the maintainer
+reads them (AGENTS.md). Usage (from the repository root):
 
     python3 -I scripts/icon/make_ico.py
 """
@@ -49,11 +50,11 @@ def ico(images: list[bytes]) -> bytes:
 def main() -> int:
     resvg = shutil.which("resvg")
     if resvg is None:
-        print(f"resvg is not installed: cargo install --locked resvg --version {RESVG_VERSION}", file=sys.stderr)
+        print(f"resvgが入っていない: cargo install --locked resvg --version {RESVG_VERSION}", file=sys.stderr)
         return 1
     version = subprocess.run([resvg, "--version"], check=True, capture_output=True, text=True).stdout.strip()
     if version != RESVG_VERSION:
-        print(f"resvg {version} is installed; {RESVG_VERSION} is expected", file=sys.stderr)
+        print(f"resvgの版が{version}になっている({RESVG_VERSION}が要る)", file=sys.stderr)
         return 1
     images = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -62,11 +63,11 @@ def main() -> int:
             subprocess.run([resvg, "-w", str(size), "-h", str(size), str(SVG), str(png)], check=True)
             data = png.read_bytes()
             if png_size(data) != (size, size):
-                print(f"{png.name} is {png_size(data)}, not {size}x{size}", file=sys.stderr)
+                print(f"{png.name}の大きさが{png_size(data)}になっている({size}x{size}が要る)", file=sys.stderr)
                 return 1
             images.append(data)
     ICO.write_bytes(ico(images))
-    print(f"wrote {ICO.relative_to(ROOT)}")
+    print(f"{ICO.relative_to(ROOT)}を書いた")
     return 0
 
 

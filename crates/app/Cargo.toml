@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 flying-microwave-core = { path = "../core" }
 
-# The screensaver itself is Windows only (ADR-0006). On other hosts the
+# The screensaver itself is Windows only (ADR-0016). On other hosts the
 # binary builds without these, so the workspace can be checked on Linux.
 [target.'cfg(windows)'.dependencies]
 # Why: exact pins, because 0.x crates can break on minor updates. The versions
