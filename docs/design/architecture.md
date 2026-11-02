@@ -77,7 +77,8 @@ Cargoワークスペースで2つのcrateに分ける。描画モジュールも
 | `.cargo/config.toml` | Windowsターゲットの`+crt-static`などビルド設定 |
 | `crates/core/` | `flying-microwave-core`。OS・GPUに依存しない純粋なロジック |
 | `crates/app/` | `flying-microwave`。実行ファイル(起動モード、描画、設定画面、設定ファイル入出力、プラットフォーム固有処理) |
-| `crates/app/build.rs` | Windowsリソース(アイコン、バージョン情報、String Tableの序数1)の埋め込み |
+| `crates/app/build.rs` | Windowsリソース(アイコン、バージョン情報、String Tableの序数1)の埋め込み。バージョン情報は`Cargo.toml`のバージョンから生成する |
+| `crates/app/res/` | リソース定義ファイル(`app.rc`)と、アイコン(`icon.svg`と、そこから作る`flying-microwave.ico`) |
 | `assets/sprites/` | SVG素材と、作者・ライセンスを記録する`README.md`(Phase 3から) |
 | `spikes/` | Phase 0の技術スパイク。ワークスペースには含めず、製品コードから参照しない(Phase 0の終了時に削除するか残すかを決める) |
 
