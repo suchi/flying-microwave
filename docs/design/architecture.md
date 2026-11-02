@@ -70,7 +70,7 @@ flowchart TB
 
 ## crate・ディレクトリ構成
 
-Cargoワークスペースで2つのcrateに分ける。描画モジュールも将来は独立crateにできるが、必要になるまで分けない。
+製品は、Cargoワークスペースの2つのcrate(`core`と`app`)に分ける([ADR-0009](../adr/0009-cargo-workspace-core-and-app.md))。ほかに、製品に含めないテスト用のcrate(`smoke`)がある([計画0003](../plans/0003-v0.1.1-smoke-test.md)のD-1)。描画モジュールも将来は独立crateにできるが、必要になるまで分けない。
 
 | パス | 内容 |
 | --- | --- |
