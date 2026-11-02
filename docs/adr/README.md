@@ -48,3 +48,4 @@
 | [0017](0017-ci-build-cache-and-x64-spike-builds.md) | CIでビルドをキャッシュし、スパイクのビルドをx64に限る | 採用 | 2026-11-01 |
 | [0018](0018-review-before-opening-pr.md) | 敵対的レビューをPRを作る前に行う | 採用 | 2026-11-01 |
 | [0019](0019-screensaver-windows-without-winit-fullscreen.md) | `/s`のウィンドウを、winitの全画面の指定を使わずに作る | 採用 | 2026-11-01 |
+| [0020](0020-windows-resources-with-embed-resource.md) | Windowsのリソースを、embed-resourceで自分で書いた`.rc`から埋め込む | 採用 | 2026-11-02 |

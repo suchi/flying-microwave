@@ -37,5 +37,10 @@ windows-sys = { version = "=0.61.2", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 
+# Why: build time only; compiles the .rc file into the executable on Windows
+# and does nothing on other hosts (plan 0002, T-1).
+[build-dependencies]
+embed-resource = "=3.0.12"
+
 [lints]
 workspace = true
