@@ -43,6 +43,8 @@ struct SaverWindow {
     aspect: f32,
     last_frame: Option<Instant>,
     retry_at: Option<Instant>,
+    /// Whether a frame has been presented, for the N-01 log line.
+    presented: bool,
 }
 
 struct SaverApp {
@@ -190,6 +192,7 @@ impl SaverApp {
                 monitor_size: monitor.as_ref().map(|m| m.size()),
                 target: None,
                 last_frame: None,
+                presented: false,
                 retry_at: None,
             });
         }
@@ -249,6 +252,11 @@ impl SaverApp {
         }
         w.last_frame = Some(now);
         if target.draw(gpu, &w.world.instances()) {
+            // N-01 (first animation frame within 1 s) is measured from this line.
+            if !w.presented {
+                w.presented = true;
+                log!("window {}: first frame presented", w.index);
+            }
             // Continuous rendering; the Fifo present paces it to the display.
             w.window.request_redraw();
         } else {
