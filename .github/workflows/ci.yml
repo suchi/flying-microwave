@@ -147,6 +147,11 @@ jobs:
           if (-not ($out | Select-String -Pattern '(?i)\bKERNEL32\.dll\b')) { throw 'dumpbin output does not list KERNEL32.dll' }
           $bad = $out | Select-String -Pattern '(?i)\b(vcruntime|msvcp|concrt|vccorlib|ucrtbase)\w*\.dll\b|\bapi-ms-win-crt-'
           if ($bad) { throw "Dynamic C runtime dependency found: $bad" }
+          # SEC-1: imports are resolved from System32 only (/DEPENDENTLOADFLAG:0x800, build.rs).
+          $config = & $dumpbin /nologo /loadconfig $exe
+          $flag = $config | Select-String -Pattern '(?i)\b(\w+)\s+Dependent Load Flag'
+          $flag | Write-Output
+          if (-not $flag -or [Convert]::ToInt32($flag.Matches[0].Groups[1].Value, 16) -ne 0x800) { throw 'Dependent Load Flag is not 0x800' }
 
       # The version information from build.rs must be in the executable
       # (plan 0002, T-1). Without it the resource compiler was not run.

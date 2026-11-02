@@ -204,6 +204,9 @@ impl PreviewApp {
         self.last_frame = Some(now);
         if target.draw(gpu, &world.instances()) {
             self.frames += 1;
+            if self.frames == 1 {
+                log!("preview: first frame presented");
+            }
             window.request_redraw();
         } else {
             self.retry_at = Some(now + RETRY_DELAY);
