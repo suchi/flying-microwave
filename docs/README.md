@@ -19,7 +19,7 @@
 | ファイル | 対象 |
 | --- | --- |
 | [README.md](../README.md) | リポジトリを見る人 |
-| [packaging/windows/README.txt](../packaging/windows/README.txt) | 配布物の利用者(リリースのzipに同梱する。下書き) |
+| [packaging/windows/README.md](../packaging/windows/README.md) | 配布物の利用者(リリースのzipに`README.md`として同梱する。下書き) |
 | [AGENTS.md](../AGENTS.md) | 開発に参加する人とAIコーディングエージェント(指示とルールの単一ソース) |
 
 ## 計画

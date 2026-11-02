@@ -37,6 +37,10 @@ CHANGELOG = """# 変更履歴
 """
 
 
+README = "# Flying Microwave\n\n## 日本語\n"
+DRAFT_README = "<!-- draft -->\n\n" + README
+
+
 class TagTest(unittest.TestCase):
     def test_release_and_alpha_tags_are_accepted(self):
         self.assertEqual(pr.version_of_tag("v1.2.3"), "1.2.3")
@@ -74,11 +78,14 @@ class NotesTest(unittest.TestCase):
 
 
 class MainTest(unittest.TestCase):
-    def run_main(self, tag, cargo=CARGO, changelog=CHANGELOG):
+    def run_main(self, tag, cargo=CARGO, changelog=CHANGELOG, readme=README):
         with tempfile.TemporaryDirectory() as d:
             root = pathlib.Path(d)
             (root / "Cargo.toml").write_text(cargo, encoding="utf-8")
             (root / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+            if readme is not None:
+                (root / "packaging/windows").mkdir(parents=True)
+                (root / "packaging/windows/README.md").write_text(readme, encoding="utf-8")
             out = root / "notes.md"
             code = pr.main([tag, "--root", str(root), "--notes", str(out)])
             return code, out.read_text(encoding="utf-8") if out.exists() else None
@@ -110,6 +117,18 @@ class MainTest(unittest.TestCase):
                 self.assertIn(f"FlyingMicrowave-{tag[1:]}-windows-arm64.zip", notes)
                 self.assertIn("動作を保証しない", notes)
                 self.assertIn("スモークテスト)と、実機での確認はしていない", notes)
+
+    def test_a_full_release_fails_while_the_user_readme_is_a_draft(self):
+        # Plan 0001, task 13: the user README ships finalized in a release.
+        cargo = CARGO.replace("0.1.0-alpha.2", "0.0.1")
+        self.assertEqual(self.run_main("v0.0.1", cargo=cargo, readme=DRAFT_README)[0], 1)
+
+    def test_a_full_release_fails_without_the_user_readme(self):
+        cargo = CARGO.replace("0.1.0-alpha.2", "0.0.1")
+        self.assertEqual(self.run_main("v0.0.1", cargo=cargo, readme=None)[0], 1)
+
+    def test_a_prerelease_may_ship_the_draft_user_readme(self):
+        self.assertEqual(self.run_main("v0.1.0-alpha.2", readme=DRAFT_README)[0], 0)
 
     def test_fails_without_a_changelog_section(self):
         cargo = CARGO.replace("0.1.0-alpha.2", "0.2.0-alpha.1")

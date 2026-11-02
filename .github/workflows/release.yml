@@ -206,6 +206,7 @@ jobs:
           New-Item -ItemType Directory -Path package | Out-Null
           Copy-Item 'target/${{ matrix.target }}/release/flying-microwave.exe' package/FlyingMicrowave.scr
           Copy-Item LICENSE package/LICENSE.txt
+          Copy-Item packaging/windows/README.md package/README.md
 
       # Same steps as the manual run of ci.yml (plan 0002, T-2).
       - name: License notices
