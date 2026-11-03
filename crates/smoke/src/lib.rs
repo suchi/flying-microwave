@@ -112,11 +112,26 @@ pub fn sprites_drawn(lines: &[&str]) -> Result<String, String> {
     {
         return Err(format!("the sprites are not drawn: {bad}"));
     }
-    messages
+    // Why: a wgpu error spans several lines, so a fallback message may sit
+    // on a continuation line that lines_of drops. Every surface (one per
+    // `surface configured:` line) must have made its atlas.
+    let surfaces = messages
         .iter()
-        .find(|m| m.starts_with("sprite atlas:"))
-        .map(|m| (*m).to_owned())
-        .ok_or_else(|| "the sprite atlas was not logged".to_owned())
+        .filter(|m| m.starts_with("surface configured:"))
+        .count();
+    let atlases: Vec<&str> = messages
+        .iter()
+        .copied()
+        .filter(|m| m.starts_with("sprite atlas:"))
+        .collect();
+    match atlases.first() {
+        Some(first) if atlases.len() >= surfaces => Ok((*first).to_owned()),
+        Some(_) => Err(format!(
+            "the sprites are not drawn: {} sprite atlases for {surfaces} surfaces",
+            atlases.len()
+        )),
+        None => Err("the sprite atlas was not logged".to_owned()),
+    }
 }
 
 /// Splits `+123ms rest` into `(123, "rest")`.
@@ -158,6 +173,27 @@ mod tests {
         ];
         assert!(sprites_drawn(&gpu_error).is_err());
         assert!(sprites_drawn(&["+1ms pid=7 window 0: first frame presented"]).is_err());
+    }
+
+    #[test]
+    fn one_window_without_its_atlas_is_a_failure() {
+        // Review: a wgpu error spans several lines, so the fallback message
+        // of a second window may sit on a line without the `+Nms pid=` prefix,
+        // which lines_of drops. The count of atlases still tells.
+        let lines = [
+            "+90ms pid=7 surface configured: 1920x1080 Bgra8Unorm Fifo",
+            "+95ms pid=7 sprite atlas: 512x128 in 3 ms",
+            "+100ms pid=7 surface configured: 3840x2160 Bgra8Unorm Fifo",
+            "+130ms pid=7 window 0: first frame presented",
+        ];
+        assert!(sprites_drawn(&lines).is_err());
+        let both = [
+            "+90ms pid=7 surface configured: 1920x1080 Bgra8Unorm Fifo",
+            "+95ms pid=7 sprite atlas: 512x128 in 3 ms",
+            "+100ms pid=7 surface configured: 3840x2160 Bgra8Unorm Fifo",
+            "+105ms pid=7 sprite atlas: 1024x256 in 6 ms",
+        ];
+        assert!(sprites_drawn(&both).is_ok());
     }
 
     const LOG: &str = "\
