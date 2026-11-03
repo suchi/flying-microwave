@@ -29,6 +29,7 @@
 | [0001](plans/0001-initial-implementation-plan.md) | 空飛ぶ電子レンジ スクリーンセーバー 初期実装計画 | 合意済み |
 | [0002](plans/0002-phase1-tooling-proposal.md) | Phase 1のビルド・配布用ツールの提案 | 合意済み |
 | [0003](plans/0003-v0.1.1-smoke-test.md) | v0.1.1 スモークテストと実機での確認 | 合意済み |
+| [0004](plans/0004-v0.2.0-settings.md) | v0.2.0 設定画面(Phase 2) | 合意済み |
 
 ## 調査
 
