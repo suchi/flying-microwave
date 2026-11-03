@@ -16,6 +16,10 @@ pub struct Progress {
     pub first_frames_ms: Vec<u64>,
     /// The `adapter:` line without its prefix.
     pub adapter: Option<String>,
+    /// The first `config:` line without its prefix: how the settings were
+    /// read (plan 0004, F-06). Later `config:` lines name the items that
+    /// fell back.
+    pub config: Option<String>,
     /// Why the process decided to end: the screensaver's `exit:` line or
     /// the preview's `preview exit:` line, without the prefix.
     pub exit_reason: Option<String>,
@@ -44,6 +48,8 @@ impl Progress {
                 progress.first_frames_ms.push(ms);
             } else if let Some(adapter) = message.strip_prefix("adapter: ") {
                 progress.adapter.get_or_insert_with(|| adapter.to_owned());
+            } else if let Some(config) = message.strip_prefix("config: ") {
+                progress.config.get_or_insert_with(|| config.to_owned());
             } else if let Some(reason) = message
                 .strip_prefix("exit: ")
                 .or_else(|| message.strip_prefix("preview exit: "))
@@ -103,6 +109,8 @@ mod tests {
 +1ms pid=11 Flying Microwave 0.1.0 started: Preview { parent: 5 }
 +20ms pid=10 monitors: 2
 +21ms pid=10 monitor 0: position Physical { x: 0, y: 0 } size (1920, 1080) scale 1
++30ms pid=10 config: not valid TOML; using the defaults (folder from FLYING_MICROWAVE_CONFIG_DIR) in 0.4 ms (waited 0 ms after the windows)
++31ms pid=10 config: flight.count: out of range; clamped
 +300ms pid=10 adapter: Microsoft Basic Render Driver (Cpu, Dx12, driver 10.0)
 +410ms pid=10 window 0: first frame presented
 +415ms pid=11 preview: first frame presented
@@ -119,6 +127,18 @@ mod tests {
             p.adapter.as_deref(),
             Some("Microsoft Basic Render Driver (Cpu, Dx12, driver 10.0)")
         );
+    }
+
+    #[test]
+    fn the_first_config_line_tells_how_the_settings_were_read() {
+        assert_eq!(
+            Progress::read(LOG, 10).config.as_deref(),
+            Some(
+                "not valid TOML; using the defaults (folder from FLYING_MICROWAVE_CONFIG_DIR) \
+                 in 0.4 ms (waited 0 ms after the windows)"
+            )
+        );
+        assert_eq!(Progress::read(LOG, 11).config, None);
     }
 
     #[test]

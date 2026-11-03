@@ -7,12 +7,17 @@
 //! window is no longer valid (checked every 500 ms). The same check follows
 //! the size of the parent's client area. No dialog is ever shown here: a
 //! failure ends quietly with an exit code.
+//!
+//! The settings `flight.*` and `display.max_fps` apply (plan 0004, F-06);
+//! the monitors and the mouse sensitivity do not, as the preview is one
+//! child window that ignores input.
 
 use std::num::NonZeroIsize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use flying_microwave_core::exit_policy::{Decision, Event, ExitPolicy, Mode};
+use flying_microwave_core::pacing::{FramePacer, Pace};
 use flying_microwave_core::sim::{SimParams, World};
 use windows_sys::Win32::Foundation::HWND;
 use winit::application::ApplicationHandler;
@@ -25,6 +30,7 @@ use winit::window::{Window, WindowId};
 use crate::log::log;
 use crate::render::{self, Gpu, Target};
 use crate::saver::{aspect_of, seed};
+use crate::storage::Startup;
 use crate::win;
 
 const PARENT_CHECK_INTERVAL: Duration = Duration::from_millis(500);
@@ -48,6 +54,10 @@ struct PreviewApp {
     window: Option<Arc<Window>>,
     world: Option<World>,
     aspect: f32,
+    params: SimParams,
+    /// `display.max_fps`, until the window's monitor is known.
+    max_fps: u32,
+    pacer: Option<FramePacer>,
     gpu: Option<Gpu>,
     target: Option<Target>,
     last_frame: Option<Instant>,
@@ -66,6 +76,15 @@ pub fn run(parent: u64) -> i32 {
         log!("preview: {parent} is not a valid window; exiting");
         return EXIT_INVALID_PARENT;
     }
+    // Why here: the preview covers no screen, so reading first delays nothing
+    // that matters (plan 0004, F-06 is about `/s`).
+    let startup = Startup::load();
+    log!("{}", startup.summary());
+    for note in &startup.loaded.notes {
+        log!("config: {note}");
+    }
+    let config = startup.loaded.config;
+    log!("settings: {config:?}");
     let event_loop = match EventLoop::new() {
         Ok(event_loop) => event_loop,
         Err(e) => {
@@ -84,6 +103,9 @@ pub fn run(parent: u64) -> i32 {
         window: None,
         world: None,
         aspect: 1.0,
+        params: config.sim_params(),
+        max_fps: config.display.max_fps.value(),
+        pacer: None,
         gpu: None,
         target: None,
         last_frame: None,
@@ -153,7 +175,13 @@ impl PreviewApp {
         log!("preview window: parent client {width}x{height}, window {inner:?}");
 
         let aspect = aspect_of(inner);
-        let world = World::new(seed(0), aspect, SimParams::default());
+        let world = World::new(seed(0), aspect, self.params);
+        let refresh = window
+            .current_monitor()
+            .and_then(|m| m.refresh_rate_millihertz());
+        let pacer = FramePacer::new(self.max_fps, refresh);
+        log!("preview: frame rate limited {}", pacer.limits());
+        self.pacer = Some(pacer);
         let sprite_size = world.instances().first().map_or(0.12, |s| s.size);
         let _watchdog = render::Watchdog::start(GPU_INIT_TIMEOUT, EXIT_GPU_INIT_TIMEOUT);
         let (gpu, target) = render::guarded("GPU initialization", || {
@@ -198,6 +226,13 @@ impl PreviewApp {
             return;
         };
         let now = Instant::now();
+        // display.max_fps: skip this frame and draw at the given time.
+        if let Some(pacer) = self.pacer.as_mut()
+            && let Pace::WaitUntil(at) = pacer.poll(now - self.started)
+        {
+            self.retry_at = Some(self.started + at);
+            return;
+        }
         if let Some(last) = self.last_frame {
             world.advance(now - last);
         }
@@ -251,7 +286,7 @@ impl ApplicationHandler for PreviewApp {
                 // Same rule as `/s`: a new world when the aspect changes.
                 let aspect = aspect_of(size);
                 if size.height > 0 && (aspect - self.aspect).abs() > 1e-3 {
-                    self.world = Some(World::new(seed(0), aspect, SimParams::default()));
+                    self.world = Some(World::new(seed(0), aspect, self.params));
                     self.aspect = aspect;
                     self.last_frame = None;
                 }
