@@ -18,7 +18,9 @@ use flying_microwave_core::config::{Loaded, MAX_FILE_BYTES, Source};
 ///
 /// Why: provisional for v0.2.0-alpha (plan 0004, E-1). Tests (the smoke
 /// test, local runs) use it so that they never touch the user's own file.
-/// Only an absolute path is accepted; anything else is ignored.
+/// An empty value counts as not set. Any other value must be an absolute
+/// path (on Windows, one that starts with a drive letter); when it is not,
+/// finding the file fails instead of falling back to the user's own file.
 pub const DIR_ENV: &str = "FLYING_MICROWAVE_CONFIG_DIR";
 /// Folder under Roaming AppData.
 const APP_DIR: &str = "FlyingMicrowave";
@@ -35,7 +37,7 @@ pub struct Location {
 
 /// Whether `dir` is an absolute path that [`DIR_ENV`] may name.
 ///
-/// On Windows only a drive path (`C:\...`) counts: a UNC path would make the
+/// On Windows only a drive path (`C:\...` or `\\?\C:\...`) counts: a UNC path would make the
 /// screensaver use the network (SEC-5), and a device path (`\\.\pipe\...`)
 /// could block a read (review L-4).
 // Why: provisional for v0.2.0-alpha (plan 0004, E-1).
@@ -48,7 +50,8 @@ fn is_local_absolute(dir: &Path) -> bool {
         use std::path::{Component, Prefix};
         matches!(
             dir.components().next(),
-            Some(Component::Prefix(prefix)) if matches!(prefix.kind(), Prefix::Disk(_))
+            Some(Component::Prefix(prefix))
+                if matches!(prefix.kind(), Prefix::Disk(_) | Prefix::VerbatimDisk(_))
         )
     }
     #[cfg(not(windows))]
@@ -63,7 +66,16 @@ pub fn resolve(
     env_dir: Option<&OsStr>,
     roaming: impl FnOnce() -> Option<PathBuf>,
 ) -> Result<Location, String> {
-    if let Some(dir) = env_dir.map(Path::new).filter(|dir| is_local_absolute(dir)) {
+    if let Some(value) = env_dir.filter(|value| !value.is_empty()) {
+        let dir = Path::new(value);
+        // Why: a rejected value fails instead of falling back, so that a
+        // test or local run never reads or replaces the user's own file
+        // (review L-B).
+        if !is_local_absolute(dir) {
+            return Err(format!(
+                "{DIR_ENV} is not an absolute path that starts with a drive letter"
+            ));
+        }
         return Ok(Location {
             path: dir.join(FILE_NAME),
             from_env: true,
@@ -301,21 +313,39 @@ mod tests {
     }
 
     #[test]
-    fn a_relative_or_empty_folder_in_the_environment_is_ignored() {
-        for value in ["", "config", "./config", "..", "C:config"] {
-            let location = resolve(Some(OsStr::new(value)), roaming).expect("a location");
-            assert!(!location.from_env, "value {value:?}");
+    fn a_relative_folder_in_the_environment_is_rejected() {
+        // Review L-B: rejected instead of ignored, so that the user's own
+        // file is never used in its place.
+        for value in ["config", "./config", "..", "C:config"] {
             assert!(
-                location.path.starts_with(absolute("roaming")),
+                resolve(Some(OsStr::new(value)), roaming).is_err(),
                 "value {value:?}"
             );
         }
+        let location = resolve(Some(OsStr::new("")), roaming).expect("a location");
+        assert!(location.path.starts_with(absolute("roaming")));
     }
 
     #[test]
     fn without_roaming_app_data_there_is_no_location() {
         assert!(resolve(None, || None).is_err());
         assert!(resolve(Some(OsStr::new("relative")), || None).is_err());
+    }
+
+    #[test]
+    fn a_rejected_folder_does_not_fall_back_to_the_real_file() {
+        // Review L-B: a test or local run that names a folder must never
+        // read or replace the user's own file instead.
+        let roaming = || Some(PathBuf::from("/home/user/AppData/Roaming"));
+        let error = resolve(Some(OsStr::new("relative")), roaming).expect_err("rejected");
+        assert!(error.contains(DIR_ENV), "{error}");
+    }
+
+    #[test]
+    fn an_empty_folder_value_counts_as_not_set() {
+        let roaming = || Some(PathBuf::from("/home/user/AppData/Roaming"));
+        let location = resolve(Some(OsStr::new("")), roaming).expect("a location");
+        assert!(!location.from_env);
     }
 
     #[cfg(windows)]
@@ -333,6 +363,9 @@ mod tests {
             );
         }
         let location = resolve(Some(OsStr::new(r"C:\fm")), || None).expect("a location");
+        assert!(location.from_env);
+        // The form std::fs::canonicalize returns is a local disk too.
+        let location = resolve(Some(OsStr::new(r"\\?\C:\fm")), || None).expect("a location");
         assert!(location.from_env);
     }
 
