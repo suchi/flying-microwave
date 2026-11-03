@@ -67,7 +67,14 @@ pub fn run(exe: &Path) -> i32 {
     }
     println!("log folder of the tested processes: {}", log_dir.display());
     let mut failed = 0;
+    let mut skipped = 0;
     for (name, case) in cases {
+        if let Some(reason) = skip_reason(name) {
+            // GitHub Actions shows this line as a notice in the run summary.
+            println!("::notice::SKIP {name}: {reason}");
+            skipped += 1;
+            continue;
+        }
         match case(&Env {
             exe,
             log_dir: &log_dir,
@@ -79,8 +86,25 @@ pub fn run(exe: &Path) -> i32 {
             }
         }
     }
-    println!("{} passed, {failed} failed", cases.len() - failed);
+    println!(
+        "{} passed, {failed} failed, {skipped} skipped",
+        cases.len() - failed - skipped
+    );
     i32::from(failed > 0)
+}
+
+/// Why a case is not run on this build, if it is not.
+fn skip_reason(name: &str) -> Option<&'static str> {
+    // Why: on the windows-11-arm runner a shell window
+    // (Windows.UI.Core.CoreWindow) is in the foreground and in front of the
+    // screensaver, so neither a key nor a click reaches it (v0.1.1-alpha.1
+    // and alpha.2 release runs). arm64 ships without guarantee (ADR-0016),
+    // and the maintainer decided to leave F-01 out there (plan 0003, D-9).
+    if cfg!(target_arch = "aarch64") && name.starts_with("F-01 ") {
+        Some("user input cannot reach the screensaver on the arm64 runner (plan 0003, D-9)")
+    } else {
+        None
+    }
 }
 
 /// A started executable that is killed if the case ends while it still runs
