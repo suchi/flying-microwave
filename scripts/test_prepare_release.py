@@ -119,6 +119,8 @@ class MainTest(unittest.TestCase):
                 # The smoke test (plan 0003) also runs on arm64; real hardware is not used.
                 self.assertIn("スモークテスト", notes)
                 self.assertIn("実機での確認はしていない", notes)
+                # Plan 0003, D-9: on arm64 the end by user input is not checked.
+                self.assertIn("キーやクリックでの終了は確かめていない", notes)
                 self.assertNotIn("スモークテスト)と、実機での確認はしていない", notes)
 
     def test_a_full_release_fails_while_the_user_readme_is_a_draft(self):
