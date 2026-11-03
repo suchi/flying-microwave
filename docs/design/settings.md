@@ -33,7 +33,7 @@ UIラベルはAGENTS.mdの言語ルールに従い英語とする。
 
 ## 設定ファイル
 
-TOML形式とする([ADR-0004](../adr/0004-store-settings-as-toml.md))。具体的な保存場所は、Phase 2の着手前に別のADRで決める。
+TOML形式とする([ADR-0004](../adr/0004-store-settings-as-toml.md))。場所は`%APPDATA%\FlyingMicrowave\config.toml`([計画0004](../plans/0004-v0.2.0-settings.md)のD-1)。v0.2.0の試作版では、テストのために、環境変数`FLYING_MICROWAVE_CONFIG_DIR`(絶対パスのときだけ)でフォルダを上書きできる(計画0004のD-6のE-1。v0.2.0の前に正式に決める)。
 
 ```toml
 schema_version = 1
@@ -64,7 +64,8 @@ exit_sensitivity = "medium"
 | 整数の項目に小数が書かれている | その項目だけ既定値 |
 | 選択肢にない値(`max_fps = 45`など)・その他の型の違い | その項目だけ既定値 |
 | 未知のキー | 無視する(新しいバージョンの設定を古いバージョンで読んでも動く) |
-| `schema_version`が新しい | 読める項目だけ使い、書き込み時に利用者へ確認する |
+| `schema_version`が新しい | 読める項目だけ使い、書き込み時に利用者へ確認する(試作版では、最初のOKで確認の文を画面の中に示し、もう一度OKを押すと書き込む。未知のキーとコメントは消える。計画0004のD-6のE-3) |
+| `schema_version`がない・整数でない・0以下 | 1として読む(試作版の仮の扱い。計画0004のD-6のE-3) |
 
 検証は`core::config`の純粋関数として実装し、上の各行をテストケースにする。
 
@@ -85,4 +86,6 @@ flowchart LR
 - タブ構成: Flight / Display / Extras / About(Extrasは上記のとおりPhase 4から)。
 - Aboutにはバージョン、ライセンス、依存ライブラリのライセンス表記、着想元についての説明([先行作品と知的財産上の配慮](../research/prior-art-and-ip.md)のIP-1の範囲)、プロジェクトのURLを表示する。
 - 保存に失敗した場合は、設定画面内にエラーメッセージを表示する(設定画面は利用者の操作中なので表示してよい)。
-- Phase 1の`/c`は、設定画面の代わりに「設定は今後のバージョンで追加する」旨のメッセージボックス(Win32の`MessageBoxW`)を表示する。
+- 選択肢のUIラベル: `display.max_fps`はMatch monitor・30 fps・60 fps・120 fps、`display.monitors`はAll monitors・Primary only、`input.exit_sensitivity`はLow・Medium・High。
+- 設定画面を開けないとき(GPUの初期化の失敗など)は、メッセージボックスで、開けなかったことと設定ファイルのパスを示し、終了コード7で終わる(試作版の仮の扱い。計画0004のD-6のE-4)。
+- Phase 1と`v0.1.x`の`/c`は、設定画面の代わりに「設定は今後のバージョンで追加する」旨のメッセージボックス(Win32の`MessageBoxW`)を表示していた。v0.2.0の試作版から、設定画面(eframe)を表示する。

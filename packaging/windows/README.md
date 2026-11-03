@@ -28,13 +28,19 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 ### 設定
 
-スクリーン セーバーの設定を開き、FlyingMicrowave を選んで [設定] をクリックします。現在のバージョンでは、メッセージが表示されるだけです。設定画面は、今後のバージョンで追加します。
+スクリーン セーバーの設定を開き、FlyingMicrowave を選んで [設定] をクリックすると、設定画面が開きます。
+
+- Flight: 電子レンジの数(Number of microwaves)、速さ(Speed)、大きさ(Size)。
+- Display: フレームレートの上限(Frame rate limit)、表示するモニター(Monitors。Primary only では、ほかのモニターは黒で覆います)、マウスの感度(Mouse sensitivity。終わらせるのに必要なマウスの移動の量)。
+- About: 版、ライセンス、プロジェクトの URL。
+
+[OK] で保存し、[Cancel] で変更を捨てます。[Defaults] で既定値に戻します。設定は `%APPDATA%\FlyingMicrowave\config.toml` に保存され、次にスクリーン セーバーが起動したときから使われます。
 
 ### アンインストール
 
 1. スクリーン セーバーの設定を開き、別のスクリーン セーバー(または「(なし)」)を選びます。
 2. インストールの手順 2 で作ったフォルダーを削除します(既存のフォルダーに展開した場合は、zip から展開したファイルだけを削除します)。
-3. 必要なら、一時フォルダーの診断用のログ(`%TEMP%\flying-microwave.log`)も削除します。
+3. 必要なら、設定のフォルダー(`%APPDATA%\FlyingMicrowave`)と、一時フォルダーの診断用のログ(`%TEMP%\flying-microwave.log`)も削除します。
 
 ### 既知の制限
 
@@ -83,13 +89,19 @@ In Screen Saver Settings, the screen saver is listed as "FlyingMicrowave" (the n
 
 ### Settings
 
-Open Screen Saver Settings, select FlyingMicrowave, and click Settings. The current version only shows a message. A settings dialog will be added in a future version.
+Open Screen Saver Settings, select FlyingMicrowave, and click Settings to open the settings dialog.
+
+- Flight: the number of microwaves, their speed, and their size.
+- Display: the frame rate limit, the monitors to use (with "Primary only", the other monitors are covered in black), and the mouse sensitivity (how far the mouse must move to end the screen saver).
+- About: the version, the license, and the project URL.
+
+Click OK to save, or Cancel to discard your changes. Defaults restores the default values. The settings are saved to `%APPDATA%\FlyingMicrowave\config.toml` and are used from the next time the screen saver starts.
 
 ### Uninstall
 
 1. Open Screen Saver Settings and select another screen saver (or "(None)").
 2. Delete the folder you created in step 2 of Install (or, if you used an existing folder, only the files extracted from the zip).
-3. If you like, also delete the diagnostic log in your temporary folder (`%TEMP%\flying-microwave.log`).
+3. If you like, also delete the settings folder (`%APPDATA%\FlyingMicrowave`) and the diagnostic log in your temporary folder (`%TEMP%\flying-microwave.log`).
 
 ### Known limitations
 
