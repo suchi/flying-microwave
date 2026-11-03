@@ -4,9 +4,9 @@
 Used by .github/workflows/release.yml before anything is built. The tag must
 be vX.Y.Z or vX.Y.Z-alpha.N (plan 0001, section 7.3), must match the
 workspace version in Cargo.toml, and CHANGELOG.md must have a non-empty
-section "## vX.Y.Z... (date)" for it. The section body becomes the notes,
-followed by a fixed section on the arm64 build, which every release ships
-without guarantee (ADR-0016). A full release also needs a finalized user
+section "## vX.Y.Z... (date)" for it. The section body becomes the notes
+(only the x64 build is shipped for now, so there is no section on an arm64
+build; ADR-0022). A full release also needs a finalized user
 README (packaging/windows/README.md without the draft marker; plan 0001,
 task 13). Pre-releases may ship the draft.
 
@@ -59,21 +59,6 @@ def release_notes(changelog_text, version):
     return None
 
 
-def arm64_notes(version):
-    """The section that every release note ends with (ADR-0016).
-
-    It lists the checks of the build job in release.yml: change both
-    together. The smoke test is plan 0003 (crates/smoke).
-    """
-    return (
-        "\n### arm64版について\n\n"
-        f"`FlyingMicrowave-{version}-windows-arm64.zip`は、動作を保証しない。"
-        "リリースのワークフローで、Windows 11のarm64のランナーでのビルド、単体テスト、"
-        "依存DLLの確認、バージョン情報の確認と、起動と終了の自動の確認(スモークテスト)だけを行った。"
-        "実機での確認はしていない。\n"
-    )
-
-
 def use_utf8_output():
     # Why: same as check_publish_age.py; a Windows pipe is cp1252 and strict.
     for stream in (sys.stdout, sys.stderr):
@@ -110,7 +95,7 @@ def main(argv=None):
     if notes is None:
         print(f"CHANGELOG.mdに「## v{version} (日付)」の節がないか、中身が空", file=sys.stderr)
         return 1
-    pathlib.Path(args.notes).write_text(notes + arm64_notes(version), encoding="utf-8")
+    pathlib.Path(args.notes).write_text(notes, encoding="utf-8")
     kind = "プレリリース" if is_prerelease(version) else "リリース"
     print(f"{args.tag}({kind})のリリースノートを{args.notes}に書いた")
     return 0

@@ -19,7 +19,7 @@
 | トラブルシューティング | [5.4](#54-トラブルシューティング) | 整備済み |
 | アイコンの作り直し | [5.5](#55-アイコンの作り直し) | 整備済み |
 | 変更の進め方(ブランチ、コミット、レビュー、マージ) | [3](#3-開発の進め方)、[4](#4-レビューとマージ) | 整備済み |
-| リリース | [8](#8-windows実機での確認)、[計画の7.2](../plans/0001-initial-implementation-plan.md#72-リリース手順)(正式なリリース)と[7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順)(プレリリース) | 整備済み(arm64のビルドは、v0.1.0で初めて実際に動かす。計画のD-23) |
+| リリース | [8](#8-windows実機での確認)、[計画の7.2](../plans/0001-initial-implementation-plan.md#72-リリース手順)(正式なリリース)と[7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順)(プレリリース) | 整備済み(x64だけ。[ADR-0022](../adr/0022-ship-x64-only-for-now.md)) |
 | AIエージェントとの協働 | [6](#6-aiエージェントとの協働) | 整備済み |
 
 ## 1. このプロジェクトについて
@@ -119,7 +119,7 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 | 項目 | 内容 |
 | --- | --- |
 | 言語 | Rust stable。バージョンは`rust-toolchain.toml`で固定し、`rustup toolchain install`で導入する |
-| Windows向けターゲット | `x86_64-pc-windows-msvc`と`aarch64-pc-windows-msvc`。Microsoftが提供するMSVCビルドツールとWindows SDKが必要 |
+| Windows向けターゲット | `x86_64-pc-windows-msvc`。Microsoftが提供するMSVCビルドツールとWindows SDKが必要。arm64には当面対応しないが、CIのLinuxのジョブで`aarch64-pc-windows-msvc`向けの型検査だけを続けている([ADR-0022](../adr/0022-ship-x64-only-for-now.md)、Issue #44) |
 | Linuxでのビルド | `core`と`app`の両crateがLinuxでもビルドできる状態を保つ。Windows固有のコードは`cfg`で分岐させる。Linuxではコンパイルされない部分は、WindowsのCIで確認する |
 | 手動確認 | Windows 11が必要。エージェントの開発環境はLinuxなので、Windowsの画面を伴う動作は確認できない([8. Windows実機での確認](#8-windows実機での確認)) |
 | 検証コマンド | AGENTS.mdの「検証コマンド」の表に従う(fmt・clippy・テスト・型チェック・ビルド)。どれもLinuxでも実行できる |
@@ -410,7 +410,7 @@ cargo fetch --locked || true
 - 自動テスト: ロジックを`core`に寄せ、WindowsとLinuxの両方のCIで単体テストする
 - 手動テスト: メンテナーが、各リリースの前に、Windows 11実機で[実装計画の手動テストのチェックリスト](../plans/0001-initial-implementation-plan.md#82-手動テストwindows実機)を実施する。CIでビルドした成果物を使う。確認できなかった項目は、リリースノートに明記する
 - CIの成果物: `ci.yml`は、実行のたびに、`FlyingMicrowave.scr`と`LICENSE.txt`を成果物`flying-microwave-x86_64-pc-windows-msvc`として残す(PRと`main`は7日、手動実行は30日)。実機での確認には、PRの実行の成果物を使ってよい。手動実行(workflow_dispatch)は、キャッシュを使わずにビルドし、`THIRD-PARTY-LICENSES.txt`も加える。実機での確認に使う
-- リリースのワークフロー: `release.yml`は、`v*`のタグのプッシュ(または、既存のタグを指定した手動実行)で、タグのコミットをキャッシュを使わずにビルドし、zipと`SHA256SUMS.txt`を添付したGitHub Releaseの下書きを作る。公開はメンテナーが行う。x64(`windows-2025`)とarm64(`windows-11-arm`)のランナーで、それぞれの実行ファイルをビルドする。`THIRD-PARTY-LICENSES.txt`はUbuntuのライセンスのジョブで並行して作り、zipはzipのジョブでまとめる(計画のD-31)。arm64版は動作を保証せず、ビルド、単体テスト、スモークテスト、依存DLLの確認、バージョン情報の確認だけを行う。どちらかが失敗したら、下書きを作らない(ADR-0016)。リリースノートの最後には、arm64版についての決まった節が付く(`scripts/prepare_release.py`)。各zipには、実行ファイルのSBOM(SPDX 2.3のJSON)が入る(`scripts/make_sbom.py`。検査のジョブで両方のターゲットについて作り、ビルドのジョブに渡す。ローカルでは`python3 -I scripts/make_sbom.py --target x86_64-pc-windows-msvc --created 2026-01-01T00:00:00Z --namespace https://example.invalid/sbom --out sbom.json`で同じものを作って中身を確かめられる)。arm64のビルドは、v0.1.0のタグで初めて実際に動かす([計画のD-23](../plans/0001-initial-implementation-plan.md))
+- リリースのワークフロー: `release.yml`は、`v*`のタグのプッシュ(または、既存のタグを指定した手動実行)で、タグのコミットをキャッシュを使わずにビルドし、zipと`SHA256SUMS.txt`を添付したGitHub Releaseの下書きを作る。公開はメンテナーが行う。x64(`windows-2025`)のランナーで、実行ファイルをビルドする(arm64版は、`v0.1.1-alpha.3`から配布しない。[ADR-0022](../adr/0022-ship-x64-only-for-now.md))。`THIRD-PARTY-LICENSES.txt`はUbuntuのライセンスのジョブで並行して作り、zipはzipのジョブでまとめる(計画のD-31)。ビルドのジョブは、単体テスト、スモークテスト、依存DLLの確認、バージョン情報の確認を行い、失敗したら下書きを作らない。リリースノートは、CHANGELOGのその版の節から作る(`scripts/prepare_release.py`)。各zipには、実行ファイルのSBOM(SPDX 2.3のJSON)が入る(`scripts/make_sbom.py`。検査のジョブで作り、ビルドのジョブに渡す。ローカルでは`python3 -I scripts/make_sbom.py --target x86_64-pc-windows-msvc --created 2026-01-01T00:00:00Z --namespace https://example.invalid/sbom --out sbom.json`で同じものを作って中身を確かめられる)
 - 技術スパイク: Windows実機でしか確かめられない不確実性(S1〜S6)は、Phase 0で確認した(4回の確認で終え、残りは製品で確かめる。計画のD-20)。内容は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md#未確認事項と検証方法技術スパイク)に一覧がある
 
 ## 9. セキュリティの注意

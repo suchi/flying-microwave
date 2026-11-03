@@ -44,9 +44,10 @@
 | [0013](0013-no-code-signing-for-v0.md) | v0.x系はコード署名せずに配布し、v1.0.0までに再判断する | 採用 | 2026-10-31 |
 | [0014](0014-risk-based-review-depth.md) | 敵対的レビューの深さを変更の種類で決める | 採用 | 2026-10-31 |
 | [0015](0015-ci-build-cache-and-spike-targets.md) | CIでビルドをキャッシュし、PRでのスパイクのビルドをx64に限る | 非推奨(ADR-0017に置き換え) | 2026-10-31 |
-| [0016](0016-arm64-without-guarantee.md) | arm64版は動作を保証せずに配布し、CIではx64だけをビルドする | 採用 | 2026-11-01 |
+| [0016](0016-arm64-without-guarantee.md) | arm64版は動作を保証せずに配布し、CIではx64だけをビルドする | 非推奨(ADR-0022に置き換え) | 2026-11-01 |
 | [0017](0017-ci-build-cache-and-x64-spike-builds.md) | CIでビルドをキャッシュし、スパイクのビルドをx64に限る | 採用 | 2026-11-01 |
 | [0018](0018-review-before-opening-pr.md) | 敵対的レビューをPRを作る前に行う | 採用 | 2026-11-01 |
 | [0019](0019-screensaver-windows-without-winit-fullscreen.md) | `/s`のウィンドウを、winitの全画面の指定を使わずに作る | 採用 | 2026-11-01 |
 | [0020](0020-windows-resources-with-embed-resource.md) | Windowsのリソースを、embed-resourceで自分で書いた`.rc`から埋め込む | 採用 | 2026-11-02 |
 | [0021](0021-spdx-sbom-with-own-script.md) | リリースのSBOMを、SPDX 2.3の形式で、自前のスクリプトで作る | 採用 | 2026-11-02 |
+| [0022](0022-ship-x64-only-for-now.md) | 当面はx64版だけを配布し、arm64には対応しない | 採用 | 2026-11-03 |

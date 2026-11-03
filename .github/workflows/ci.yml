@@ -84,8 +84,8 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked
 
-      # Why: the Windows job builds x64 only, so this is the only CI check
-      # that the arm64 target still compiles (ADR-0016).
+      # Why: arm64 is not supported for now (ADR-0022, issue #44), but the
+      # code is kept compiling for it, so that supporting it stays a small step.
       - name: Type-check Windows targets
         run: |
           cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc
@@ -104,8 +104,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Why: arm64 is shipped without guarantee and built only by the
-        # release workflow (ADR-0016).
+        # Why: only the x64 build is shipped for now (ADR-0022).
         target: [x86_64-pc-windows-msvc]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

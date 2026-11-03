@@ -1,7 +1,8 @@
 # cargo-about configuration for THIRD-PARTY-LICENSES.txt
 # (ADR-0011, docs/plans/0002-phase1-tooling-proposal.md T-2).
-# Only the crates linked into the Windows executables are listed.
-targets = ["x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]
+# Only the crates linked into the shipped Windows executable are listed
+# (x64 only for now, ADR-0022).
+targets = ["x86_64-pc-windows-msvc"]
 ignore-build-dependencies = true
 ignore-dev-dependencies = true
 # The workspace crates themselves are not third-party (publish = false).
