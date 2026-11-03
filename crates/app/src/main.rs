@@ -13,10 +13,10 @@ mod render;
 #[cfg(windows)]
 mod saver;
 // Used by the Windows renderer; tested on every host.
-#[cfg_attr(not(windows), allow(dead_code))]
-mod sprite;
 #[cfg(windows)]
 mod settings;
+#[cfg_attr(not(windows), allow(dead_code))]
+mod sprite;
 // Used by the Windows modes; tested on every host.
 #[cfg_attr(not(windows), allow(dead_code))]
 mod storage;
