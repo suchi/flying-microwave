@@ -4,11 +4,18 @@
 //! window is painted black with GDI first (W-9), then wgpu draws the flyers
 //! of its own simulation. Input ends the screensaver as decided by
 //! [`flying_microwave_core::exit_policy`].
+//!
+//! The settings (plan 0004, F-06) are read on another thread while the
+//! windows are created and painted black, so reading them never delays
+//! covering the screen. They are waited for only before the animation starts.
 
 use std::sync::Arc;
+use std::sync::mpsc::{self, Receiver};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use flying_microwave_core::config::{Config, Monitors};
 use flying_microwave_core::exit_policy::{self, Decision, Event, ExitPolicy};
+use flying_microwave_core::pacing::{FramePacer, Pace};
 use flying_microwave_core::sim::{SimParams, World};
 use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
@@ -18,6 +25,7 @@ use winit::window::{Window, WindowId, WindowLevel};
 
 use crate::log::log;
 use crate::render::{self, Gpu, Target};
+use crate::storage::Startup;
 use crate::win;
 
 /// Retry delay after a skipped frame (occluded surface and so on).
@@ -25,6 +33,9 @@ const RETRY_DELAY: Duration = Duration::from_millis(50);
 /// If GPU initialization has not finished after this long, the watchdog ends
 /// the process, so the black windows cannot cover the screen forever.
 const GPU_INIT_TIMEOUT: Duration = Duration::from_secs(15);
+/// How long the animation waits for the settings once the screen is covered.
+/// Later, the defaults are used (plan 0001, N-01: first frame within 1 s).
+const CONFIG_WAIT: Duration = Duration::from_millis(500);
 
 const EXIT_OK: i32 = 0;
 const EXIT_EVENT_LOOP_FAILED: i32 = 1;
@@ -36,6 +47,11 @@ struct SaverWindow {
     index: usize,
     /// Physical size of the monitor this window covers, if known.
     monitor_size: Option<PhysicalSize<u32>>,
+    /// Whether this window shows the animation; otherwise it stays black
+    /// (`display.monitors = "primary"` on another monitor).
+    animate: bool,
+    /// `display.max_fps` for the monitor of this window.
+    pacer: FramePacer,
     /// `None` when the GPU failed: the window then stays black.
     target: Option<Target>,
     world: World,
@@ -53,6 +69,11 @@ struct SaverApp {
     gpu: Option<Gpu>,
     instance: Option<wgpu::Instance>,
     policy: ExitPolicy,
+    /// The settings, until they are taken once the windows exist.
+    config_rx: Option<Receiver<Startup>>,
+    params: SimParams,
+    /// The fixed start of the times passed to the frame pacers.
+    epoch: Instant,
     /// Start of the grace period; `None` until the windows and the GPU are ready.
     grace_start: Option<Instant>,
     created: bool,
@@ -62,6 +83,7 @@ struct SaverApp {
 
 /// Runs the screensaver and returns the process exit code.
 pub fn run() -> i32 {
+    let config_rx = start_loading_config();
     let event_loop = match EventLoop::new() {
         Ok(event_loop) => event_loop,
         Err(e) => {
@@ -74,11 +96,15 @@ pub fn run() -> i32 {
         windows: Vec::new(),
         gpu: None,
         instance: None,
+        // Replaced once the settings are read, before any input is handled.
         policy: ExitPolicy::new(
             exit_policy::Mode::Screensaver,
             ExitPolicy::DEFAULT_THRESHOLD_PX,
             ExitPolicy::DEFAULT_GRACE,
         ),
+        config_rx: Some(config_rx),
+        params: SimParams::default(),
+        epoch: Instant::now(),
         grace_start: None,
         created: false,
         exit_code: EXIT_OK,
@@ -93,6 +119,47 @@ pub fn run() -> i32 {
         app.exit_reason.as_deref().unwrap_or("no reason")
     );
     app.exit_code
+}
+
+/// Starts reading the settings on another thread (A-5: `/s` never writes them).
+fn start_loading_config() -> Receiver<Startup> {
+    let (sender, receiver) = mpsc::channel();
+    let thread_sender = sender.clone();
+    let spawned = std::thread::Builder::new()
+        .name("config-load".to_owned())
+        .spawn(move || {
+            let _ = thread_sender.send(Startup::load());
+        });
+    if let Err(e) = spawned {
+        log!("config thread could not start: {e}; reading the settings here");
+        let _ = sender.send(Startup::load());
+    }
+    receiver
+}
+
+/// Waits a little for the settings; the defaults when they are late.
+fn receive_config(receiver: Option<Receiver<Startup>>) -> Config {
+    let start = Instant::now();
+    match receiver.map(|r| r.recv_timeout(CONFIG_WAIT)) {
+        Some(Ok(startup)) => {
+            log!(
+                "{} (waited {} ms after the windows)",
+                startup.summary(),
+                start.elapsed().as_millis()
+            );
+            for note in &startup.loaded.notes {
+                log!("config: {note}");
+            }
+            startup.loaded.config
+        }
+        _ => {
+            log!(
+                "config: not read within {} ms; using the defaults",
+                CONFIG_WAIT.as_millis()
+            );
+            Config::default()
+        }
+    }
 }
 
 /// Width divided by height (1.0 for an empty size).
@@ -144,18 +211,22 @@ impl SaverApp {
         log!("monitors: {}", monitors.len());
         for (i, m) in monitors.iter().enumerate() {
             log!(
-                "monitor {i}: position {:?} size {:?} scale {}",
+                "monitor {i}: position {:?} size {:?} scale {} refresh {:?} mHz",
                 m.position(),
                 m.size(),
-                m.scale_factor()
+                m.scale_factor(),
+                m.refresh_rate_millihertz()
             );
         }
+        let primary = event_loop.primary_monitor();
         // Without monitor information, one maximized window.
         let targets: Vec<_> = if monitors.is_empty() {
             vec![None]
         } else {
             monitors.into_iter().map(Some).collect()
         };
+        // First cover every monitor in black (W-9); the settings come after.
+        let mut created = Vec::new();
         for (index, monitor) in targets.into_iter().enumerate() {
             let attributes = Window::default_attributes()
                 .with_title("Flying Microwave")
@@ -186,18 +257,53 @@ impl SaverApp {
             if let Some(hwnd) = win::hwnd_of(&window) {
                 win::fill_black(hwnd);
             }
-            let size = window.inner_size();
             log!(
-                "window {index}: inner {size:?} outer position {:?} scale {}",
+                "window {index}: inner {:?} outer position {:?} scale {}",
+                window.inner_size(),
                 window.outer_position(),
                 window.scale_factor()
             );
+            created.push((index, window, monitor));
+        }
+
+        let config = receive_config(self.config_rx.take());
+        log!("settings: {config:?}");
+        self.params = config.sim_params();
+        self.policy = ExitPolicy::new(
+            exit_policy::Mode::Screensaver,
+            config.input.exit_sensitivity.threshold_px(),
+            ExitPolicy::DEFAULT_GRACE,
+        );
+        // Which windows animate: all, or only the primary monitor's. If no
+        // window is on the primary monitor, the first window animates, so
+        // that the animation is always shown somewhere.
+        let only_primary = config.display.monitors == Monitors::Primary;
+        let on_primary = |monitor: &Option<winit::monitor::MonitorHandle>| {
+            monitor.is_some() && *monitor == primary
+        };
+        let any_on_primary = created.iter().any(|(_, _, monitor)| on_primary(monitor));
+        for (position, (index, window, monitor)) in created.into_iter().enumerate() {
+            let animate = !only_primary
+                || if any_on_primary {
+                    on_primary(&monitor)
+                } else {
+                    position == 0
+                };
+            let refresh = monitor.as_ref().and_then(|m| m.refresh_rate_millihertz());
+            let pacer = FramePacer::new(config.display.max_fps.value(), refresh);
+            log!(
+                "window {index}: animate {animate}, frame rate limited {}",
+                pacer.limits()
+            );
+            let size = window.inner_size();
             self.windows.push(SaverWindow {
-                world: World::new(seed(index), aspect_of(size), SimParams::default()),
+                world: World::new(seed(index), aspect_of(size), self.params),
                 aspect: aspect_of(size),
                 window,
                 index,
                 monitor_size: monitor.as_ref().map(|m| m.size()),
+                animate,
+                pacer,
                 target: None,
                 last_frame: None,
                 presented: false,
@@ -215,10 +321,15 @@ impl SaverApp {
         let _watchdog = render::Watchdog::start(GPU_INIT_TIMEOUT, EXIT_GPU_INIT_TIMEOUT);
         let result = render::guarded("GPU initialization", || {
             let instance = render::create_instance();
+            // A window that does not animate needs no surface: it stays black.
             let surfaces: Vec<_> = self
                 .windows
                 .iter()
-                .map(|w| render::create_surface(&instance, &w.window).ok())
+                .map(|w| {
+                    w.animate
+                        .then(|| render::create_surface(&instance, &w.window).ok())
+                        .flatten()
+                })
                 .collect();
             let first = surfaces
                 .iter()
@@ -248,13 +359,19 @@ impl SaverApp {
     fn redraw(&mut self, index: usize) {
         let w = &mut self.windows[index];
         let (Some(target), Some(gpu)) = (w.target.as_mut(), self.gpu.as_ref()) else {
-            // No GPU for this window: keep it black, no further redraws.
+            // No GPU for this window, or it does not animate: keep it black,
+            // no further redraws.
             if let Some(hwnd) = win::hwnd_of(&w.window) {
                 win::fill_black(hwnd);
             }
             return;
         };
         let now = Instant::now();
+        // display.max_fps: skip this frame and draw at the given time.
+        if let Pace::WaitUntil(at) = w.pacer.poll(now - self.epoch) {
+            w.retry_at = Some(self.epoch + at);
+            return;
+        }
         if let Some(last) = w.last_frame {
             w.world.advance(now - last);
         }
@@ -357,7 +474,7 @@ impl ApplicationHandler for SaverApp {
                 // changes almost only right after start, so a new world is fine.
                 let aspect = aspect_of(size);
                 if size.height > 0 && (aspect - w.aspect).abs() > 1e-3 {
-                    w.world = World::new(seed(w.index), aspect, SimParams::default());
+                    w.world = World::new(seed(w.index), aspect, self.params);
                     w.aspect = aspect;
                     w.last_frame = None;
                 }
