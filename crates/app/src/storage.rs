@@ -33,13 +33,37 @@ pub struct Location {
     pub from_env: bool,
 }
 
+/// Whether `dir` is an absolute path that [`DIR_ENV`] may name.
+///
+/// On Windows only a drive path (`C:\...`) counts: a UNC path would make the
+/// screensaver use the network (SEC-5), and a device path (`\\.\pipe\...`)
+/// could block a read (review L-4).
+// Why: provisional for v0.2.0-alpha (plan 0004, E-1).
+fn is_local_absolute(dir: &Path) -> bool {
+    if !dir.is_absolute() {
+        return false;
+    }
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        matches!(
+            dir.components().next(),
+            Some(Component::Prefix(prefix)) if matches!(prefix.kind(), Prefix::Disk(_))
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        true
+    }
+}
+
 /// Finds the settings file from the value of [`DIR_ENV`] and the Roaming
 /// AppData folder (looked up only when needed).
 pub fn resolve(
     env_dir: Option<&OsStr>,
     roaming: impl FnOnce() -> Option<PathBuf>,
 ) -> Result<Location, String> {
-    if let Some(dir) = env_dir.map(Path::new).filter(|dir| dir.is_absolute()) {
+    if let Some(dir) = env_dir.map(Path::new).filter(|dir| is_local_absolute(dir)) {
         return Ok(Location {
             path: dir.join(FILE_NAME),
             from_env: true,
@@ -292,6 +316,24 @@ mod tests {
     fn without_roaming_app_data_there_is_no_location() {
         assert!(resolve(None, || None).is_err());
         assert!(resolve(Some(OsStr::new("relative")), || None).is_err());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn only_a_drive_path_may_name_the_folder() {
+        // Review L-4: a UNC or device path is ignored (SEC-5).
+        for value in [
+            r"\\server\share\fm",
+            r"\\.\pipe\fm",
+            r"\\?\UNC\server\share",
+        ] {
+            assert!(
+                resolve(Some(OsStr::new(value)), || None).is_err(),
+                "{value}"
+            );
+        }
+        let location = resolve(Some(OsStr::new(r"C:\fm")), || None).expect("a location");
+        assert!(location.from_env);
     }
 
     // Reading.
