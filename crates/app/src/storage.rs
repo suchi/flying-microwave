@@ -201,6 +201,16 @@ impl Startup {
     }
 }
 
+/// How long after the overwrite warning appears a second OK is not taken
+/// as the confirmation: longer than the Windows double-click time (500 ms by
+/// default), so that a double click on OK does not save unread (review L-A).
+pub const CONFIRM_DELAY: Duration = Duration::from_millis(700);
+
+/// Whether an OK that comes `since_warning` after the warning confirms it.
+pub fn second_ok_confirms(since_warning: Duration) -> bool {
+    since_warning >= CONFIRM_DELAY
+}
+
 /// The warning to show before OK replaces the settings file, if any.
 ///
 /// The form shows the defaults when the file could not be read, so a save
@@ -229,7 +239,7 @@ pub fn overwrite_warning(source: &Source, newer_schema: Option<i64>) -> Option<S
         (None, None) => return None,
     };
     Some(format!(
-        "{what} Click OK again to save, or Cancel to keep the file."
+        "{what} Click Replace to save, or Cancel to keep the file."
     ))
 }
 
@@ -251,7 +261,7 @@ mod tests {
             Source::Unreadable("access denied".to_owned()),
         ] {
             let warning = overwrite_warning(&source, None).expect("a warning");
-            assert!(warning.contains("Click OK again to save"), "{warning}");
+            assert!(warning.contains("Click Replace to save"), "{warning}");
             assert!(warning.contains("Cancel"), "{warning}");
         }
         let warning =
@@ -260,10 +270,20 @@ mod tests {
     }
 
     #[test]
+    fn a_double_click_does_not_confirm_the_warning() {
+        // Review L-A: the second click of a double click comes well within
+        // the Windows double-click time (500 ms by default).
+        assert!(!second_ok_confirms(Duration::from_millis(0)));
+        assert!(!second_ok_confirms(Duration::from_millis(500)));
+        assert!(second_ok_confirms(CONFIRM_DELAY));
+        assert!(second_ok_confirms(Duration::from_secs(5)));
+    }
+
+    #[test]
     fn saving_over_a_newer_file_is_warned_about() {
         let warning = overwrite_warning(&Source::File, Some(3)).expect("a warning");
         assert!(warning.contains("schema_version 3"), "{warning}");
-        assert!(warning.contains("Click OK again to save"), "{warning}");
+        assert!(warning.contains("Click Replace to save"), "{warning}");
     }
 
     use super::*;

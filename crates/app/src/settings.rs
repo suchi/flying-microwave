@@ -18,6 +18,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::time::Instant;
 
 use eframe::egui::{
     self, Align, Button, Color32, CornerRadius, FontFamily, FontId, Frame, Label, Layout, Margin,
@@ -323,8 +324,8 @@ struct SettingsApp {
     /// What to tell the user before OK replaces the file, if anything
     /// (a newer `schema_version`, F-08, or a file that could not be read).
     overwrite_warning: Option<String>,
-    /// Whether that warning was shown.
-    overwrite_warned: bool,
+    /// When that warning was shown.
+    warned_at: Option<Instant>,
     /// Why the last save failed.
     error: Option<String>,
 }
@@ -344,7 +345,7 @@ impl SettingsApp {
                 &startup.loaded.source,
                 startup.loaded.newer_schema,
             ),
-            overwrite_warned: false,
+            warned_at: None,
             error: None,
         }
     }
@@ -359,9 +360,16 @@ impl SettingsApp {
         // Why: provisional for v0.2.0-alpha (plan 0004, E-3): the first OK
         // on a newer or unreadable file only shows the warning; the second
         // one saves.
-        if self.overwrite_warning.is_some() && !self.overwrite_warned {
-            self.overwrite_warned = true;
-            return;
+        if self.overwrite_warning.is_some() {
+            match self.warned_at {
+                None => {
+                    self.warned_at = Some(Instant::now());
+                    return;
+                }
+                // A double click on OK must not save unread (review L-A).
+                Some(at) if !storage::second_ok_confirms(at.elapsed()) => return,
+                Some(_) => {}
+            }
         }
         let result = match &self.location {
             Ok(location) => {
@@ -430,7 +438,7 @@ impl SettingsApp {
     fn footer(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         if let Some(error) = &self.error {
             ui.add(Label::new(RichText::new(error).color(ui.visuals().error_fg_color)).wrap());
-        } else if let (Some(text), true) = (&self.overwrite_warning, self.overwrite_warned) {
+        } else if let (Some(text), Some(_)) = (&self.overwrite_warning, self.warned_at) {
             ui.add(
                 Label::new(RichText::new(text.as_str()).color(ui.visuals().warn_fg_color)).wrap(),
             );
@@ -444,7 +452,14 @@ impl SettingsApp {
                 if ui.button("Cancel").clicked() {
                     self.close(ctx, "Cancel clicked");
                 }
-                let ok = Button::new(RichText::new("OK").color(ACCENT_INK).strong()).fill(ACCENT);
+                // The confirming OK reads "Replace", so that it does not look
+                // like the same click again.
+                let label = if self.overwrite_warning.is_some() && self.warned_at.is_some() {
+                    "Replace"
+                } else {
+                    "OK"
+                };
+                let ok = Button::new(RichText::new(label).color(ACCENT_INK).strong()).fill(ACCENT);
                 if ui.add(ok).clicked() {
                     self.ok(ctx);
                 }
