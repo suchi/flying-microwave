@@ -1,0 +1,217 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320"><rect width="1200" height="320" fill="#060812"/><g transform="translate(0,0)"><g>
+  
+  <defs>
+    <linearGradient id="m0-top" x1="0" y1="1" x2="0.3" y2="0">
+      <stop offset="0" stop-color="#c9ced8"/>
+      <stop offset="1" stop-color="#8d94a3"/>
+    </linearGradient>
+    <linearGradient id="m0-side" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5d6474"/>
+      <stop offset="1" stop-color="#363b47"/>
+    </linearGradient>
+    <linearGradient id="m0-front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b3b9c5"/>
+      <stop offset="1" stop-color="#7c8392"/>
+    </linearGradient>
+    <linearGradient id="m0-glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b2433"/>
+      <stop offset="1" stop-color="#0b0f17"/>
+    </linearGradient>
+    <radialGradient id="m0-glow" cx="0.5" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#ffd27a"/>
+      <stop offset="0.55" stop-color="#ff9a3c"/>
+      <stop offset="1" stop-color="#7a3410"/>
+    </radialGradient>
+    <linearGradient id="m0-shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="m0-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a303b"/>
+      <stop offset="1" stop-color="#1a1e26"/>
+    </linearGradient>
+  </defs>
+  <polygon points="300.0,90.0 352.0,54.0 352.0,214.0 300.0,250.0" fill="url(#m0-side)"/>
+  <line x1="310.0" y1="120.0" x2="310.0" y2="150.0" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="316.0" y1="115.8" x2="316.0" y2="145.8" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="322.0" y1="111.6" x2="322.0" y2="141.6" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="328.0" y1="107.4" x2="328.0" y2="137.4" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="334.0" y1="103.2" x2="334.0" y2="133.2" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="340.0" y1="99.0" x2="340.0" y2="129.0" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="60.0,90.0 300.0,90.0 352.0,54.0 112.0,54.0" fill="url(#m0-top)"/>
+  <rect x="60.0" y="90.0" width="240.0" height="160.0" rx="4" fill="url(#m0-front)"/>
+  <rect x="60.0" y="90.0" width="240.0" height="3" fill="#e4e7ee" opacity="0.7"/>
+  <rect x="232.0" y="100" width="60.0" height="140" rx="5" fill="url(#m0-panel)"/>
+  <rect x="238.0" y="108" width="48.0" height="22" rx="3" fill="#06110f"/>
+  <text x="262.0" y="125" text-anchor="middle" font-family="Consolas, monospace" font-size="15" font-weight="700" fill="#5ee7df">12:34</text>
+  <rect x="240.0" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="255.5" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="271.0" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="240.0" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="255.5" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="271.0" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="240.0" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="255.5" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="271.0" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
+  <circle cx="262.0" cy="210" r="14" fill="#9aa1ae" stroke="#5a6170" stroke-width="2"/>
+  <rect x="260.5" y="198" width="3" height="10" rx="1.5" fill="#2a303b"/>
+  <circle cx="284.0" cy="232" r="2.5" fill="#ff9a3c"/>
+  <rect x="70.0" y="100.0" width="156.0" height="140.0" rx="6" fill="#262c37"/>
+  
+  <rect x="84.0" y="114.0" width="128.0" height="112.0" rx="8" fill="url(#m0-glow)"/>
+  <polygon points="84.0,114.0 106.0,128.0 106.0,206.0 84.0,226.0" fill="#000" opacity="0.18"/>
+  <ellipse cx="156.0" cy="204.0" rx="46" ry="11" fill="#fff4dc" opacity="0.85"/>
+  <ellipse cx="156.0" cy="204.0" rx="46" ry="11" fill="none" stroke="#c46a26" stroke-width="2" opacity="0.6"/>
+  <path d="M 138.0 196.0 q 18 -26 36 0 z" fill="#f2f2ee"/>
+  <rect x="142.0" y="174.0" width="28" height="24" rx="4" fill="#5ee7df"/>
+  <path d="M 170.0 180.0 q 10 6 0 14" fill="none" stroke="#5ee7df" stroke-width="4"/>
+  <rect x="84" y="114" width="128" height="112" rx="8" fill="url(#m0-glass)" opacity="0.55"/>
+  <rect x="84" y="114" width="128" height="112" rx="8" fill="url(#m0-shine)"/>
+  <rect x="214" y="140" width="5" height="60" rx="2.5" fill="#d8dce4"/>
+  <rect x="78.0" y="250.0" width="14" height="6" rx="2" fill="#20242c"/>
+  <rect x="268.0" y="250.0" width="14" height="6" rx="2" fill="#20242c"/>
+</g></g><text x="180" y="300" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#9aa4b8">door 0°</text><g transform="translate(400,0)"><g>
+  
+  <defs>
+    <linearGradient id="m1-top" x1="0" y1="1" x2="0.3" y2="0">
+      <stop offset="0" stop-color="#6a7180"/>
+      <stop offset="1" stop-color="#3e4350"/>
+    </linearGradient>
+    <linearGradient id="m1-side" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#30343e"/>
+      <stop offset="1" stop-color="#1b1e25"/>
+    </linearGradient>
+    <linearGradient id="m1-front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#555c6b"/>
+      <stop offset="1" stop-color="#2f333d"/>
+    </linearGradient>
+    <linearGradient id="m1-glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b2433"/>
+      <stop offset="1" stop-color="#0b0f17"/>
+    </linearGradient>
+    <radialGradient id="m1-glow" cx="0.5" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#ffd27a"/>
+      <stop offset="0.55" stop-color="#ff9a3c"/>
+      <stop offset="1" stop-color="#7a3410"/>
+    </radialGradient>
+    <linearGradient id="m1-shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="m1-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a303b"/>
+      <stop offset="1" stop-color="#1a1e26"/>
+    </linearGradient>
+  </defs>
+  <polygon points="300.0,90.0 352.0,54.0 352.0,214.0 300.0,250.0" fill="url(#m1-side)"/>
+  <line x1="310.0" y1="120.0" x2="310.0" y2="150.0" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="316.0" y1="115.8" x2="316.0" y2="145.8" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="322.0" y1="111.6" x2="322.0" y2="141.6" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="328.0" y1="107.4" x2="328.0" y2="137.4" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="334.0" y1="103.2" x2="334.0" y2="133.2" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="340.0" y1="99.0" x2="340.0" y2="129.0" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="60.0,90.0 300.0,90.0 352.0,54.0 112.0,54.0" fill="url(#m1-top)"/>
+  <rect x="60.0" y="90.0" width="240.0" height="160.0" rx="4" fill="url(#m1-front)"/>
+  <rect x="60.0" y="90.0" width="240.0" height="3" fill="#e4e7ee" opacity="0.7"/>
+  <rect x="232.0" y="100" width="60.0" height="140" rx="5" fill="url(#m1-panel)"/>
+  <rect x="238.0" y="108" width="48.0" height="22" rx="3" fill="#06110f"/>
+  <text x="262.0" y="125" text-anchor="middle" font-family="Consolas, monospace" font-size="15" font-weight="700" fill="#5ee7df">12:34</text>
+  <rect x="240.0" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="255.5" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="271.0" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="240.0" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="255.5" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="271.0" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="240.0" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="255.5" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="271.0" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
+  <circle cx="262.0" cy="210" r="14" fill="#9aa1ae" stroke="#5a6170" stroke-width="2"/>
+  <rect x="260.5" y="198" width="3" height="10" rx="1.5" fill="#2a303b"/>
+  <circle cx="284.0" cy="232" r="2.5" fill="#ff9a3c"/>
+  <rect x="70.0" y="100.0" width="156.0" height="140.0" rx="6" fill="#1a1f28"/>
+  
+  <rect x="84.0" y="114.0" width="128.0" height="112.0" rx="8" fill="url(#m1-glow)"/>
+  <polygon points="84.0,114.0 106.0,128.0 106.0,206.0 84.0,226.0" fill="#000" opacity="0.18"/>
+  <ellipse cx="156.0" cy="204.0" rx="46" ry="11" fill="#fff4dc" opacity="0.85"/>
+  <ellipse cx="156.0" cy="204.0" rx="46" ry="11" fill="none" stroke="#c46a26" stroke-width="2" opacity="0.6"/>
+  <path d="M 138.0 196.0 q 18 -26 36 0 z" fill="#f2f2ee"/>
+  <rect x="142.0" y="174.0" width="28" height="24" rx="4" fill="#5ee7df"/>
+  <path d="M 170.0 180.0 q 10 6 0 14" fill="none" stroke="#5ee7df" stroke-width="4"/>
+  <polygon points="70.0,100.0 127.8,121.9 127.8,261.9 70.0,240.0" fill="#262c37" stroke="#111" stroke-width="1"/>
+  <polygon points="75.2,116.0 122.6,133.9 122.6,245.9 75.2,228.0" fill="url(#m1-glass)"/>
+  <polygon points="75.2,116.0 122.6,133.9 122.6,245.9 75.2,228.0" fill="url(#m1-shine)"/>
+  <rect x="78.0" y="250.0" width="14" height="6" rx="2" fill="#20242c"/>
+  <rect x="268.0" y="250.0" width="14" height="6" rx="2" fill="#20242c"/>
+</g></g><text x="580" y="300" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#9aa4b8">door 55°</text><g transform="translate(800,0)"><g>
+  
+  <defs>
+    <linearGradient id="m2-top" x1="0" y1="1" x2="0.3" y2="0">
+      <stop offset="0" stop-color="#f4f5f7"/>
+      <stop offset="1" stop-color="#cfd3db"/>
+    </linearGradient>
+    <linearGradient id="m2-side" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a7adb9"/>
+      <stop offset="1" stop-color="#7d8391"/>
+    </linearGradient>
+    <linearGradient id="m2-front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eceef2"/>
+      <stop offset="1" stop-color="#c3c8d1"/>
+    </linearGradient>
+    <linearGradient id="m2-glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b2433"/>
+      <stop offset="1" stop-color="#0b0f17"/>
+    </linearGradient>
+    <radialGradient id="m2-glow" cx="0.5" cy="0.35" r="0.75">
+      <stop offset="0" stop-color="#ffd27a"/>
+      <stop offset="0.55" stop-color="#ff9a3c"/>
+      <stop offset="1" stop-color="#7a3410"/>
+    </radialGradient>
+    <linearGradient id="m2-shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="m2-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a303b"/>
+      <stop offset="1" stop-color="#1a1e26"/>
+    </linearGradient>
+  </defs>
+  <polygon points="300.0,90.0 352.0,54.0 352.0,214.0 300.0,250.0" fill="url(#m2-side)"/>
+  <line x1="310.0" y1="120.0" x2="310.0" y2="150.0" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="316.0" y1="115.8" x2="316.0" y2="145.8" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="322.0" y1="111.6" x2="322.0" y2="141.6" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="328.0" y1="107.4" x2="328.0" y2="137.4" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="334.0" y1="103.2" x2="334.0" y2="133.2" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <line x1="340.0" y1="99.0" x2="340.0" y2="129.0" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="60.0,90.0 300.0,90.0 352.0,54.0 112.0,54.0" fill="url(#m2-top)"/>
+  <rect x="60.0" y="90.0" width="240.0" height="160.0" rx="4" fill="url(#m2-front)"/>
+  <rect x="60.0" y="90.0" width="240.0" height="3" fill="#e4e7ee" opacity="0.7"/>
+  <rect x="232.0" y="100" width="60.0" height="140" rx="5" fill="url(#m2-panel)"/>
+  <rect x="238.0" y="108" width="48.0" height="22" rx="3" fill="#06110f"/>
+  <text x="262.0" y="125" text-anchor="middle" font-family="Consolas, monospace" font-size="15" font-weight="700" fill="#5ee7df">12:34</text>
+  <rect x="240.0" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="255.5" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="271.0" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="240.0" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="255.5" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="271.0" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="240.0" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="255.5" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
+  <rect x="271.0" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
+  <circle cx="262.0" cy="210" r="14" fill="#9aa1ae" stroke="#5a6170" stroke-width="2"/>
+  <rect x="260.5" y="198" width="3" height="10" rx="1.5" fill="#2a303b"/>
+  <circle cx="284.0" cy="232" r="2.5" fill="#ff9a3c"/>
+  <rect x="70.0" y="100.0" width="156.0" height="140.0" rx="6" fill="#1a1f28"/>
+  
+  <rect x="84.0" y="114.0" width="128.0" height="112.0" rx="8" fill="url(#m2-glow)"/>
+  <polygon points="84.0,114.0 106.0,128.0 106.0,206.0 84.0,226.0" fill="#000" opacity="0.18"/>
+  <ellipse cx="156.0" cy="204.0" rx="46" ry="11" fill="#fff4dc" opacity="0.85"/>
+  <ellipse cx="156.0" cy="204.0" rx="46" ry="11" fill="none" stroke="#c46a26" stroke-width="2" opacity="0.6"/>
+  <path d="M 138.0 196.0 q 18 -26 36 0 z" fill="#f2f2ee"/>
+  <rect x="142.0" y="174.0" width="28" height="24" rx="4" fill="#5ee7df"/>
+  <path d="M 170.0 180.0 q 10 6 0 14" fill="none" stroke="#5ee7df" stroke-width="4"/>
+  <polygon points="70.0,100.0 -19.7,125.1 -19.7,265.1 70.0,240.0" fill="#4a505c" stroke="#111" stroke-width="1"/>
+  <polygon points="61.9,116.3 -11.6,136.9 -11.6,248.9 61.9,228.3" fill="url(#m2-glass)"/>
+  <polygon points="61.9,116.3 -11.6,136.9 -11.6,248.9 61.9,228.3" fill="url(#m2-shine)"/>
+  <rect x="78.0" y="250.0" width="14" height="6" rx="2" fill="#20242c"/>
+  <rect x="268.0" y="250.0" width="14" height="6" rx="2" fill="#20242c"/>
+</g></g><text x="980" y="300" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#9aa4b8">door 110°</text></svg>
