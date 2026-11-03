@@ -30,6 +30,15 @@ const BASE_SPEED: f32 = 0.15;
 const SPEED_FACTOR_RANGE: (f32, f32) = (0.8, 1.2);
 /// Flight direction (left 2, down 1) normalized: (-2, 1) / sqrt(5).
 const DIRECTION: (f32, f32) = (-0.894_427_2, 0.447_213_6);
+/// Range of the random per-flyer door flap rate (flaps per second).
+///
+/// Opening the door shows the lit oven, so a flap may count as a flash.
+/// Guideline G-3 allows at most three flashes a second; the rate stays well
+/// below that (docs/design/visual-design.md).
+const FLAP_RATE_RANGE: (f32, f32) = (1.2, 1.8);
+
+/// Number of body colors. [`SpriteInstance::color`] is below this value.
+pub const BODY_COLORS: u8 = 4;
 
 /// Tunable simulation parameters.
 ///
@@ -65,9 +74,14 @@ pub struct SpriteInstance {
     pub y: f32,
     /// Side length of the square sprite (screen heights).
     pub size: f32,
+    /// Door flap phase in `[0, 1)`: 0 is the start of a flap cycle.
+    pub flap: f32,
+    /// Body color, below [`BODY_COLORS`].
+    pub color: u8,
 }
 
-/// One flyer: the previous and the current step position, and its velocity.
+/// One flyer: the previous and the current step position and flap phase,
+/// its velocity, flap rate and body color.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Flyer {
     prev_x: f32,
@@ -76,6 +90,12 @@ struct Flyer {
     y: f32,
     vx: f32,
     vy: f32,
+    prev_flap: f32,
+    /// Flap phase in `[0, 1)`.
+    flap: f32,
+    /// Flaps per second.
+    flap_rate: f32,
+    color: u8,
 }
 
 /// The simulated world: a set of flyers that cross the screen.
@@ -109,6 +129,7 @@ impl World {
                 let x = rng.range_f32(0.0, aspect + size);
                 let y = rng.range_f32(-size, 1.0);
                 let (vx, vy) = random_velocity(&mut rng, speed);
+                let (flap, flap_rate, color) = random_looks(&mut rng);
                 Flyer {
                     prev_x: x,
                     prev_y: y,
@@ -116,6 +137,10 @@ impl World {
                     y,
                     vx,
                     vy,
+                    prev_flap: flap,
+                    flap,
+                    flap_rate,
+                    color,
                 }
             })
             .collect();
@@ -150,6 +175,8 @@ impl World {
                 x: f.prev_x + (f.x - f.prev_x) * alpha,
                 y: f.prev_y + (f.y - f.prev_y) * alpha,
                 size: self.size,
+                flap: wrap_phase(f.prev_flap + forward(f.prev_flap, f.flap) * alpha),
+                color: f.color,
             })
             .collect()
     }
@@ -168,6 +195,8 @@ impl World {
             f.prev_y = f.y;
             f.x += f.vx * dt;
             f.y += f.vy * dt;
+            f.prev_flap = f.flap;
+            f.flap = wrap_phase(f.flap + f.flap_rate * dt);
             // Flyers leave through the left and bottom edges.
             if f.x + half < 0.0 || f.y - half > 1.0 {
                 respawn(f, &mut self.rng, self.aspect, half, self.speed);
@@ -184,6 +213,31 @@ fn random_velocity(rng: &mut Rng, speed: f32) -> (f32, f32) {
     let factor = rng.range_f32(SPEED_FACTOR_RANGE.0, SPEED_FACTOR_RANGE.1);
     let v = speed * factor;
     (DIRECTION.0 * v, DIRECTION.1 * v)
+}
+
+/// Draws the flap phase, the flap rate and the body color of a flyer.
+fn random_looks(rng: &mut Rng) -> (f32, f32, u8) {
+    let flap = rng.next_f32();
+    let rate = rng.range_f32(FLAP_RATE_RANGE.0, FLAP_RATE_RANGE.1);
+    // The top bits, as in `Rng::next_f32`; BODY_COLORS is far below 2^32.
+    let color = ((rng.next_u64() >> 32) % u64::from(BODY_COLORS)) as u8;
+    (flap, rate, color)
+}
+
+/// Wraps a phase into `[0, 1)`.
+fn wrap_phase(phase: f32) -> f32 {
+    let wrapped = phase - phase.floor();
+    // Why: a tiny negative phase gives 1.0 after rounding; keep it below 1.
+    if wrapped >= 1.0 { 0.0 } else { wrapped }
+}
+
+/// How far the phase moved forward from `from` to `to`, across the wrap.
+fn forward(from: f32, to: f32) -> f32 {
+    if to >= from {
+        to - from
+    } else {
+        to + 1.0 - from
+    }
 }
 
 /// Moves `flyer` to a new entry point on the top or right edge with a fresh
@@ -208,6 +262,7 @@ fn respawn(flyer: &mut Flyer, rng: &mut Rng, aspect: f32, half: f32, speed: f32)
         (aspect + half, (u - top) / 2.0 - half)
     };
     let (vx, vy) = random_velocity(rng, speed);
+    let (flap, flap_rate, color) = random_looks(rng);
     *flyer = Flyer {
         // The previous position equals the new one so that interpolation
         // never draws a streak across the screen.
@@ -217,6 +272,10 @@ fn respawn(flyer: &mut Flyer, rng: &mut Rng, aspect: f32, half: f32, speed: f32)
         y,
         vx,
         vy,
+        prev_flap: flap,
+        flap,
+        flap_rate,
+        color,
     };
 }
 
@@ -252,6 +311,10 @@ mod tests {
             y,
             vx: DIRECTION.0 * speed,
             vy: DIRECTION.1 * speed,
+            prev_flap: 0.0,
+            flap: 0.0,
+            flap_rate: 1.5,
+            color: 0,
         }
     }
 
@@ -599,6 +662,96 @@ mod tests {
             for i in w.instances() {
                 assert!(i.x.is_finite() && i.y.is_finite() && i.size.is_finite());
             }
+        }
+    }
+
+    #[test]
+    fn instances_have_a_flap_phase_and_a_body_color() {
+        let mut w = World::new(29, ASPECT, params(200));
+        for _ in 0..50 {
+            w.advance(Duration::from_millis(37));
+            for i in w.instances() {
+                assert!((0.0..1.0).contains(&i.flap), "flap = {}", i.flap);
+                assert!(i.color < BODY_COLORS, "color = {}", i.color);
+            }
+        }
+    }
+
+    #[test]
+    fn every_body_color_is_used() {
+        let w = World::new(31, ASPECT, params(200));
+        let mut seen = [false; BODY_COLORS as usize];
+        for i in w.instances() {
+            seen[usize::from(i.color)] = true;
+        }
+        assert!(seen.iter().all(|&s| s), "colors seen: {seen:?}");
+    }
+
+    #[test]
+    fn flap_rate_stays_well_below_three_per_second() {
+        // Guideline G-3: nothing may flash more than three times a second.
+        // Opening the door shows the lit oven, so one flap may count as one flash.
+        let w = World::new(37, ASPECT, params(500));
+        for f in &w.flyers {
+            assert!(
+                (FLAP_RATE_RANGE.0..FLAP_RATE_RANGE.1).contains(&f.flap_rate),
+                "rate = {}",
+                f.flap_rate
+            );
+        }
+        assert!(FLAP_RATE_RANGE.0 > 0.0 && FLAP_RATE_RANGE.1 <= 2.0);
+    }
+
+    #[test]
+    fn flap_advances_by_its_rate_and_wraps() {
+        let mut f = flyer_at(0.5, 0.5, 1.0);
+        f.flap_rate = 1.5;
+        f.prev_flap = 0.995;
+        f.flap = 0.995;
+        let mut w = world_with(1, f);
+        w.advance(TIME_STEP);
+        let f = w.flyers[0];
+        let dt = TIME_STEP.as_secs_f32();
+        assert_eq!(f.prev_flap, 0.995);
+        // 0.995 + 1.5 * 0.00833 = 1.0075, wrapped to 0.0075.
+        assert!(
+            (f.flap - (0.995 + 1.5 * dt - 1.0)).abs() < 1e-6,
+            "{}",
+            f.flap
+        );
+    }
+
+    #[test]
+    fn flap_interpolates_across_the_wrap() {
+        let mut f = flyer_at(0.5, 0.5, 1.0);
+        f.flap_rate = 1.5;
+        f.prev_flap = 0.99;
+        f.flap = 0.99;
+        let mut w = world_with(1, f);
+        // One step from 0.99 to about 0.0025, then half a step more.
+        w.advance(TIME_STEP + TIME_STEP / 2);
+        let f = w.flyers[0];
+        let i = w.instances()[0];
+        let halfway = f.prev_flap + (f.flap + 1.0 - f.prev_flap) / 2.0;
+        let want = halfway - halfway.floor();
+        assert!(
+            (i.flap - want).abs() < 1e-4,
+            "flap = {}, want {want}",
+            i.flap
+        );
+        assert!((0.0..1.0).contains(&i.flap));
+    }
+
+    #[test]
+    fn respawn_resets_the_flap_without_a_jump() {
+        let half = BASE_SIZE / 2.0;
+        for seed in 0..32 {
+            let mut w = world_with(seed, flyer_at(-half + 1e-4, 0.5, 0.5));
+            w.advance(TIME_STEP + TIME_STEP / 2);
+            let f = w.flyers[0];
+            assert_eq!(f.prev_flap, f.flap, "no jump after a respawn");
+            assert_eq!(w.instances()[0].flap, f.flap);
+            assert!(f.color < BODY_COLORS);
         }
     }
 

@@ -4,9 +4,6 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod cli;
-// Used by the Windows renderer; tested on every host.
-#[cfg_attr(not(windows), allow(dead_code))]
-mod layout;
 #[cfg(windows)]
 mod log;
 #[cfg(windows)]
@@ -15,6 +12,9 @@ mod preview;
 mod render;
 #[cfg(windows)]
 mod saver;
+// Used by the Windows renderer; tested on every host.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod sprite;
 #[cfg(windows)]
 mod win;
 

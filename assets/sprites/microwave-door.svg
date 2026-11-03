@@ -1,0 +1,21 @@
+<!-- Flying Microwave contributors. MIT License. See assets/sprites/README.md. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="156" height="140" viewBox="0 0 156 140">
+  <defs>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b2433"/>
+      <stop offset="1" stop-color="#0b0f17"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="frame">
+      <rect width="156" height="140" fill="#ffffff"/>
+      <rect x="14" y="14" width="128" height="112" rx="8" fill="#000000"/>
+    </mask>
+  </defs>
+  <rect x="0.5" y="0.5" width="155" height="139" rx="6" fill="#262c37" stroke="#111111" stroke-width="1" mask="url(#frame)"/>
+  <rect x="14" y="14" width="128" height="112" rx="8" fill="url(#glass)" opacity="0.55"/>
+  <rect x="14" y="14" width="128" height="112" rx="8" fill="url(#shine)"/>
+  <rect x="144" y="40" width="5" height="60" rx="2.5" fill="#d8dce4"/>
+</svg>
