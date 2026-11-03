@@ -15,6 +15,10 @@ mod preview;
 mod render;
 #[cfg(windows)]
 mod saver;
+// Used by the Windows modes; tested on every host.
+// Why `allow` on Windows too: the settings window that uses it comes next.
+#[allow(dead_code)]
+mod storage;
 #[cfg(windows)]
 mod win;
 

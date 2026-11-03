@@ -1,20 +1,27 @@
 //! Small Win32 helpers. Every `unsafe` block calls one documented Win32 API
 //! with arguments that are valid for the duration of the call.
 
-use std::ffi::c_void;
+use std::ffi::{OsString, c_void};
+use std::os::windows::ffi::OsStringExt;
+use std::path::PathBuf;
 
 use windows_sys::Win32::Foundation::{
     ERROR_ALREADY_EXISTS, GetLastError, HANDLE, HWND, POINT, RECT,
 };
 use windows_sys::Win32::Graphics::Gdi::{BLACK_BRUSH, FillRect, GetDC, GetStockObject, ReleaseDC};
+use windows_sys::Win32::System::Com::CoTaskMemFree;
 use windows_sys::Win32::System::LibraryLoader::{
     LOAD_LIBRARY_SEARCH_SYSTEM32, SetDefaultDllDirectories,
 };
 use windows_sys::Win32::System::Threading::{CreateMutexW, GetCurrentProcess, TerminateProcess};
+use windows_sys::Win32::UI::Shell::{
+    FOLDERID_RoamingAppData, KF_FLAG_DEFAULT, SHGetKnownFolderPath,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetCursorPos, IsWindow, MB_ICONINFORMATION, MB_OK, MessageBoxW,
     SetForegroundWindow,
 };
+use windows_sys::core::{GUID, PWSTR};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 /// SEC-1 (docs/design/architecture.md): load DLLs only from System32, so a
@@ -162,4 +169,32 @@ pub fn message_box(text: &str, caption: &str) {
             MB_OK | MB_ICONINFORMATION,
         );
     }
+}
+
+/// The Roaming AppData folder of the current user (`%APPDATA%`), from
+/// `SHGetKnownFolderPath` (plan 0004, D-1).
+pub fn roaming_app_data() -> Option<PathBuf> {
+    known_folder(&FOLDERID_RoamingAppData)
+}
+
+/// The path of a known folder, or `None` when Windows cannot give it.
+fn known_folder(id: &GUID) -> Option<PathBuf> {
+    let mut raw: PWSTR = std::ptr::null_mut();
+    // SAFETY: `id` is a valid GUID and `raw` a writable pointer; a null
+    // token means the current user.
+    let result =
+        unsafe { SHGetKnownFolderPath(id, KF_FLAG_DEFAULT as u32, std::ptr::null_mut(), &mut raw) };
+    let path = (result >= 0 && !raw.is_null()).then(|| {
+        // SAFETY: on success `raw` is a NUL-terminated UTF-16 string that
+        // stays valid until it is freed below.
+        let wide = unsafe {
+            let len = (0..).take_while(|&i| *raw.add(i) != 0).count();
+            std::slice::from_raw_parts(raw, len)
+        };
+        PathBuf::from(OsString::from_wide(wide))
+    });
+    // SAFETY: the documentation of SHGetKnownFolderPath requires freeing the
+    // buffer whether the call succeeded or not; freeing null does nothing.
+    unsafe { CoTaskMemFree(raw as *const c_void) };
+    path
 }
