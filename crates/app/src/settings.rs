@@ -320,9 +320,10 @@ struct SettingsApp {
     form: Config,
     tab: Tab,
     location: Result<Location, String>,
-    /// The file's newer `schema_version`, if any (F-08).
-    newer_schema: Option<i64>,
-    /// Whether the user was told that OK rewrites a newer file.
+    /// What to tell the user before OK replaces the file, if anything
+    /// (a newer `schema_version`, F-08, or a file that could not be read).
+    overwrite_warning: Option<String>,
+    /// Whether that warning was shown.
     overwrite_warned: bool,
     /// Why the last save failed.
     error: Option<String>,
@@ -339,7 +340,10 @@ impl SettingsApp {
             form: startup.loaded.config,
             tab: Tab::Flight,
             location: startup.location,
-            newer_schema: startup.loaded.newer_schema,
+            overwrite_warning: storage::overwrite_warning(
+                &startup.loaded.source,
+                startup.loaded.newer_schema,
+            ),
             overwrite_warned: false,
             error: None,
         }
@@ -353,8 +357,9 @@ impl SettingsApp {
 
     fn ok(&mut self, ctx: &egui::Context) {
         // Why: provisional for v0.2.0-alpha (plan 0004, E-3): the first OK
-        // on a newer file only shows the warning; the second one saves.
-        if self.newer_schema.is_some() && !self.overwrite_warned {
+        // on a newer or unreadable file only shows the warning; the second
+        // one saves.
+        if self.overwrite_warning.is_some() && !self.overwrite_warned {
             self.overwrite_warned = true;
             return;
         }
@@ -425,14 +430,10 @@ impl SettingsApp {
     fn footer(&mut self, ui: &mut Ui, ctx: &egui::Context) {
         if let Some(error) = &self.error {
             ui.add(Label::new(RichText::new(error).color(ui.visuals().error_fg_color)).wrap());
-        } else if let (Some(version), true) = (self.newer_schema, self.overwrite_warned) {
-            let text = format!(
-                "This settings file is from a newer version (schema_version {version}). \
-                 Saving rewrites it in the format of this version, and settings this \
-                 version does not know are lost. Click OK again to save, or Cancel to \
-                 keep the file."
+        } else if let (Some(text), true) = (&self.overwrite_warning, self.overwrite_warned) {
+            ui.add(
+                Label::new(RichText::new(text.as_str()).color(ui.visuals().warn_fg_color)).wrap(),
             );
-            ui.add(Label::new(RichText::new(text).color(ui.visuals().warn_fg_color)).wrap());
         }
         ui.horizontal(|ui| {
             if ui.button("Defaults").clicked() {

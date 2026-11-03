@@ -165,8 +165,71 @@ impl Startup {
     }
 }
 
+/// The warning to show before OK replaces the settings file, if any.
+///
+/// The form shows the defaults when the file could not be read, so a save
+/// would silently replace a file the user may want to keep (one with a typo,
+/// or one on a share that is unreachable for a moment). A newer file loses
+/// the items this version does not know (plan 0004, F-08).
+// Why: provisional for v0.2.0-alpha (plan 0004, E-3): warn, then save on
+// the second OK.
+pub fn overwrite_warning(source: &Source, newer_schema: Option<i64>) -> Option<String> {
+    let reason = match source {
+        Source::Missing | Source::File => None,
+        Source::Unreadable(reason) => Some(format!("could not be read ({reason})")),
+        Source::TooLarge => Some("is too large to read".to_owned()),
+        Source::NotToml => Some("is not a valid settings file".to_owned()),
+    };
+    let what = match (reason, newer_schema) {
+        (Some(reason), _) => format!(
+            "The settings file {reason}, so the defaults are shown. Saving replaces the file \
+             with these values."
+        ),
+        (None, Some(version)) => format!(
+            "This settings file is from a newer version (schema_version {version}). Saving \
+             rewrites it in the format of this version, and settings this version does not \
+             know are lost."
+        ),
+        (None, None) => return None,
+    };
+    Some(format!(
+        "{what} Click OK again to save, or Cancel to keep the file."
+    ))
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn saving_over_a_file_that_was_read_or_missing_needs_no_warning() {
+        assert_eq!(overwrite_warning(&Source::File, None), None);
+        assert_eq!(overwrite_warning(&Source::Missing, None), None);
+    }
+
+    #[test]
+    fn saving_over_a_file_that_could_not_be_read_is_warned_about() {
+        // Review M-1: OK must not silently replace a file the user may want
+        // to keep, such as one with a typo or one on an unreachable share.
+        for source in [
+            Source::NotToml,
+            Source::TooLarge,
+            Source::Unreadable("access denied".to_owned()),
+        ] {
+            let warning = overwrite_warning(&source, None).expect("a warning");
+            assert!(warning.contains("Click OK again to save"), "{warning}");
+            assert!(warning.contains("Cancel"), "{warning}");
+        }
+        let warning =
+            overwrite_warning(&Source::Unreadable("access denied".to_owned()), None).unwrap();
+        assert!(warning.contains("access denied"), "{warning}");
+    }
+
+    #[test]
+    fn saving_over_a_newer_file_is_warned_about() {
+        let warning = overwrite_warning(&Source::File, Some(3)).expect("a warning");
+        assert!(warning.contains("schema_version 3"), "{warning}");
+        assert!(warning.contains("Click OK again to save"), "{warning}");
+    }
+
     use super::*;
 
     use flying_microwave_core::config::Config;
