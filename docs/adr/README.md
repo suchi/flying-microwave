@@ -36,7 +36,7 @@
 | [0005](0005-license-mit.md) | ライセンスにMITを採用する | 採用 | 2026-10-31 |
 | [0006](0006-target-windows-11-x64-arm64.md) | 対象環境をWindows 11のx64とarm64にする | 非推奨(ADR-0016に置き換え) | 2026-10-31 |
 | [0007](0007-adversarial-review-without-copilot.md) | 敵対的レビューを別コンテキストのエージェントで行い、GitHub Copilotのレビューは使わない | 非推奨(ADR-0014に置き換え) | 2026-10-31 |
-| [0008](0008-svg-assets-with-resvg.md) | 素材をSVGで作り、resvgでラスタライズする | 採用 | 2026-10-31 |
+| [0008](0008-svg-assets-with-resvg.md) | 素材をSVGで作り、resvgでラスタライズする | 非推奨(ADR-0023に置き換え) | 2026-10-31 |
 | [0009](0009-cargo-workspace-core-and-app.md) | Cargoワークスペースをcoreとappの2つのcrateに分ける | 採用 | 2026-10-31 |
 | [0010](0010-deterministic-core-simulation.md) | シミュレーションを決定的にする | 採用 | 2026-10-31 |
 | [0011](0011-license-notices-with-cargo-about.md) | 依存crateのライセンス表記をcargo-aboutで生成する | 採用 | 2026-10-31 |
@@ -51,3 +51,4 @@
 | [0020](0020-windows-resources-with-embed-resource.md) | Windowsのリソースを、embed-resourceで自分で書いた`.rc`から埋め込む | 採用 | 2026-11-02 |
 | [0021](0021-spdx-sbom-with-own-script.md) | リリースのSBOMを、SPDX 2.3の形式で、自前のスクリプトで作る | 採用 | 2026-11-02 |
 | [0022](0022-ship-x64-only-for-now.md) | 当面はx64版だけを配布し、arm64には対応しない | 採用 | 2026-11-03 |
+| [0023](0023-svg-sprites-from-v0.2.0.md) | 素材をSVGで作り、v0.2.0の試作版からresvgでラスタライズして描く | 採用 | 2026-11-03 |

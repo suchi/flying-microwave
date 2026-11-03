@@ -114,7 +114,7 @@
 | 描画 | wgpu 30系 | [ADR-0002](../adr/0002-render-with-wgpu.md) |
 | 設定画面 | eframe/egui 0.37系(既定機能を無効にし、フォントを差し替える) | [ADR-0003](../adr/0003-settings-ui-with-eframe.md) |
 | 設定の保存 | 利用者ごとの設定ディレクトリにTOMLファイル | [ADR-0004](../adr/0004-store-settings-as-toml.md) |
-| 素材 | SVG(Phase 3からresvgでラスタライズ) | [ADR-0008](../adr/0008-svg-assets-with-resvg.md) |
+| 素材 | SVG(v0.2.0の試作版からresvgでラスタライズ。2026-11-03に前倒し) | [ADR-0008](../adr/0008-svg-assets-with-resvg.md)、[ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md) |
 | ワークスペース | `core`と`app`の2crate | [ADR-0009](../adr/0009-cargo-workspace-core-and-app.md) |
 | シミュレーション | 固定タイムステップ・自前の乱数生成器・時刻の注入による決定的な設計 | [ADR-0010](../adr/0010-deterministic-core-simulation.md) |
 | ライセンス表記 | cargo-aboutで生成 | [ADR-0011](../adr/0011-license-notices-with-cargo-about.md) |
@@ -460,7 +460,7 @@ flowchart LR
 | D-12 | Windows実機での検証体制 | メンテナーが、CIでビルドした成果物で、スパイクと各リリース前の手動テストを行う | 本計画 |
 | D-13 | リポジトリの公開 | 当面は非公開で進め、将来公開する。ドキュメントに個人を特定できる情報や会話のやり取りを残さない。公開前の確認はIssue #3で追跡する | AGENTS.md、Issue #3 |
 | D-14 | v0.x系のコード署名 | 署名せず既知の制限として明記し、v1.0.0までに再判断する | [ADR-0013](../adr/0013-no-code-signing-for-v0.md)、Issue #2 |
-| D-15 | 素材のデータ形式 | SVG + resvg | [ADR-0008](../adr/0008-svg-assets-with-resvg.md) |
+| D-15 | 素材のデータ形式 | SVG + resvg | [ADR-0008](../adr/0008-svg-assets-with-resvg.md)、[ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md) |
 | D-16 | ワークスペースの構成 | `core`と`app`の2crate | [ADR-0009](../adr/0009-cargo-workspace-core-and-app.md) |
 | D-17 | 依存crateのライセンス表記の生成方法 | cargo-about | [ADR-0011](../adr/0011-license-notices-with-cargo-about.md) |
 | D-18 | シミュレーションの設計 | 固定タイムステップ・自前の乱数生成器・時刻の注入による決定的な設計 | [ADR-0010](../adr/0010-deterministic-core-simulation.md) |

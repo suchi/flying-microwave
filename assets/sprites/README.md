@@ -1,6 +1,6 @@
 # スプライトの素材
 
-画面を飛ぶ電子レンジの素材。SVGで描き、起動時にresvgでラスタライズしてテクスチャにする([ADR-0008](../../docs/adr/0008-svg-assets-with-resvg.md)、[ビジュアルデザイン方針](../../docs/design/visual-design.md#素材の作り方))。素材は実行ファイルに埋め込む(`crates/app/src/sprite.rs`の`include_str!`)。
+画面を飛ぶ電子レンジの素材。SVGで描き、起動時にresvgでラスタライズしてテクスチャにする([ADR-0023](../../docs/adr/0023-svg-sprites-from-v0.2.0.md)、[ビジュアルデザイン方針](../../docs/design/visual-design.md#素材の作り方))。素材は実行ファイルに埋め込む(`crates/app/src/sprite.rs`の`include_str!`)。
 
 ## 一覧
 
