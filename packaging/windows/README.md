@@ -40,7 +40,6 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 - このファイルにはコード署名がありません。Windows の SmartScreen が警告を表示することがあり、Smart App Control が強制モードの環境ではブロックされる可能性が高いです。
 - 管理されている PC では、グループ ポリシーによってスクリーン セーバーを選べない場合があります。
-- この版は、Windows 11 の実機での動作の確認をしていません。自動の確認だけを行っています。行った確認は、リリース ノートを参照してください。
 - スクリーン セーバーの画面が前面に出なかった場合は、キーを押しても終わりません。押したキーが、画面の後ろにあるアプリに届くことがあります。その場合は、マウスを動かすかクリックして終わらせてください。
 
 ### プライバシー
@@ -96,7 +95,6 @@ Open Screen Saver Settings, select FlyingMicrowave, and click Settings. The curr
 
 - The file is not code-signed. Windows SmartScreen may show a warning, and Smart App Control in enforcement mode is likely to block it.
 - Group Policy on managed PCs may prevent you from choosing a screen saver.
-- This version has not been tested on real Windows 11 hardware. It has only been checked automatically. See the release notes for the checks.
 - If the screen saver could not come to the front, pressing a key does not end it, and the key may reach the app behind the screen. In that case, move or click the mouse to end it.
 
 ### Privacy
