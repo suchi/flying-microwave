@@ -12,9 +12,9 @@ mod preview;
 mod render;
 #[cfg(windows)]
 mod saver;
-// Used by the Windows renderer; tested on every host.
 #[cfg(windows)]
 mod settings;
+// Used by the Windows renderer; tested on every host.
 #[cfg_attr(not(windows), allow(dead_code))]
 mod sprite;
 // Used by the Windows modes; tested on every host.
