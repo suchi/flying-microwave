@@ -59,6 +59,7 @@
 | --- | --- |
 | [onboarding.md](development/onboarding.md) | 開発参加者向けオンボーディング |
 | [review-process.md](development/review-process.md) | PRのレビュー手順(敵対的レビュー) |
+| [hardware-check-v0.1.1.md](development/hardware-check-v0.1.1.md) | v0.1.1の実機での確認の手順 |
 
 ## アイデア
 
