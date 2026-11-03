@@ -171,6 +171,8 @@ mod tests {
             x: 0.5,
             y: 0.25,
             size: 0.12,
+            flap: 0.0,
+            color: 0,
         };
         assert_eq!(center_px(&instance, 1200), (600.0, 300.0));
     }
