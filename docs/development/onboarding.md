@@ -119,7 +119,7 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 | 項目 | 内容 |
 | --- | --- |
 | 言語 | Rust stable。バージョンは`rust-toolchain.toml`で固定し、`rustup toolchain install`で導入する |
-| Windows向けターゲット | `x86_64-pc-windows-msvc`。Microsoftが提供するMSVCビルドツールとWindows SDKが必要。arm64には当面対応しないが、CIのLinuxのジョブで`aarch64-pc-windows-msvc`向けの型検査だけを続けている([ADR-0022](../adr/0022-ship-x64-only-until-v1.md)、Issue #44) |
+| Windows向けターゲット | `x86_64-pc-windows-msvc`。Microsoftが提供するMSVCビルドツールとWindows SDKが必要。arm64には当面対応しないが、CIのLinuxのジョブで`aarch64-pc-windows-msvc`向けの型検査だけを続けている([ADR-0022](../adr/0022-ship-x64-only-for-now.md)、Issue #44) |
 | Linuxでのビルド | `core`と`app`の両crateがLinuxでもビルドできる状態を保つ。Windows固有のコードは`cfg`で分岐させる。Linuxではコンパイルされない部分は、WindowsのCIで確認する |
 | 手動確認 | Windows 11が必要。エージェントの開発環境はLinuxなので、Windowsの画面を伴う動作は確認できない([8. Windows実機での確認](#8-windows実機での確認)) |
 | 検証コマンド | AGENTS.mdの「検証コマンド」の表に従う(fmt・clippy・テスト・型チェック・ビルド)。どれもLinuxでも実行できる |
@@ -410,7 +410,7 @@ cargo fetch --locked || true
 - 自動テスト: ロジックを`core`に寄せ、WindowsとLinuxの両方のCIで単体テストする
 - 手動テスト: メンテナーが、各リリースの前に、Windows 11実機で[実装計画の手動テストのチェックリスト](../plans/0001-initial-implementation-plan.md#82-手動テストwindows実機)を実施する。CIでビルドした成果物を使う。確認できなかった項目は、リリースノートに明記する
 - CIの成果物: `ci.yml`は、実行のたびに、`FlyingMicrowave.scr`と`LICENSE.txt`を成果物`flying-microwave-x86_64-pc-windows-msvc`として残す(PRと`main`は7日、手動実行は30日)。実機での確認には、PRの実行の成果物を使ってよい。手動実行(workflow_dispatch)は、キャッシュを使わずにビルドし、`THIRD-PARTY-LICENSES.txt`も加える。実機での確認に使う
-- リリースのワークフロー: `release.yml`は、`v*`のタグのプッシュ(または、既存のタグを指定した手動実行)で、タグのコミットをキャッシュを使わずにビルドし、zipと`SHA256SUMS.txt`を添付したGitHub Releaseの下書きを作る。公開はメンテナーが行う。x64(`windows-2025`)のランナーで、実行ファイルをビルドする(arm64版は、`v0.1.1-alpha.3`から配布しない。[ADR-0022](../adr/0022-ship-x64-only-until-v1.md))。`THIRD-PARTY-LICENSES.txt`はUbuntuのライセンスのジョブで並行して作り、zipはzipのジョブでまとめる(計画のD-31)。ビルドのジョブは、単体テスト、スモークテスト、依存DLLの確認、バージョン情報の確認を行い、失敗したら下書きを作らない。リリースノートは、CHANGELOGのその版の節から作る(`scripts/prepare_release.py`)。各zipには、実行ファイルのSBOM(SPDX 2.3のJSON)が入る(`scripts/make_sbom.py`。検査のジョブで作り、ビルドのジョブに渡す。ローカルでは`python3 -I scripts/make_sbom.py --target x86_64-pc-windows-msvc --created 2026-01-01T00:00:00Z --namespace https://example.invalid/sbom --out sbom.json`で同じものを作って中身を確かめられる)
+- リリースのワークフロー: `release.yml`は、`v*`のタグのプッシュ(または、既存のタグを指定した手動実行)で、タグのコミットをキャッシュを使わずにビルドし、zipと`SHA256SUMS.txt`を添付したGitHub Releaseの下書きを作る。公開はメンテナーが行う。x64(`windows-2025`)のランナーで、実行ファイルをビルドする(arm64版は、`v0.1.1-alpha.3`から配布しない。[ADR-0022](../adr/0022-ship-x64-only-for-now.md))。`THIRD-PARTY-LICENSES.txt`はUbuntuのライセンスのジョブで並行して作り、zipはzipのジョブでまとめる(計画のD-31)。ビルドのジョブは、単体テスト、スモークテスト、依存DLLの確認、バージョン情報の確認を行い、失敗したら下書きを作らない。リリースノートは、CHANGELOGのその版の節から作る(`scripts/prepare_release.py`)。各zipには、実行ファイルのSBOM(SPDX 2.3のJSON)が入る(`scripts/make_sbom.py`。検査のジョブで作り、ビルドのジョブに渡す。ローカルでは`python3 -I scripts/make_sbom.py --target x86_64-pc-windows-msvc --created 2026-01-01T00:00:00Z --namespace https://example.invalid/sbom --out sbom.json`で同じものを作って中身を確かめられる)
 - 技術スパイク: Windows実機でしか確かめられない不確実性(S1〜S6)は、Phase 0で確認した(4回の確認で終え、残りは製品で確かめる。計画のD-20)。内容は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md#未確認事項と検証方法技術スパイク)に一覧がある
 
 ## 9. セキュリティの注意

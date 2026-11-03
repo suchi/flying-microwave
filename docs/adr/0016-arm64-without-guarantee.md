@@ -1,6 +1,6 @@
 # ADR-0016: arm64版は動作を保証せずに配布し、CIではx64だけをビルドする
 
-- ステータス: ~~採用~~ 非推奨 → [ADR-0022: ship-x64-only-until-v1](0022-ship-x64-only-until-v1.md) に置き換え
+- ステータス: ~~採用~~ 非推奨 → [ADR-0022: ship-x64-only-for-now](0022-ship-x64-only-for-now.md) に置き換え
 - 日付: 2026-11-01
 - 置き換え: [ADR-0006: target-windows-11-x64-arm64](0006-target-windows-11-x64-arm64.md) を非推奨とし、本ADRが最新の決定となる
 

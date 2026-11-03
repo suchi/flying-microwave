@@ -50,4 +50,4 @@
 | [0019](0019-screensaver-windows-without-winit-fullscreen.md) | `/s`のウィンドウを、winitの全画面の指定を使わずに作る | 採用 | 2026-11-01 |
 | [0020](0020-windows-resources-with-embed-resource.md) | Windowsのリソースを、embed-resourceで自分で書いた`.rc`から埋め込む | 採用 | 2026-11-02 |
 | [0021](0021-spdx-sbom-with-own-script.md) | リリースのSBOMを、SPDX 2.3の形式で、自前のスクリプトで作る | 採用 | 2026-11-02 |
-| [0022](0022-ship-x64-only-until-v1.md) | 当面はx64版だけを配布し、arm64には対応しない | 採用 | 2026-11-03 |
+| [0022](0022-ship-x64-only-for-now.md) | 当面はx64版だけを配布し、arm64には対応しない | 採用 | 2026-11-03 |
