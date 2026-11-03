@@ -267,7 +267,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # THIRD-PARTY-LICENSES.txt, once for both targets (about.toml lists both).
+  # THIRD-PARTY-LICENSES.txt, once for the shipped target (about.toml lists
+  # x64 only, ADR-0022).
   # Why a job of its own: installing cargo-about (built from source) took
   # most of each build job (about 6 minutes on x64 in the v0.1.0 run), and it
   # does not depend on the build, so it runs in parallel with the build jobs
