@@ -11,6 +11,7 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 ### 動作環境
 
 - Windows 11(x64)
+- arm64 版は提供していません。
 
 ### インストール
 
@@ -39,7 +40,7 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 - このファイルにはコード署名がありません。Windows の SmartScreen が警告を表示することがあり、Smart App Control が強制モードの環境ではブロックされる可能性が高いです。
 - 管理されている PC では、グループ ポリシーによってスクリーン セーバーを選べない場合があります。
-- この版は、x64 版も含めて、Windows 11 の実機での動作の確認をしていません。自動の確認だけを行っています。行った確認は、リリース ノートを参照してください。
+- この版は、Windows 11 の実機での動作の確認をしていません。自動の確認だけを行っています。行った確認は、リリース ノートを参照してください。
 - スクリーン セーバーの画面が前面に出なかった場合は、キーを押しても終わりません。押したキーが、画面の後ろにあるアプリに届くことがあります。その場合は、マウスを動かすかクリックして終わらせてください。
 
 ### プライバシー
@@ -48,7 +49,7 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 ### ライセンス
 
-Flying Microwave は MIT ライセンスで公開しています(`LICENSE.txt` を参照)。第三者のコンポーネントのライセンスは `THIRD-PARTY-LICENSES.txt` に記載しています。実行ファイルに組み込まれるソフトウェア部品と、そのコードを生成する部品の一覧(SBOM。`THIRD-PARTY-LICENSES.txt` と同じ範囲)を、SPDX 2.3 の形式で `FlyingMicrowave-<版>-windows-<x64 または arm64>.spdx.json` に記載しています。どれも zip に同梱しています。
+Flying Microwave は MIT ライセンスで公開しています(`LICENSE.txt` を参照)。第三者のコンポーネントのライセンスは `THIRD-PARTY-LICENSES.txt` に記載しています。実行ファイルに組み込まれるソフトウェア部品と、そのコードを生成する部品の一覧(SBOM。`THIRD-PARTY-LICENSES.txt` と同じ範囲)を、SPDX 2.3 の形式で `FlyingMicrowave-<版>-windows-x64.spdx.json` に記載しています。どれも zip に同梱しています。
 
 ### ヘルプ
 
@@ -66,6 +67,7 @@ Flying Microwave is a Windows screen saver in which microwave ovens fly across y
 ### Requirements
 
 - Windows 11 (x64)
+- No arm64 build is provided.
 
 ### Install
 
@@ -94,7 +96,7 @@ Open Screen Saver Settings, select FlyingMicrowave, and click Settings. The curr
 
 - The file is not code-signed. Windows SmartScreen may show a warning, and Smart App Control in enforcement mode is likely to block it.
 - Group Policy on managed PCs may prevent you from choosing a screen saver.
-- This version, including the x64 build, has not been tested on real Windows 11 hardware. It has only been checked automatically. See the release notes for the checks.
+- This version has not been tested on real Windows 11 hardware. It has only been checked automatically. See the release notes for the checks.
 - If the screen saver could not come to the front, pressing a key does not end it, and the key may reach the app behind the screen. In that case, move or click the mouse to end it.
 
 ### Privacy
@@ -103,7 +105,7 @@ This program does not use the network and does not collect or send any data (no 
 
 ### License
 
-Flying Microwave is released under the MIT License (see `LICENSE.txt`). The licenses of third-party components are listed in `THIRD-PARTY-LICENSES.txt`. The software components built into the executable, and those that generate its code, are listed (an SBOM, covering the same components as `THIRD-PARTY-LICENSES.txt`) in SPDX 2.3 format in `FlyingMicrowave-<version>-windows-<x64 or arm64>.spdx.json`. All of these files are included in the zip.
+Flying Microwave is released under the MIT License (see `LICENSE.txt`). The licenses of third-party components are listed in `THIRD-PARTY-LICENSES.txt`. The software components built into the executable, and those that generate its code, are listed (an SBOM, covering the same components as `THIRD-PARTY-LICENSES.txt`) in SPDX 2.3 format in `FlyingMicrowave-<version>-windows-x64.spdx.json`. All of these files are included in the zip.
 
 ### Help
 
