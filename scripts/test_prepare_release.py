@@ -113,7 +113,7 @@ class MainTest(unittest.TestCase):
         for tag, cargo in [("v0.1.0-alpha.2", CARGO), ("v0.0.1", CARGO.replace("0.1.0-alpha.2", "0.0.1"))]:
             with self.subTest(tag=tag):
                 notes = self.run_main(tag, cargo=cargo)[1]
-                self.assertNotIn("arm64", notes)
+                self.assertEqual(notes, pr.release_notes(CHANGELOG, tag[1:]))
 
     def test_a_full_release_fails_while_the_user_readme_is_a_draft(self):
         # Plan 0001, task 13: the user README ships finalized in a release.
