@@ -112,7 +112,8 @@ jobs:
           created=$(TZ=UTC0 git -C tag log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ)
           version="${TAG#v}"
           mkdir -p "$RUNNER_TEMP/sbom"
-          for pair in x64:x86_64-pc-windows-msvc arm64:aarch64-pc-windows-msvc; do
+          # Only the x64 build is shipped for now (ADR-0022).
+          for pair in x64:x86_64-pc-windows-msvc; do
             arch="${pair%%:*}"
             target="${pair#*:}"
             python3 -I scripts/make_sbom.py --root tag --target "$target" --created "$created" \
@@ -134,9 +135,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # x64 is the supported build. arm64 ships without guarantee and gets only
-  # the automated checks of this job, on an arm64 runner (ADR-0016). A failure
-  # of either fails the release; arm64 is never left out silently.
+  # Only the x64 build is shipped for now (ADR-0022, which replaced the
+  # arm64 build of ADR-0016; arm64 support is tracked in issue #44). The
+  # matrix is kept so that a target can be added back.
   build:
     name: Build (${{ matrix.target }})
     needs: check
@@ -153,9 +154,6 @@ jobs:
           - target: x86_64-pc-windows-msvc
             runner: windows-2025
             arch: x64
-          - target: aarch64-pc-windows-msvc
-            runner: windows-11-arm
-            arch: arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -180,33 +178,8 @@ jobs:
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
 
-      # Why: the arm64 runner is first used by the v0.1.0 tag (plan 0001,
-      # D-23), and its image documentation does not list the Visual Studio
-      # components. Show the tools a failure would depend on, so that one run
-      # tells what is missing. ring (built by cargo-about) compiles its C code
-      # with clang on Windows arm64 (ring 0.17.14, build.rs); cargo-about is
-      # now built by the licenses job on Linux, but the LLVM of the image is
-      # still put on PATH when clang is not there, in case another crate's
-      # build script needs it (plan 0001 D-31; plan 0002, change of 2026-11-02).
-      - name: Show and prepare arm64 build tools
-        if: matrix.arch == 'arm64'
-        shell: pwsh
-        run: |
-          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-          Write-Output "link.exe (arm64): $(& $vswhere -latest -products * -find 'VC\Tools\MSVC\**\bin\Hostarm64\arm64\link.exe')"
-          Write-Output "rc.exe (arm64): $(Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\arm64\rc.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)"
-          $clang = Get-Command clang -ErrorAction SilentlyContinue
-          if (-not $clang -and (Test-Path "$env:ProgramFiles\LLVM\bin\clang.exe")) {
-            "$env:ProgramFiles\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-            Write-Output "clang: added $env:ProgramFiles\LLVM\bin to PATH"
-          } else {
-            Write-Output "clang: $($clang.Source)"
-          }
-
       # Why no cache: a release is built from scratch (plan 0001, chapter 9).
       # Each runner builds and tests its own architecture natively.
-      # The checks of this job are listed in the release notes for arm64
-      # (scripts/prepare_release.py, arm64_notes): change both together.
       - name: Test
         run: cargo test --workspace --locked --target ${{ matrix.target }}
 
@@ -335,7 +308,7 @@ jobs:
 
   # Puts the files of each build and the license notices into the zips. It
   # runs no code from this repository or its dependencies; Python's zipfile
-  # (deflate) makes the zips. The zip name follows ADR-0016
+  # (deflate) makes the zips. The zip name follows ADR-0016 and ADR-0022
   # (FlyingMicrowave-<version>-windows-<arch>.zip).
   package:
     name: Package
@@ -354,7 +327,7 @@ jobs:
           version="${TAG#v}"
           gh run download "$GITHUB_RUN_ID" --name licenses --dir licenses
           mkdir -p dist
-          for arch in x64 arm64; do
+          for arch in x64; do
             gh run download "$GITHUB_RUN_ID" --name "build-$arch" --dir "pkg-$arch"
             cp licenses/THIRD-PARTY-LICENSES.txt "pkg-$arch/"
             if [[ $(ls -A "pkg-$arch" | wc -l) -ne 5 ]]; then
@@ -378,13 +351,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-arm64
-          path: dist/FlyingMicrowave-*-windows-arm64.zip
-          if-no-files-found: error
-          retention-days: 7
-
   publish:
     name: Create draft release
     needs: [check, package]
@@ -394,8 +360,8 @@ jobs:
       contents: write
       actions: read
     steps:
-      # SHA256SUMS.txt is made here, so that it covers the zips of every
-      # target (plan 0002, T-3).
+      # SHA256SUMS.txt is made here, so that it covers the zip of every
+      # shipped target (plan 0002, T-3).
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -410,10 +376,9 @@ jobs:
             exit 1
           fi
           gh run download "$GITHUB_RUN_ID" --name release-x64 --dir dist
-          gh run download "$GITHUB_RUN_ID" --name release-arm64 --dir dist
-          # Both zips must be there: arm64 is never left out (ADR-0016).
+          # The zip of every shipped target must be there (ADR-0022).
           version="${TAG#v}"
-          for arch in x64 arm64; do
+          for arch in x64; do
             if [[ ! -f "dist/FlyingMicrowave-$version-windows-$arch.zip" ]]; then
               echo "FlyingMicrowave-$version-windows-$arch.zip がない" >&2
               exit 1
