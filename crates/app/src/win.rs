@@ -6,7 +6,7 @@ use std::os::windows::ffi::OsStringExt;
 use std::path::PathBuf;
 
 use windows_sys::Win32::Foundation::{
-    ERROR_ALREADY_EXISTS, GetLastError, HANDLE, HWND, POINT, RECT,
+    ERROR_ALREADY_EXISTS, GetLastError, HANDLE, HWND, POINT, RECT, SetLastError,
 };
 use windows_sys::Win32::Graphics::Gdi::{BLACK_BRUSH, FillRect, GetDC, GetStockObject, ReleaseDC};
 use windows_sys::Win32::System::Com::CoTaskMemFree;
@@ -14,12 +14,14 @@ use windows_sys::Win32::System::LibraryLoader::{
     LOAD_LIBRARY_SEARCH_SYSTEM32, SetDefaultDllDirectories,
 };
 use windows_sys::Win32::System::Threading::{CreateMutexW, GetCurrentProcess, TerminateProcess};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled};
 use windows_sys::Win32::UI::Shell::{
-    FOLDERID_RoamingAppData, KF_FLAG_DEFAULT, SHGetKnownFolderPath,
+    FOLDERID_Fonts, FOLDERID_RoamingAppData, KF_FLAG_DEFAULT, SHGetKnownFolderPath,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetClientRect, GetCursorPos, IsWindow, MB_ICONINFORMATION, MB_OK, MessageBoxW,
-    SetForegroundWindow,
+    GWLP_HWNDPARENT, GetClientRect, GetCursorPos, GetForegroundWindow, IsWindow, MB_ICONERROR,
+    MB_ICONINFORMATION, MB_OK, MESSAGEBOX_STYLE, MessageBoxW, SetForegroundWindow,
+    SetWindowLongPtrW,
 };
 use windows_sys::core::{GUID, PWSTR};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -158,23 +160,68 @@ pub fn client_size(hwnd: HWND) -> Option<(u32, u32)> {
 
 /// Shows an information message box without an owner window.
 pub fn message_box(text: &str, caption: &str) {
+    show_message_box(text, caption, MB_OK | MB_ICONINFORMATION);
+}
+
+/// Shows an error message box without an owner window. Only for the
+/// settings mode: `/s` and `/p` never show a dialog.
+pub fn error_box(text: &str, caption: &str) {
+    show_message_box(text, caption, MB_OK | MB_ICONERROR);
+}
+
+fn show_message_box(text: &str, caption: &str, style: MESSAGEBOX_STYLE) {
     let text: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
     let caption: Vec<u16> = caption.encode_utf16().chain(std::iter::once(0)).collect();
     // SAFETY: both strings are NUL-terminated UTF-16 and outlive the call.
     unsafe {
-        MessageBoxW(
-            std::ptr::null_mut(),
-            text.as_ptr(),
-            caption.as_ptr(),
-            MB_OK | MB_ICONINFORMATION,
-        );
+        MessageBoxW(std::ptr::null_mut(), text.as_ptr(), caption.as_ptr(), style);
     }
+}
+
+/// The current foreground window (null when there is none).
+pub fn foreground_window() -> HWND {
+    // SAFETY: takes no arguments.
+    unsafe { GetForegroundWindow() }
+}
+
+/// Makes `owner` the owner of the top-level window `window`
+/// (`SetWindowLongPtrW(GWLP_HWNDPARENT)`, as in spike S2).
+pub fn set_owner(window: HWND, owner: HWND) -> Result<(), u32> {
+    // SAFETY: Windows validates both handles. The last error is cleared
+    // first, because a previous value of 0 is also returned on success.
+    unsafe {
+        SetLastError(0);
+        if SetWindowLongPtrW(window, GWLP_HWNDPARENT, owner as isize) == 0 {
+            let error = GetLastError();
+            if error != 0 {
+                return Err(error);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// `EnableWindow`: returns whether the window was disabled before the call.
+pub fn enable_window(hwnd: HWND, enable: bool) -> bool {
+    // SAFETY: EnableWindow validates the handle.
+    unsafe { EnableWindow(hwnd, i32::from(enable)) != 0 }
+}
+
+/// Whether the window accepts input.
+pub fn is_window_enabled(hwnd: HWND) -> bool {
+    // SAFETY: IsWindowEnabled validates the handle.
+    unsafe { IsWindowEnabled(hwnd) != 0 }
 }
 
 /// The Roaming AppData folder of the current user (`%APPDATA%`), from
 /// `SHGetKnownFolderPath` (plan 0004, D-1).
 pub fn roaming_app_data() -> Option<PathBuf> {
     known_folder(&FOLDERID_RoamingAppData)
+}
+
+/// The system fonts folder (`%WINDIR%\Fonts`).
+pub fn fonts_folder() -> Option<PathBuf> {
+    known_folder(&FOLDERID_Fonts)
 }
 
 /// The path of a known folder, or `None` when Windows cannot give it.

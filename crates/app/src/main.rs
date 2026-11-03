@@ -15,9 +15,10 @@ mod preview;
 mod render;
 #[cfg(windows)]
 mod saver;
+#[cfg(windows)]
+mod settings;
 // Used by the Windows modes; tested on every host.
-// Why `allow` on Windows too: the settings window that uses it comes next.
-#[allow(dead_code)]
+#[cfg_attr(not(windows), allow(dead_code))]
 mod storage;
 #[cfg(windows)]
 mod win;
@@ -58,14 +59,8 @@ fn run(mode: Mode) -> i32 {
             saver::run()
         }
         Mode::Preview { parent } => preview::run(parent),
+        Mode::Settings { owner } => settings::run(owner),
         // UI labels are English (AGENTS.md, language rules).
-        Mode::Settings { .. } => {
-            win::message_box(
-                "Settings will be added in a future version.",
-                "Flying Microwave",
-            );
-            0
-        }
         Mode::Standalone { .. } => {
             win::message_box(
                 "Running Flying Microwave as an app is not available yet.\n\
