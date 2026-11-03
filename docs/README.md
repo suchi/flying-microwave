@@ -48,6 +48,7 @@
 | [architecture.md](design/architecture.md) | アーキテクチャ | 採用 |
 | [settings.md](design/settings.md) | 設定項目仕様 | 採用 |
 | [visual-design.md](design/visual-design.md) | ビジュアルデザイン方針 | 採用 |
+| [mockups/](design/mockups/README.md) | v0.2.0の見た目の案(電子レンジの絵、設定画面) | 合意済み |
 
 ## ADR
 

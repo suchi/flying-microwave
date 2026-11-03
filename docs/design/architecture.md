@@ -19,7 +19,7 @@
 
 ## 構成要素
 
-次の図は、目標とする構成である。Phase 1の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`win.rs`、`log.rs`、`sprite.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
+次の図は、目標とする構成である。v0.2.0の試作版の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`win.rs`、`log.rs`と、coreの`config.rs`、`pacing.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
 
 ```mermaid
 flowchart TB
@@ -244,7 +244,7 @@ Phase 1の暫定の扱い(スパイクS4と実機の結果で見直す):
 ## 設定の保存
 
 - 設定はTOMLファイルとして利用者ごとの設定ディレクトリに保存する([ADR-0004](../adr/0004-store-settings-as-toml.md))。場所は`%APPDATA%\FlyingMicrowave\config.toml`で、`SHGetKnownFolderPath(FOLDERID_RoamingAppData)`で求める([計画0004](../plans/0004-v0.2.0-settings.md)のD-1。ADRは作業2で書く)。v0.2.0の試作版では、環境変数`FLYING_MICROWAVE_CONFIG_DIR`(絶対パスのときだけ)でフォルダを上書きできる(テスト用。計画0004のD-6のE-1)。
-- 読み込み: `/s`は、黒いウィンドウで画面を覆うのを設定の読み込みで遅らせないよう、別のスレッドで読み始め、覆ったあとで最大0.5秒待つ。間に合わないか失敗したときは既定値で動く(計画0004のD-9)。`/p`は、起動時に読んでから始める。読み込みにかかった時間をログに書く(パスと値は書かない)。モデル・既定値・検証は`core::config`、ファイルの読み書きは`crates/app/src/storage.rs`、設定画面は`crates/app/src/settings.rs`(eframe)にある。
+- 読み込み: `/s`は、黒いウィンドウで画面を覆うのを設定の読み込みで遅らせないよう、別のスレッドで読み始め、覆ったあとで最大0.5秒待つ。間に合わないか失敗したときは既定値で動く(計画0004のD-9)。`/p`は、起動時に読んでから始める。読み込みの結果とかかった時間をログに書く。ファイルのパスと、ファイルに書かれた値は書かず、検証したあとの設定(数と選択肢)は書く。モデル・既定値・検証は`core::config`、ファイルの読み書きは`crates/app/src/storage.rs`、設定画面は`crates/app/src/settings.rs`(eframe)にある。
 - 書き込みは一時ファイル(`config.toml.<pid>.tmp`)に書いてから置き換える。`/s`が書きかけのファイルを読まないようにするため。
 - 項目・範囲・既定値・検証規則は[設定項目仕様](settings.md)に定める。
 
