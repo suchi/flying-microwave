@@ -1,11 +1,12 @@
 //! The Windows part of the smoke test: starting the executable, sending
-//! input, making a parent window for the preview and finding the message box.
+//! input, making a parent window for the preview and finding the settings
+//! window.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
-use flying_microwave_smoke::{Progress, lines_of};
+use flying_microwave_smoke::{Progress, lines_of, sprites_drawn};
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -15,9 +16,9 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, EnumWindows, GA_ROOT,
     GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow, GetSystemMetrics, GetWindowRect,
-    GetWindowThreadProcessId, IsWindowVisible, MSG, PM_REMOVE, PeekMessageW, PostMessageW,
-    RegisterClassW, SM_CXSCREEN, SM_CYSCREEN, SetCursorPos, TranslateMessage, WM_CLOSE, WNDCLASSW,
-    WS_OVERLAPPEDWINDOW, WS_VISIBLE, WindowFromPoint,
+    GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible, MSG, PM_REMOVE, PeekMessageW,
+    PostMessageW, RegisterClassW, SM_CXSCREEN, SM_CYSCREEN, SetCursorPos, TranslateMessage,
+    WM_CLOSE, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE, WindowFromPoint,
 };
 
 /// Limit for the first frame. GPU setup itself gives up after 15 seconds
@@ -34,9 +35,19 @@ const GONE_AFTER_INPUT: Duration = Duration::from_millis(200);
 const EXIT_AFTER_INPUT: Duration = Duration::from_secs(2);
 /// F-02 of plan 0003: the preview checks its parent periodically.
 const EXIT_AFTER_PARENT_GONE: Duration = Duration::from_secs(2);
-const DIALOG_LIMIT: Duration = Duration::from_secs(15);
-const EXIT_AFTER_DIALOG: Duration = Duration::from_secs(5);
+/// Limit for the settings window to show. It is drawn with wgpu too, with
+/// WARP on a runner without a GPU, and WARP setup once took over 15 seconds
+/// there (spike S6), so the limit leaves room (plan 0004, task 8).
+const SETTINGS_LIMIT: Duration = Duration::from_secs(60);
+const EXIT_AFTER_CLOSE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(2);
+
+/// The title of the settings window (crates/app/src/settings.rs).
+const SETTINGS_TITLE: &str = "Flying Microwave Settings";
+/// The variable that moves the settings file (crates/app/src/storage.rs).
+const CONFIG_DIR_ENV: &str = "FLYING_MICROWAVE_CONFIG_DIR";
+/// A settings file that is not TOML (and not UTF-8).
+const BROKEN_SETTINGS: &[u8] = b"\xff\xfe[flight\ncount = = 3\n";
 
 /// One check: its name and the function that runs it.
 type Case = (&'static str, fn(&Env) -> Result<(), String>);
@@ -47,16 +58,23 @@ struct Env<'a> {
     /// The tested processes get this folder as TMP and TEMP, so that their
     /// log is apart from the user's own `%TEMP%\flying-microwave.log`.
     log_dir: &'a Path,
+    /// The tested processes get this folder as [`CONFIG_DIR_ENV`], so that
+    /// they never read or write the user's own settings (plan 0004, E-1).
+    config_dir: &'a Path,
 }
 
 /// Runs every case and returns the process exit code (0 when all passed).
 pub fn run(exe: &Path) -> i32 {
-    let cases: [Case; 3] = [
+    let cases: [Case; 4] = [
         ("F-01 /s ends on user input", screensaver_ends_on_input),
         ("F-02 /p ends with its parent", preview_ends_with_parent),
         (
-            "F-03 unknown argument shows the settings message",
-            unknown_argument_shows_message,
+            "F-03 unknown argument shows the settings window",
+            unknown_argument_shows_settings,
+        ),
+        (
+            "F-01 /s ends on user input with a broken settings file",
+            screensaver_runs_with_a_broken_settings_file,
         ),
     ];
     let log_dir =
@@ -66,11 +84,13 @@ pub fn run(exe: &Path) -> i32 {
         return 1;
     }
     println!("log folder of the tested processes: {}", log_dir.display());
+    let config_dir = log_dir.join("config");
     let mut failed = 0;
     for (name, case) in cases {
         match case(&Env {
             exe,
             log_dir: &log_dir,
+            config_dir: &config_dir,
         }) {
             Ok(()) => println!("PASS {name}"),
             Err(e) => {
@@ -91,15 +111,27 @@ struct Target {
 }
 
 impl Target {
-    fn start(env: &Env, args: &[&str]) -> Result<Self, String> {
+    /// Starts the executable with `args`, and with `settings` as the
+    /// contents of its settings file (no file when `None`).
+    fn start(env: &Env, args: &[&str], settings: Option<&[u8]>) -> Result<Self, String> {
         let log = env.log_dir.join("flying-microwave.log");
         // A fresh log, so that only this run's lines are read.
         let _ = std::fs::remove_file(&log);
+        // A fresh settings folder, so that no case sees another case's file.
+        let _ = std::fs::remove_dir_all(env.config_dir);
+        std::fs::create_dir_all(env.config_dir)
+            .map_err(|e| format!("could not create {}: {e}", env.config_dir.display()))?;
+        if let Some(settings) = settings {
+            let path = env.config_dir.join("config.toml");
+            std::fs::write(&path, settings)
+                .map_err(|e| format!("could not write {}: {e}", path.display()))?;
+        }
         // Why both: std::env::temp_dir (GetTempPath2W) reads TMP first, then TEMP.
         let child = Command::new(env.exe)
             .args(args)
             .env("TMP", env.log_dir)
             .env("TEMP", env.log_dir)
+            .env(CONFIG_DIR_ENV, env.config_dir)
             .spawn()
             .map_err(|e| format!("could not start {}: {e}", env.exe.display()))?;
         Ok(Target { child, log })
@@ -184,6 +216,15 @@ impl Drop for Target {
     }
 }
 
+/// Fails unless the sprites are drawn (not only the background), and prints
+/// the atlas line.
+fn expect_sprites(target: &Target) -> Result<(), String> {
+    let text = target.log_text();
+    let atlas = sprites_drawn(&lines_of(&text, target.pid()))?;
+    println!("  {atlas}");
+    Ok(())
+}
+
 fn report(progress: &Progress) {
     // The facts a failure would depend on, printed even when the case passes.
     println!(
@@ -199,9 +240,10 @@ fn report(progress: &Progress) {
 fn with_target(
     env: &Env,
     args: &[&str],
+    settings: Option<&[u8]>,
     body: impl FnOnce(&mut Target) -> Result<(), String>,
 ) -> Result<(), String> {
-    let mut target = Target::start(env, args)?;
+    let mut target = Target::start(env, args, settings)?;
     let result = body(&mut target);
     if result.is_err() {
         target.print_log();
@@ -219,16 +261,49 @@ fn expect_reason(progress: &Progress, expected: &[&str]) -> Result<(), String> {
     }
 }
 
+/// Checks the `config:` line: the settings came from the test folder and
+/// were read as `read_as` says (plan 0004, F-06).
+fn expect_config(progress: &Progress, read_as: &str) -> Result<(), String> {
+    let config = progress.config.as_deref().unwrap_or("not logged");
+    println!("  settings: {config}");
+    if !config.contains(CONFIG_DIR_ENV) {
+        return Err(format!(
+            "the settings were not read from {CONFIG_DIR_ENV}: {config}"
+        ));
+    }
+    if !config.starts_with(read_as) {
+        return Err(format!(
+            "the settings were read as \"{config}\", not \"{read_as}\""
+        ));
+    }
+    Ok(())
+}
+
 fn screensaver_ends_on_input(env: &Env) -> Result<(), String> {
+    screensaver_ends_on_input_with(env, None, "file not found")
+}
+
+/// F-06 of plan 0004: a broken settings file must not stop `/s`.
+fn screensaver_runs_with_a_broken_settings_file(env: &Env) -> Result<(), String> {
+    screensaver_ends_on_input_with(env, Some(BROKEN_SETTINGS), "not valid TOML")
+}
+
+fn screensaver_ends_on_input_with(
+    env: &Env,
+    settings: Option<&[u8]>,
+    read_as: &str,
+) -> Result<(), String> {
     // Why before the start: a click is sent where the cursor is, and moving
     // the cursor after the grace period would end the screensaver by itself.
     let (cx, cy) = screen_center();
     // SAFETY: SetCursorPos takes plain coordinates; a failure only leaves
     // the cursor where it was, which the check before the click reports.
     unsafe { SetCursorPos(cx, cy) };
-    with_target(env, &["/s"], |target| {
+    with_target(env, &["/s"], settings, |target| {
         let progress = target.wait_ready(Progress::screensaver_ready)?;
         report(&progress);
+        expect_sprites(target)?;
+        expect_config(&progress, read_as)?;
         // Whether the key press can reach the window depends on this.
         for line in lines_of(&target.log_text(), target.pid()) {
             if line.contains("SetForegroundWindow") {
@@ -324,9 +399,10 @@ fn preview_ends_with_parent(env: &Env) -> Result<(), String> {
     let parent = ParentWindow::new()?;
     let hwnd_arg = (parent.0 as usize).to_string();
     let mut parent = Some(parent);
-    with_target(env, &["/p", &hwnd_arg], |target| {
+    with_target(env, &["/p", &hwnd_arg], None, |target| {
         let progress = target.wait_ready(Progress::preview_ready)?;
         report(&progress);
+        expect_sprites(target)?;
         drop(parent.take());
         let (code, elapsed) = target.wait_exit(EXIT_AFTER_PARENT_GONE)?;
         println!("  parent destroyed to exit: {} ms", elapsed.as_millis());
@@ -338,32 +414,50 @@ fn preview_ends_with_parent(env: &Env) -> Result<(), String> {
     })
 }
 
-fn unknown_argument_shows_message(env: &Env) -> Result<(), String> {
-    with_target(env, &["/x"], |target| {
+fn unknown_argument_shows_settings(env: &Env) -> Result<(), String> {
+    with_target(env, &["/x"], None, |target| {
         let start = Instant::now();
-        let dialog = loop {
+        let window = loop {
             let windows = windows_of(target.pid());
             if let Some(full) = windows.iter().find(|w| w.covers_screen) {
                 return Err(format!("made a full-screen window ({})", full.class));
             }
+            if let Some(settings) = windows.iter().find(|w| w.title == SETTINGS_TITLE) {
+                break settings.hwnd;
+            }
+            // The message box that tells the settings window could not open
+            // (plan 0004, E-4).
             if let Some(dialog) = windows.iter().find(|w| w.class == "#32770") {
-                break dialog.hwnd;
+                // SAFETY: as for the settings window below.
+                unsafe { PostMessageW(dialog.hwnd, WM_CLOSE, 0, 0) };
+                return Err(format!(
+                    "a message box (\"{}\") was shown instead of the settings window",
+                    dialog.title
+                ));
             }
             if let Some(code) = target.exited()? {
-                return Err(format!("ended (exit code {code}) without a message box"));
-            }
-            if start.elapsed() > DIALOG_LIMIT {
                 return Err(format!(
-                    "no message box within {} s",
-                    DIALOG_LIMIT.as_secs()
+                    "ended (exit code {code}) without a settings window"
+                ));
+            }
+            if start.elapsed() > SETTINGS_LIMIT {
+                return Err(format!(
+                    "no settings window within {} s",
+                    SETTINGS_LIMIT.as_secs()
                 ));
             }
             std::thread::sleep(Duration::from_millis(50));
         };
+        println!(
+            "  settings window shown after {} ms",
+            start.elapsed().as_millis()
+        );
+        expect_config(&target.progress(), "file not found")?;
         // SAFETY: posting a message to a window handle is safe even if the
         // window is gone by now; the call then just fails.
-        unsafe { PostMessageW(dialog, WM_CLOSE, 0, 0) };
-        let (code, _) = target.wait_exit(EXIT_AFTER_DIALOG)?;
+        unsafe { PostMessageW(window, WM_CLOSE, 0, 0) };
+        let (code, elapsed) = target.wait_exit(EXIT_AFTER_CLOSE)?;
+        println!("  close to process exit: {} ms", elapsed.as_millis());
         if code != 0 {
             return Err(format!("exit code {code}"));
         }
@@ -569,6 +663,7 @@ fn pump_messages() {
 struct TopWindow {
     hwnd: HWND,
     class: String,
+    title: String,
     covers_screen: bool,
 }
 
@@ -589,6 +684,8 @@ fn windows_of(pid: u32) -> Vec<TopWindow> {
             if owner == search.pid && IsWindowVisible(hwnd) != 0 {
                 let mut name = [0u16; 64];
                 let len = GetClassNameW(hwnd, name.as_mut_ptr(), name.len() as i32);
+                let mut title = [0u16; 128];
+                let title_len = GetWindowTextW(hwnd, title.as_mut_ptr(), title.len() as i32);
                 let mut rect = RECT::default();
                 GetWindowRect(hwnd, &mut rect);
                 let covers_screen = rect.right - rect.left >= GetSystemMetrics(SM_CXSCREEN)
@@ -596,6 +693,7 @@ fn windows_of(pid: u32) -> Vec<TopWindow> {
                 search.found.push(TopWindow {
                     hwnd,
                     class: String::from_utf16_lossy(&name[..len.max(0) as usize]),
+                    title: String::from_utf16_lossy(&title[..title_len.max(0) as usize]),
                     covers_screen,
                 });
             }

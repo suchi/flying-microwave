@@ -19,7 +19,7 @@
 
 ## 構成要素
 
-次の図は、目標とする構成である。Phase 1の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`win.rs`、`log.rs`、`layout.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
+次の図は、目標とする構成である。v0.2.0の試作版の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`win.rs`、`log.rs`と、coreの`config.rs`、`pacing.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
 
 ```mermaid
 flowchart TB
@@ -82,7 +82,7 @@ flowchart TB
 | `crates/app/build.rs` | Windowsリソース(アイコン、バージョン情報、String Tableの序数1)の埋め込み。バージョン情報は`Cargo.toml`のバージョンから生成する |
 | `crates/smoke/` | `flying-microwave-smoke`。ビルドした実行ファイルを各モードで起動し、起動と終了を確かめるスモークテスト(Windows専用。[計画0003](../plans/0003-v0.1.1-smoke-test.md))。製品には含めない |
 | `crates/app/res/` | リソース定義ファイル(`app.rc`)と、アイコン(`icon.svg`と、そこから作る`flying-microwave.ico`) |
-| `assets/sprites/` | SVG素材と、作者・ライセンスを記録する`README.md`(Phase 3から) |
+| `assets/sprites/` | SVG素材と、作者・ライセンスを記録する`README.md`(v0.2.0の試作版から。[ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md)) |
 | `spikes/` | Phase 0の技術スパイク。ワークスペースには含めず、製品コードから参照しない。Phase 2の終わりに削除する(計画のD-28) |
 
 crate名は製品名(実装計画のD-5)に合わせて`flying-microwave-core`・`flying-microwave`とする。
@@ -134,21 +134,23 @@ flowchart TD
 sequenceDiagram
     participant OS as Windows
     participant App as FlyingMicrowave.scr
+    participant Cfg as 設定の読み込み(別のスレッド)
     participant Core as core World
     participant GPU as wgpu
-    OS->>App: start with /s
-    App->>App: load config (fall back to defaults on any error)
-    App->>App: create an opaque black borderless window per monitor and hide the cursor
-    App->>GPU: initialize (on failure keep the black windows and wait for input)
-    loop every frame
-        App->>Core: step(elapsed time)
-        Core-->>App: sprite instances
-        App->>GPU: draw sprite instances (interpolated)
+    OS->>App: /sで起動
+    App->>Cfg: 設定ファイルの読み込みを始める
+    App->>App: モニタごとに不透明な黒い枠なしのウィンドウを作り、カーソルを隠す
+    Cfg-->>App: 設定(最大0.5秒待つ。間に合わないか失敗したら既定値)
+    App->>GPU: 初期化(失敗したら黒いウィンドウのまま入力を待つ)
+    loop フレームごと
+        App->>Core: step(経過時間)
+        Core-->>App: スプライトインスタンス
+        App->>GPU: スプライトインスタンスを描く(補間する)
     end
-    OS-->>App: input event (key press, button, mouse move, app deactivated)
-    App->>Core: exit_policy evaluates the event
-    Core-->>App: exit
-    App-->>OS: process exits
+    OS-->>App: 入力のイベント(キー、ボタン、マウスの移動、アプリの非アクティブ化)
+    App->>Core: exit_policyがイベントを判定する
+    Core-->>App: 終了
+    App-->>OS: プロセスが終わる
 ```
 
 ## シミュレーション(core)
@@ -175,12 +177,12 @@ Phase 1の暫定値(設定画面がまだないため既定値で動かす。実
 | 出現 | 画面の上辺と右辺のすぐ外側に出現させる。出現位置の線は、上辺の外側をx=-大きさの半分から右上の角の外側(幅+大きさの半分、-大きさの半分)まで進み、そこから右辺の外側をy=1+大きさの半分まで下る。2つの部分を角でつなぎ、両端も画面の角まで延ばして、スプライトが画面にかかりうるどの軌跡にも飛行物体が来るようにする。どちらの部分に出すかは、部分の長さと、それに垂直な速度の成分の積に比例した確率で決める(上の部分は長さ×1、右の部分は長さ×2) | 辺を通り抜ける流れの量に合わせ、画面の中の密度を均一にする。角でつながないと、右上の角から斜めに、飛行物体の通らない帯ができる |
 | 起動時の配置 | 画面の内側と出現位置の範囲に一様に置く | 起動直後に画面が空にならないようにする |
 
-Phase 1のスプライトインスタンスは、位置と大きさだけを持つ(素材ID、アニメーションフレーム、奥行きは、使うフェーズで加える)。再出現した飛行物体は、補間の始点も再出現の位置にする(画面を横切る残像を出さないため)。
+スプライトインスタンスは、位置と大きさ、ドアの羽ばたきの位相(0以上1未満。飛行物体ごとに1秒に1.2〜1.8回)、本体の色の番号(4種類)を持つ(v0.2.0の試作版から。素材ID、奥行きは、使うフェーズで加える)。位相と色は、出現と再出現のときに乱数で決め、シミュレーションは決定的のままにする。再出現した飛行物体は、補間の始点も再出現の位置にする(画面を横切る残像を出さないため)。
 
 ## 描画
 
-- Phase 1・2は仮素材(単純な図形)をwgpuで直接描く。Phase 3からSVG素材を起動時に表示サイズとDPIに合った解像度でラスタライズし、1枚のテクスチャアトラスにまとめる。
-- スプライトはインスタンス描画で一括して描く(四角形1種類 + インスタンスごとの位置・拡大率・UV)。Phase 1・2の仮素材の四角は、シェーダーを使わず、バッファからテクスチャへのコピーで描いている。インスタンス描画は、Phase 3の素材(テクスチャアトラス)で導入する(計画のD-27)。
+- v0.2.0の試作版から、SVG素材を、サーフェスの設定時とスプライトの画素の大きさが変わったときに、表示の大きさに合った解像度でラスタライズし、1枚のテクスチャアトラスにまとめる([ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md)。`crates/app/src/sprite.rs`)。Phase 1と`v0.1.x`は、仮素材の四角を、バッファからテクスチャへのコピーで描いていた(計画のD-27)。
+- スプライトはインスタンス描画で一括して描く(四角形1種類 + インスタンスごとのアフィン変換とUV。WGSLのシェーダー`crates/app/src/sprite.wgsl`、乗算済みのアルファで合成)。飛行物体ごとに、本体、ドアの順に描く。ドアは、左のヒンジを固定した平行四辺形に変形して開閉させる(0°〜70°)。本体は-8°傾ける。描画の準備に失敗したときは、ログに書いて背景だけを描き続ける。
 - 奥行き(depth)の順に並べて描き、奥のものほど小さく遅くすることで立体感を出す(Phase 3)。
 - フレームレートは垂直同期を基本とし、設定の上限値で間引く。
 - GPUアダプタは省電力を優先して選ぶ(ハイブリッドGPU環境で外部GPUを起こさないため)。GPUが使えない場合は、wgpuがDX12のWARP(ソフトウェアの描画)を選ぶ想定である。実機での確認はスパイクS6(Phase 1の段階3。計画のD-22)で行う。
@@ -241,8 +243,9 @@ Phase 1の暫定の扱い(スパイクS4と実機の結果で見直す):
 
 ## 設定の保存
 
-- 設定はTOMLファイルとして利用者ごとの設定ディレクトリに保存する([ADR-0004](../adr/0004-store-settings-as-toml.md))。具体的な保存場所はPhase 2の着手前に別のADRで決める。
-- 書き込みは一時ファイルに書いてから置き換える。`/s`が書きかけのファイルを読まないようにするため。
+- 設定はTOMLファイルとして利用者ごとの設定ディレクトリに保存する([ADR-0004](../adr/0004-store-settings-as-toml.md))。場所は`%APPDATA%\FlyingMicrowave\config.toml`で、`SHGetKnownFolderPath(FOLDERID_RoamingAppData)`で求める([計画0004](../plans/0004-v0.2.0-settings.md)のD-1。ADRは作業2で書く)。v0.2.0の試作版では、環境変数`FLYING_MICROWAVE_CONFIG_DIR`(ドライブ文字で始まる絶対パス。それ以外の値はエラーにし、本当の設定ファイルを使わない)でフォルダを上書きできる(テスト用。計画0004のD-6のE-1、D-10)。
+- 読み込み: `/s`は、黒いウィンドウで画面を覆うのを設定の読み込みで遅らせないよう、別のスレッドで読み始め、覆ったあとで最大0.5秒待つ。間に合わないか失敗したときは既定値で動く(計画0004のD-9)。`/p`は、起動時に読んでから始める。読み込みの結果とかかった時間をログに書く。ファイルのパスと、ファイルに書かれた値は書かず、検証したあとの設定(数と選択肢)は書く。モデル・既定値・検証は`core::config`、ファイルの読み書きは`crates/app/src/storage.rs`、設定画面は`crates/app/src/settings.rs`(eframe)にある。
+- 書き込みは一時ファイル(`config.toml.<pid>.tmp`)に書いてから置き換える。`/s`が書きかけのファイルを読まないようにするため。
 - 項目・範囲・既定値・検証規則は[設定項目仕様](settings.md)に定める。
 
 ## セキュリティ

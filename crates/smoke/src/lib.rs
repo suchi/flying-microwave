@@ -16,6 +16,10 @@ pub struct Progress {
     pub first_frames_ms: Vec<u64>,
     /// The `adapter:` line without its prefix.
     pub adapter: Option<String>,
+    /// The first `config:` line without its prefix: how the settings were
+    /// read (plan 0004, F-06). Later `config:` lines name the items that
+    /// fell back.
+    pub config: Option<String>,
     /// Why the process decided to end: the screensaver's `exit:` line or
     /// the preview's `preview exit:` line, without the prefix.
     pub exit_reason: Option<String>,
@@ -44,6 +48,8 @@ impl Progress {
                 progress.first_frames_ms.push(ms);
             } else if let Some(adapter) = message.strip_prefix("adapter: ") {
                 progress.adapter.get_or_insert_with(|| adapter.to_owned());
+            } else if let Some(config) = message.strip_prefix("config: ") {
+                progress.config.get_or_insert_with(|| config.to_owned());
             } else if let Some(reason) = message
                 .strip_prefix("exit: ")
                 .or_else(|| message.strip_prefix("preview exit: "))
@@ -87,6 +93,47 @@ pub fn lines_of(log: &str, pid: u32) -> Vec<&str> {
         .collect()
 }
 
+/// Whether the sprites, not just the background, are drawn: the log of one
+/// process (from [`lines_of`]) has the `sprite atlas:` line and neither a
+/// fallback to the background nor a wgpu error. Returns the atlas line.
+///
+/// Why: the app keeps running on the background alone when the sprite
+/// pipeline or the atlas cannot be made, so the other checks would pass
+/// (plan 0004, D-6: the pre-release exists to show the sprites).
+pub fn sprites_drawn(lines: &[&str]) -> Result<String, String> {
+    let messages: Vec<&str> = lines
+        .iter()
+        .filter_map(|line| split_line(line))
+        .filter_map(|(_, rest)| rest.split_once(' ').map(|(_, message)| message))
+        .collect();
+    if let Some(bad) = messages
+        .iter()
+        .find(|m| m.contains("drawing the background only") || m.starts_with("wgpu error"))
+    {
+        return Err(format!("the sprites are not drawn: {bad}"));
+    }
+    // Why: a wgpu error spans several lines, so a fallback message may sit
+    // on a continuation line that lines_of drops. Every surface (one per
+    // `surface configured:` line) must have made its atlas.
+    let surfaces = messages
+        .iter()
+        .filter(|m| m.starts_with("surface configured:"))
+        .count();
+    let atlases: Vec<&str> = messages
+        .iter()
+        .copied()
+        .filter(|m| m.starts_with("sprite atlas:"))
+        .collect();
+    match atlases.first() {
+        Some(first) if atlases.len() >= surfaces => Ok((*first).to_owned()),
+        Some(_) => Err(format!(
+            "the sprites are not drawn: {} sprite atlases for {surfaces} surfaces",
+            atlases.len()
+        )),
+        None => Err("the sprite atlas was not logged".to_owned()),
+    }
+}
+
 /// Splits `+123ms rest` into `(123, "rest")`.
 fn split_line(line: &str) -> Option<(u64, &str)> {
     let rest = line.strip_prefix('+')?;
@@ -98,11 +145,64 @@ fn split_line(line: &str) -> Option<(u64, &str)> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn sprites_are_drawn_when_the_atlas_was_made_without_errors() {
+        let lines = [
+            "+90ms pid=7 surface configured: 1024x768 Bgra8Unorm Fifo",
+            "+120ms pid=7 sprite atlas: 512x128 in 3 ms",
+            "+200ms pid=7 window 0: first frame presented",
+        ];
+        assert_eq!(
+            sprites_drawn(&lines),
+            Ok("sprite atlas: 512x128 in 3 ms".to_owned())
+        );
+    }
+
+    #[test]
+    fn falling_back_to_the_background_is_a_failure() {
+        // The screensaver keeps running on the background alone, so the
+        // other checks pass; this one must not.
+        let fallback = [
+            "+120ms pid=7 sprite pipeline: shader failed: drawing the background only",
+            "+200ms pid=7 window 0: first frame presented",
+        ];
+        assert!(sprites_drawn(&fallback).is_err());
+        let gpu_error = [
+            "+120ms pid=7 sprite atlas: 512x128 in 3 ms",
+            "+130ms pid=7 wgpu error: Validation Error",
+        ];
+        assert!(sprites_drawn(&gpu_error).is_err());
+        assert!(sprites_drawn(&["+1ms pid=7 window 0: first frame presented"]).is_err());
+    }
+
+    #[test]
+    fn one_window_without_its_atlas_is_a_failure() {
+        // Review: a wgpu error spans several lines, so the fallback message
+        // of a second window may sit on a line without the `+Nms pid=` prefix,
+        // which lines_of drops. The count of atlases still tells.
+        let lines = [
+            "+90ms pid=7 surface configured: 1920x1080 Bgra8Unorm Fifo",
+            "+95ms pid=7 sprite atlas: 512x128 in 3 ms",
+            "+100ms pid=7 surface configured: 3840x2160 Bgra8Unorm Fifo",
+            "+130ms pid=7 window 0: first frame presented",
+        ];
+        assert!(sprites_drawn(&lines).is_err());
+        let both = [
+            "+90ms pid=7 surface configured: 1920x1080 Bgra8Unorm Fifo",
+            "+95ms pid=7 sprite atlas: 512x128 in 3 ms",
+            "+100ms pid=7 surface configured: 3840x2160 Bgra8Unorm Fifo",
+            "+105ms pid=7 sprite atlas: 1024x256 in 6 ms",
+        ];
+        assert!(sprites_drawn(&both).is_ok());
+    }
+
     const LOG: &str = "\
 +0ms pid=10 Flying Microwave 0.1.0 started: Screensaver
 +1ms pid=11 Flying Microwave 0.1.0 started: Preview { parent: 5 }
 +20ms pid=10 monitors: 2
 +21ms pid=10 monitor 0: position Physical { x: 0, y: 0 } size (1920, 1080) scale 1
++30ms pid=10 config: not valid TOML; using the defaults (folder from FLYING_MICROWAVE_CONFIG_DIR) in 0.4 ms (waited 0 ms after the windows)
++31ms pid=10 config: flight.count: out of range; clamped
 +300ms pid=10 adapter: Microsoft Basic Render Driver (Cpu, Dx12, driver 10.0)
 +410ms pid=10 window 0: first frame presented
 +415ms pid=11 preview: first frame presented
@@ -119,6 +219,18 @@ mod tests {
             p.adapter.as_deref(),
             Some("Microsoft Basic Render Driver (Cpu, Dx12, driver 10.0)")
         );
+    }
+
+    #[test]
+    fn the_first_config_line_tells_how_the_settings_were_read() {
+        assert_eq!(
+            Progress::read(LOG, 10).config.as_deref(),
+            Some(
+                "not valid TOML; using the defaults (folder from FLYING_MICROWAVE_CONFIG_DIR) \
+                 in 0.4 ms (waited 0 ms after the windows)"
+            )
+        );
+        assert_eq!(Progress::read(LOG, 11).config, None);
     }
 
     #[test]

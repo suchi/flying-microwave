@@ -4,6 +4,8 @@
 
 #![forbid(unsafe_code)]
 
+pub mod config;
 pub mod exit_policy;
+pub mod pacing;
 pub mod rng;
 pub mod sim;
