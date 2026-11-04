@@ -23,6 +23,31 @@ pub struct Progress {
     /// Why the process decided to end: the screensaver's `exit:` line or
     /// the preview's `preview exit:` line, without the prefix.
     pub exit_reason: Option<String>,
+    /// The summary line of each window, in log order.
+    pub summaries: Vec<WindowSummary>,
+}
+
+/// The counts of one window from its summary line
+/// (`window N: R RedrawRequested received, F frames, ...`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WindowSummary {
+    pub window: u32,
+    pub received: u64,
+    pub frames: u64,
+}
+
+impl WindowSummary {
+    fn parse(message: &str) -> Option<Self> {
+        let rest = message.strip_prefix("window ")?;
+        let (window, rest) = rest.split_once(": ")?;
+        let (received, rest) = rest.split_once(" RedrawRequested received, ")?;
+        let (frames, _) = rest.split_once(" frames, ")?;
+        Some(Self {
+            window: window.parse().ok()?,
+            received: received.parse().ok()?,
+            frames: frames.parse().ok()?,
+        })
+    }
 }
 
 impl Progress {
@@ -49,6 +74,8 @@ impl Progress {
                 progress.monitors = Some(n);
             } else if message.ends_with("first frame presented") {
                 progress.first_frames_ms.push(ms);
+            } else if let Some(summary) = WindowSummary::parse(message) {
+                progress.summaries.push(summary);
             } else if let Some(adapter) = message.strip_prefix("adapter: ") {
                 progress.adapter.get_or_insert_with(|| adapter.to_owned());
             } else if let Some(config) = message.strip_prefix("config: ") {
@@ -63,6 +90,11 @@ impl Progress {
             }
         }
         progress
+    }
+
+    /// The summary of window `window`, if its line was logged.
+    pub fn summary_of(&self, window: u32) -> Option<&WindowSummary> {
+        self.summaries.iter().find(|s| s.window == window)
     }
 
     /// Whether every full-screen window has shown its first frame. Without
@@ -311,5 +343,39 @@ mod tests {
     fn malformed_lines_are_skipped() {
         let log = "garbage\n+x ms pid=1 monitors: 3\n+5ms\n+6ms pid=1 monitors: 1\n";
         assert_eq!(Progress::read(log, 1).monitors, Some(1));
+    }
+
+    #[test]
+    fn the_summary_line_gives_the_counts_of_each_window() {
+        let log = "\
++900ms pid=1 window 0: 12 RedrawRequested received, 10 frames, 1 paced, 0 blank, 1 skipped (Outdated 1, Lost 0, Timeout 0, Occluded 0, Validation 0)
++901ms pid=1 window 1: 0 RedrawRequested received, 0 frames, 0 paced, 0 blank, 0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0)
++902ms pid=2 window 0: 99 RedrawRequested received, 99 frames, 0 paced, 0 blank, 0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0)
+";
+        let p = Progress::read(log, 1);
+        assert_eq!(
+            p.summary_of(0),
+            Some(&WindowSummary {
+                window: 0,
+                received: 12,
+                frames: 10
+            })
+        );
+        assert_eq!(p.summary_of(1).map(|s| s.frames), Some(0));
+        assert_eq!(p.summary_of(2), None);
+        assert_eq!(Progress::read(log, 3).summary_of(0), None);
+    }
+
+    #[test]
+    fn other_window_lines_are_not_summaries() {
+        let log = "\
++1ms pid=1 window 0: first frame presented
++2ms pid=1 window 0: RedrawRequested received (#1)
++3ms pid=1 window 0: frame skipped: Occluded
++4ms pid=1 window 0: closed, its monitor is gone
+";
+        let p = Progress::read(log, 1);
+        assert!(p.summaries.is_empty());
+        assert_eq!(p.first_frames_ms.len(), 1);
     }
 }
