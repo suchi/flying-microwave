@@ -23,6 +23,13 @@
 
 メンテナーのログの`settings:`の行(`monitors`の値)と、`window 1: first frame presented`・`surface setup failed`の行の有無で、これらを切り分ける。
 
+`v0.2.0-alpha.2`の実機のログ(2026-11-05。2画面、どちらも1920x1200で拡大率100%、Intel UHD Graphics 770、DX12)で分かったこと:
+
+- 設定ファイルはなく、既定値(`monitors: All`)で動いた。2つのウィンドウとも`animate true`だった。1つ目の候補(`Primary only`)は当たらない。
+- 2つのウィンドウとも、`window N: setting up the surface`のあと`surface configured: 1920x1200 Bgra8Unorm Fifo`になり、エラーの行はなかった。3つ目の候補(サーフェスを作れなかった)も当たらない。
+- `first frame presented`の行は`window 0`だけで(起動から約0.54秒)、`window 1`の行は、キーで終わるまでの約3.1秒のあいだ出なかった。
+- 残る候補は、2つ目(再描画の順番が2台目に回らない)と、2台目の描画が毎回スキップされること(`get_current_texture`の`Timeout`・`Occluded`など)である。`v0.2.0-alpha.2`は、どちらの場合もログに何も書かないため、見分けられない。そのため、ウィンドウごとの`RedrawRequested`の回数と、スキップの理由をログに書く版(`v0.2.0-alpha.3`)を作り、もう一度ログを集める。
+
 ## なぜなぜ分析
 
 | なぜ | 答え(確かめた事実) |
