@@ -21,6 +21,7 @@ use flying_microwave_core::sim::SpriteInstance;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
+use crate::diag;
 use crate::log::log;
 use crate::sprite::{self, AtlasLayout};
 
@@ -461,15 +462,15 @@ impl Target {
             Acquired::Suboptimal(texture) => (texture, true),
             Acquired::Outdated => {
                 self.surface.configure(&gpu.device, &self.config);
-                return Frame::Skipped(Skip::Outdated);
+                return Frame::Skipped(diag::Skip::Outdated);
             }
             Acquired::Lost => {
                 self.surface.configure(&gpu.device, &self.config);
-                return Frame::Skipped(Skip::Lost);
+                return Frame::Skipped(diag::Skip::Lost);
             }
-            Acquired::Timeout => return Frame::Skipped(Skip::Timeout),
-            Acquired::Occluded => return Frame::Skipped(Skip::Occluded),
-            Acquired::Validation => return Frame::Skipped(Skip::Validation),
+            Acquired::Timeout => return Frame::Skipped(diag::Skip::Timeout),
+            Acquired::Occluded => return Frame::Skipped(diag::Skip::Occluded),
+            Acquired::Validation => return Frame::Skipped(diag::Skip::Validation),
         };
 
         let (width, height) = (self.config.width, self.config.height);
@@ -530,17 +531,7 @@ impl Target {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Frame {
     Presented,
-    Skipped(Skip),
-}
-
-/// Why `Target::draw` did not draw (the surface texture was not available).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Skip {
-    Outdated,
-    Lost,
-    Timeout,
-    Occluded,
-    Validation,
+    Skipped(diag::Skip),
 }
 
 /// Ends the process if GPU initialization hangs. Dropping it disarms it.

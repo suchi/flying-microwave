@@ -83,9 +83,7 @@ struct SaverWindow {
     /// Whether a frame has been presented, for the N-01 log line.
     presented: bool,
     /// Counts of this window, for the diagnostics in the log (issue #50).
-    redraws: u64,
-    frames: u64,
-    skipped: u64,
+    stats: diag::FrameStats,
 }
 
 struct SaverApp {
@@ -162,15 +160,6 @@ pub fn run() -> i32 {
     if let Err(e) = event_loop.run_app(&mut app) {
         log!("event loop error: {e}");
         return EXIT_EVENT_LOOP_FAILED;
-    }
-    for w in &app.windows {
-        log!(
-            "window {}: {} redraws, {} frames, {} skipped",
-            w.index,
-            w.redraws,
-            w.frames,
-            w.skipped
-        );
     }
     log!(
         "screensaver ended: {}",
@@ -417,9 +406,7 @@ impl SaverApp {
             target: None,
             last_frame: None,
             presented: false,
-            redraws: 0,
-            frames: 0,
-            skipped: 0,
+            stats: diag::FrameStats::default(),
             retry_at: None,
         }
     }
@@ -646,6 +633,7 @@ impl SaverApp {
         for &p in positions.iter().rev() {
             let w = self.windows.remove(p);
             log!("window {}: closed, its monitor is gone", w.index);
+            log!("{}", w.stats.summary(w.index));
             // A closed window is no longer in `windows`, so its own focus and
             // Destroyed events are ignored (window_event). Tell the exit
             // policy here that it has no focus any more.
@@ -727,13 +715,14 @@ impl SaverApp {
 
     fn redraw(&mut self, index: usize) {
         let w = &mut self.windows[index];
-        w.redraws += 1;
-        if diag::first_few(w.redraws) {
-            log!("window {}: redraw requested (#{})", w.index, w.redraws);
+        let received = w.stats.received();
+        if diag::first_few(received) {
+            log!("window {}: RedrawRequested received (#{received})", w.index);
         }
         let (Some(target), Some(gpu)) = (w.target.as_mut(), self.gpu.as_ref()) else {
             // No GPU for this window, or it does not animate: keep it black,
             // no further redraws.
+            w.stats.blank();
             if let Some(hwnd) = win::hwnd_of(&w.window) {
                 win::fill_black(hwnd);
             }
@@ -742,6 +731,7 @@ impl SaverApp {
         let now = Instant::now();
         // display.max_fps: skip this frame and draw at the given time.
         if let Pace::WaitUntil(at) = w.pacer.poll(now - self.epoch) {
+            w.stats.paced();
             w.retry_at = Some(self.epoch + at);
             return;
         }
@@ -751,13 +741,12 @@ impl SaverApp {
         w.last_frame = Some(now);
         let frame = target.draw(gpu, &w.world.instances());
         if let Frame::Skipped(skip) = frame {
-            w.skipped += 1;
-            if diag::first_few(w.skipped) {
+            if diag::first_few(w.stats.skipped(skip)) {
                 log!("window {}: frame skipped: {skip:?}", w.index);
             }
             w.retry_at = Some(now + RETRY_DELAY);
         } else {
-            w.frames += 1;
+            w.stats.drawn();
             // N-01 (first animation frame within 1 s) is measured from this line.
             if !w.presented {
                 w.presented = true;
@@ -898,6 +887,11 @@ impl ApplicationHandler for SaverApp {
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        // Why here: winit calls this before `run_app` returns, and the
+        // windows are dropped below, so the summary cannot be written later.
+        for w in &self.windows {
+            log!("{}", w.stats.summary(w.index));
+        }
         // Surfaces before the device and the instance.
         self.windows.clear();
         self.gpu = None;
