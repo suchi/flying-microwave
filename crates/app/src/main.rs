@@ -6,6 +6,9 @@
 mod cli;
 #[cfg(windows)]
 mod log;
+// Used by the Windows screensaver; tested on every host.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod monitors;
 #[cfg(windows)]
 mod preview;
 #[cfg(windows)]
