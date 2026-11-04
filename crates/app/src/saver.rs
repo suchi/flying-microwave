@@ -398,7 +398,13 @@ impl SaverApp {
                 .iter()
                 .map(|w| {
                     w.animate
-                        .then(|| render::create_surface(&instance, &w.window).ok())
+                        .then(|| match render::create_surface(&instance, &w.window) {
+                            Ok(surface) => Some(surface),
+                            Err(e) => {
+                                log!("window {}: {e}; it stays black", w.index);
+                                None
+                            }
+                        })
                         .flatten()
                 })
                 .collect();
@@ -415,9 +421,13 @@ impl SaverApp {
                 for (w, surface) in self.windows.iter_mut().zip(surfaces) {
                     let Some(surface) = surface else { continue };
                     let sprite_size = w.world.instances().first().map_or(0.12, |s| s.size);
+                    // Why: the lines that Target::new writes do not name the
+                    // window, and with several monitors the log must tell
+                    // which window they belong to (Issue #50).
+                    log!("window {}: setting up the surface", w.index);
                     match Target::new(&gpu, surface, w.window.inner_size(), sprite_size) {
                         Ok(target) => w.target = Some(target),
-                        Err(e) => log!("surface setup failed: {e}"),
+                        Err(e) => log!("window {}: surface setup failed: {e}", w.index),
                     }
                 }
                 self.gpu = Some(gpu);
