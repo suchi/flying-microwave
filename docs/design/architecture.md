@@ -19,7 +19,7 @@
 
 ## 構成要素
 
-次の図は、目標とする構成である。v0.2.0の試作版の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`win.rs`、`log.rs`と、coreの`config.rs`、`pacing.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
+次の図は、目標とする構成である。v0.2.0の試作版の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`licenses.rs`、`monitors.rs`、`win.rs`、`log.rs`と、coreの`config.rs`、`pacing.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
 
 ```mermaid
 flowchart TB
@@ -79,6 +79,8 @@ flowchart TB
 | `.cargo/config.toml` | Windowsターゲットの`+crt-static`などビルド設定 |
 | `crates/core/` | `flying-microwave-core`。OS・GPUに依存しない純粋なロジック |
 | `crates/app/` | `flying-microwave`。実行ファイル(起動モード、描画、設定画面、設定ファイル入出力、プラットフォーム固有処理) |
+| `crates/app/src/licenses.rs` | 設定画面のAboutに表示する、依存ライブラリのライセンス表記(`THIRD-PARTY-LICENSES.txt`)の読み込み。Windowsに依存しない |
+| `crates/app/src/monitors.rs` | `/s`の実行中のモニタの一覧の比較(増えた・位置や大きさが変わった・なくなったを求める)。Windowsに依存しない純粋な関数 |
 | `crates/app/build.rs` | Windowsリソース(アイコン、バージョン情報、String Tableの序数1)の埋め込み。バージョン情報は`Cargo.toml`のバージョンから生成する |
 | `crates/smoke/` | `flying-microwave-smoke`。ビルドした実行ファイルを各モードで起動し、起動と終了を確かめるスモークテスト(Windows専用。[計画0003](../plans/0003-v0.1.1-smoke-test.md))。製品には含めない |
 | `crates/app/res/` | リソース定義ファイル(`app.rc`)と、アイコン(`icon.svg`と、そこから作る`flying-microwave.ico`) |
@@ -237,14 +239,19 @@ Phase 1の暫定の扱い(スパイクS4と実機の結果で見直す):
 ## マルチモニタ
 
 - Phase 1では、モニタごとに全画面ウィンドウを作り、それぞれ独立したシミュレーションを実行する。ウィンドウは、winitの全画面の指定を使わず、枠のない最前面のウィンドウをモニタの位置と大きさで作る([ADR-0019](../adr/0019-screensaver-windows-without-winit-fullscreen.md))。どのウィンドウで終了条件を満たしても全体を終了する。
-- 実行中にモニタが追加・変更された場合も、すべてのモニタを覆う(仕様調査のW-10。Phase 2)。
+- 実行中にモニタが追加・変更された場合も、すべてのモニタを覆う(仕様調査のW-10、計画0004のF-07。v0.2.0で実装)。winit 0.30.13は`WM_DISPLAYCHANGE`をアプリに渡さない(`WM_DPICHANGED`だけをイベントにする。ソースで確認)ため、1秒ごとにモニタの一覧を取り直し、ウィンドウが覆っているモニタと比べる(計画0004のD-12)。比較は`monitors.rs`が行う。ハンドルが同じモニタ、またはハンドルが替わっても位置と大きさが同じモニタを、同じモニタとみなす。一覧が空のときは、取得の失敗とみなして何も変えない。
+  - 増えたモニタ: 黒い枠なしのウィンドウを、アクティブにしない(`with_active(false)`)で作り、描画の準備をする。アクティブにすると前面のウィンドウからキーボードのフォーカスを奪うため。
+  - 位置や大きさが変わったモニタ: ウィンドウを新しい位置と大きさに合わせ、描画先と世界を作り直す。
+  - なくなったモニタ: ウィンドウを閉じる。ただし、すべてのウィンドウが閉じることになるときは、閉じない。前面のウィンドウを閉じる場合は、先に残るウィンドウを前面にする(そうしないと、別のアプリが前面になってフォーカスを失い、終了してしまうため)。閉じたウィンドウは、終了判定にフォーカスを失ったことを伝える。
+  - 実機での確認(モニタの抜き差し)は、まだしていない。2画面で2台目に描かれない不具合(Issue #50)は、この対応とは別の問題で、まだ直っていない([incidents 0014](../incidents/0014-second-monitor-not-drawn.md))。
 - DPIの異なるモニタが混在しても論理座標で同じ見た目になる。winit 0.30.13はWindowsでイベントループの生成時にモニタごとのDPI対応(`DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2`)を設定する(ソースで確認)。実機での見え方はスパイクS4で確認する。
 - モニタをまたいで電子レンジが飛ぶ演出は将来のアイデアとする([将来のオプションのアイデア](../ideas/future-options.md))。
 
 ## 設定の保存
 
-- 設定はTOMLファイルとして利用者ごとの設定ディレクトリに保存する([ADR-0004](../adr/0004-store-settings-as-toml.md))。場所は`%APPDATA%\FlyingMicrowave\config.toml`で、`SHGetKnownFolderPath(FOLDERID_RoamingAppData)`で求める([計画0004](../plans/0004-v0.2.0-settings.md)のD-1。ADRは作業2で書く)。v0.2.0の試作版では、環境変数`FLYING_MICROWAVE_CONFIG_DIR`(ドライブ文字で始まる絶対パス。それ以外の値はエラーにし、本当の設定ファイルを使わない)でフォルダを上書きできる(テスト用。計画0004のD-6のE-1、D-10)。
+- 設定はTOMLファイルとして利用者ごとの設定ディレクトリに保存する([ADR-0004](../adr/0004-store-settings-as-toml.md))。場所は`%APPDATA%\FlyingMicrowave\config.toml`で、`SHGetKnownFolderPath(FOLDERID_RoamingAppData)`で求める([計画0004](../plans/0004-v0.2.0-settings.md)のD-1、[ADR-0024](../adr/0024-settings-file-location-and-handling.md))。環境変数`FLYING_MICROWAVE_CONFIG_DIR`(ドライブ文字で始まる絶対パス。それ以外の値はエラーにし、本当の設定ファイルを使わない)でフォルダを上書きできる(テスト用。ADR-0024のE-1)。
 - 読み込み: `/s`は、黒いウィンドウで画面を覆うのを設定の読み込みで遅らせないよう、別のスレッドで読み始め、覆ったあとで最大0.5秒待つ。間に合わないか失敗したときは既定値で動く(計画0004のD-9)。`/p`は、起動時に読んでから始める。読み込みの結果とかかった時間をログに書く。ファイルのパスと、ファイルに書かれた値は書かず、検証したあとの設定(数と選択肢)は書く。モデル・既定値・検証は`core::config`、ファイルの読み書きは`crates/app/src/storage.rs`、設定画面は`crates/app/src/settings.rs`(eframe)にある。
+- 設定画面のAbout: 依存ライブラリのライセンス表記は、実行ファイルの隣の`THIRD-PARTY-LICENSES.txt`(リリースのzipに入る。[ADR-0011](../adr/0011-license-notices-with-cargo-about.md))を、設定画面を開くときに1回だけ読み、スクロールできる領域に表示する(計画0004のD-12)。読むのは`licenses.rs`で、パスは`current_exe`のフォルダとファイル名だけから作る(環境変数や引数は使わない)。`current_exe`が絶対パスでないとき、2MiBより大きいとき、UTF-8でないときは読まず、見つからないときなどとあわせて、そのファイル名を示す文を表示する。
 - 書き込みは一時ファイル(`config.toml.<pid>.tmp`)に書いてから置き換える。`/s`が書きかけのファイルを読まないようにするため。
 - 項目・範囲・既定値・検証規則は[設定項目仕様](settings.md)に定める。
 
