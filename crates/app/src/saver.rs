@@ -503,6 +503,51 @@ impl SaverApp {
         }
         self.close_windows(event_loop, closing);
         self.known_monitors = current;
+        self.update_animation(event_loop);
+    }
+
+    /// With `display.monitors = "primary"`, decides again which windows
+    /// animate: the primary monitor may have changed, or its window may be
+    /// gone, and the animation must show somewhere. Only a window whose
+    /// decision differs is touched, so a window whose surface could not be
+    /// made is not retried every second.
+    fn update_animation(&mut self, event_loop: &ActiveEventLoop) {
+        if !self.only_primary {
+            return;
+        }
+        let primary = event_loop.primary_monitor();
+        let on_primary: Vec<bool> = self
+            .windows
+            .iter()
+            .map(|w| {
+                w.monitor
+                    .as_ref()
+                    .is_some_and(|(m, _)| primary.as_ref() == Some(m))
+            })
+            .collect();
+        let animate = monitors::animated(self.only_primary, &on_primary);
+        for (position, animate) in animate.into_iter().enumerate() {
+            let w = &mut self.windows[position];
+            if w.animate == animate {
+                continue;
+            }
+            w.animate = animate;
+            log!("window {}: animate {animate}", w.index);
+            if animate {
+                w.last_frame = None;
+                w.presented = false;
+                if w.target.is_none() {
+                    self.attach_target(position);
+                }
+                self.windows[position].window.request_redraw();
+            } else {
+                w.target = None;
+                w.retry_at = None;
+                if let Some(hwnd) = win::hwnd_of(&w.window) {
+                    win::fill_black(hwnd);
+                }
+            }
+        }
     }
 
     /// Fits a window to the new position and size of its monitor.
@@ -544,6 +589,8 @@ impl SaverApp {
             return;
         };
         log!("window {index}: created for a new monitor");
+        // The same rule as `monitors::animated`, for this window alone; the
+        // check that follows decides again with all the windows.
         let animate = !self.only_primary || primary == Some(&monitor.0);
         let w = self.saver_window(index, window, Some(monitor), animate);
         self.windows.push(w);
