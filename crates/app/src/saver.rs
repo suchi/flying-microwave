@@ -21,9 +21,11 @@ use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::monitor::MonitorHandle;
 use winit::window::{Window, WindowId, WindowLevel};
 
 use crate::log::log;
+use crate::monitors::Area;
 use crate::render::{self, Gpu, Target};
 use crate::storage::Startup;
 use crate::win;
@@ -44,9 +46,11 @@ const EXIT_GPU_INIT_TIMEOUT: u32 = 6;
 
 struct SaverWindow {
     window: Arc<Window>,
+    /// Numbers the windows of this run in the log and for the exit policy.
+    /// It never changes and is never reused.
     index: usize,
-    /// Physical size of the monitor this window covers, if known.
-    monitor_size: Option<PhysicalSize<u32>>,
+    /// The monitor this window covers and its area, if known.
+    monitor: Option<(MonitorHandle, Area)>,
     /// Whether this window shows the animation; otherwise it stays black
     /// (`display.monitors = "primary"` on another monitor).
     animate: bool,
@@ -72,6 +76,10 @@ struct SaverApp {
     /// The settings, until they are taken once the windows exist.
     config_rx: Option<Receiver<Startup>>,
     params: SimParams,
+    /// `display.max_fps`.
+    max_fps: u32,
+    /// `display.monitors = "primary"`.
+    only_primary: bool,
     /// The fixed start of the times passed to the frame pacers.
     epoch: Instant,
     /// Start of the grace period; `None` until the windows and the GPU are ready.
@@ -104,6 +112,8 @@ pub fn run() -> i32 {
         ),
         config_rx: Some(config_rx),
         params: SimParams::default(),
+        max_fps: 0,
+        only_primary: false,
         epoch: Instant::now(),
         grace_start: None,
         created: false,
@@ -171,6 +181,62 @@ pub(crate) fn aspect_of(size: PhysicalSize<u32>) -> f32 {
     }
 }
 
+/// The area of a monitor, in physical pixels.
+fn area_of(monitor: &MonitorHandle) -> Area {
+    let position = monitor.position();
+    let size = monitor.size();
+    Area {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+    }
+}
+
+/// Creates a borderless, topmost window that covers the monitor area
+/// `area` (maximized when it is unknown), hides the cursor and paints the
+/// window black (W-9). `active` is whether showing the window activates it.
+fn create_black_window(
+    event_loop: &ActiveEventLoop,
+    area: Option<Area>,
+    index: usize,
+    active: bool,
+) -> Option<Arc<Window>> {
+    let attributes = Window::default_attributes()
+        .with_title("Flying Microwave")
+        .with_decorations(false)
+        .with_window_level(WindowLevel::AlwaysOnTop)
+        .with_active(active);
+    // Why: not `with_fullscreen`. winit 0.30.13 then injects an
+    // extended (right) Alt press with SendInput, which ended every
+    // run on real hardware (docs/research/spike-results.md). A
+    // borderless window that covers the monitor avoids it.
+    let attributes = match area {
+        Some(area) => attributes
+            .with_position(PhysicalPosition::new(area.x, area.y))
+            .with_inner_size(PhysicalSize::new(area.width, area.height)),
+        None => attributes.with_maximized(true),
+    };
+    let window = match event_loop.create_window(attributes) {
+        Ok(window) => Arc::new(window),
+        Err(e) => {
+            log!("window {index}: creation failed: {e}");
+            return None;
+        }
+    };
+    window.set_cursor_visible(false);
+    if let Some(hwnd) = win::hwnd_of(&window) {
+        win::fill_black(hwnd);
+    }
+    log!(
+        "window {index}: inner {:?} outer position {:?} scale {}",
+        window.inner_size(),
+        window.outer_position(),
+        window.scale_factor()
+    );
+    Some(window)
+}
+
 /// A seed that differs between runs and between monitors.
 pub(crate) fn seed(index: usize) -> u64 {
     let nanos = SystemTime::now()
@@ -228,47 +294,21 @@ impl SaverApp {
         // First cover every monitor in black (W-9); the settings come after.
         let mut created = Vec::new();
         for (index, monitor) in targets.into_iter().enumerate() {
-            let attributes = Window::default_attributes()
-                .with_title("Flying Microwave")
-                .with_decorations(false)
-                .with_window_level(WindowLevel::AlwaysOnTop);
-            // Why: not `with_fullscreen`. winit 0.30.13 then injects an
-            // extended (right) Alt press with SendInput, which ended every
-            // run on real hardware (docs/research/spike-results.md). A
-            // borderless window that covers the monitor avoids it.
-            let attributes = match &monitor {
-                Some(monitor) => {
-                    let position = monitor.position();
-                    let size = monitor.size();
-                    attributes
-                        .with_position(PhysicalPosition::new(position.x, position.y))
-                        .with_inner_size(PhysicalSize::new(size.width, size.height))
-                }
-                None => attributes.with_maximized(true),
-            };
-            let window = match event_loop.create_window(attributes) {
-                Ok(window) => Arc::new(window),
-                Err(e) => {
-                    log!("window {index}: creation failed: {e}");
-                    continue;
-                }
-            };
-            window.set_cursor_visible(false);
-            if let Some(hwnd) = win::hwnd_of(&window) {
-                win::fill_black(hwnd);
+            let monitor = monitor.map(|m| {
+                let area = area_of(&m);
+                (m, area)
+            });
+            let area = monitor.as_ref().map(|(_, area)| *area);
+            if let Some(window) = create_black_window(event_loop, area, index, true) {
+                created.push((index, window, monitor));
             }
-            log!(
-                "window {index}: inner {:?} outer position {:?} scale {}",
-                window.inner_size(),
-                window.outer_position(),
-                window.scale_factor()
-            );
-            created.push((index, window, monitor));
         }
 
         let config = receive_config(self.config_rx.take());
         log!("settings: {config:?}");
         self.params = config.sim_params();
+        self.max_fps = config.display.max_fps.value();
+        self.only_primary = config.display.monitors == Monitors::Primary;
         self.policy = ExitPolicy::new(
             exit_policy::Mode::Screensaver,
             config.input.exit_sensitivity.threshold_px(),
@@ -277,42 +317,73 @@ impl SaverApp {
         // Which windows animate: all, or only the primary monitor's. If no
         // window is on the primary monitor, the first window animates, so
         // that the animation is always shown somewhere.
-        let only_primary = config.display.monitors == Monitors::Primary;
-        let on_primary = |monitor: &Option<winit::monitor::MonitorHandle>| {
-            monitor.is_some() && *monitor == primary
+        let on_primary = |monitor: &Option<(MonitorHandle, Area)>| {
+            monitor
+                .as_ref()
+                .is_some_and(|(m, _)| primary.as_ref() == Some(m))
         };
         let any_on_primary = created.iter().any(|(_, _, monitor)| on_primary(monitor));
         for (position, (index, window, monitor)) in created.into_iter().enumerate() {
-            let animate = !only_primary
+            let animate = !self.only_primary
                 || if any_on_primary {
                     on_primary(&monitor)
                 } else {
                     position == 0
                 };
-            let refresh = monitor.as_ref().and_then(|m| m.refresh_rate_millihertz());
-            let pacer = FramePacer::new(config.display.max_fps.value(), refresh);
-            log!(
-                "window {index}: animate {animate}, frame rate limited {}",
-                pacer.limits()
-            );
-            let size = window.inner_size();
-            self.windows.push(SaverWindow {
-                world: World::new(seed(index), aspect_of(size), self.params),
-                aspect: aspect_of(size),
-                window,
-                index,
-                monitor_size: monitor.as_ref().map(|m| m.size()),
-                animate,
-                pacer,
-                target: None,
-                last_frame: None,
-                presented: false,
-                retry_at: None,
-            });
+            let w = self.saver_window(index, window, monitor, animate);
+            self.windows.push(w);
         }
         // Keyboard input only reaches the foreground window (see win::set_foreground).
         if let Some(hwnd) = self.windows.first().and_then(|w| win::hwnd_of(&w.window)) {
             log!("SetForegroundWindow: {}", win::set_foreground(hwnd));
+        }
+    }
+
+    /// The state of a new window, before it has a render target.
+    fn saver_window(
+        &self,
+        index: usize,
+        window: Arc<Window>,
+        monitor: Option<(MonitorHandle, Area)>,
+        animate: bool,
+    ) -> SaverWindow {
+        let refresh = monitor
+            .as_ref()
+            .and_then(|(m, _)| m.refresh_rate_millihertz());
+        let pacer = FramePacer::new(self.max_fps, refresh);
+        log!(
+            "window {index}: animate {animate}, frame rate limited {}",
+            pacer.limits()
+        );
+        let size = window.inner_size();
+        SaverWindow {
+            world: World::new(seed(index), aspect_of(size), self.params),
+            aspect: aspect_of(size),
+            window,
+            index,
+            monitor,
+            animate,
+            pacer,
+            target: None,
+            last_frame: None,
+            presented: false,
+            retry_at: None,
+        }
+    }
+
+    /// Fits the render target and the world of a window to its new size.
+    fn fit_to_size(&mut self, position: usize, size: PhysicalSize<u32>) {
+        let w = &mut self.windows[position];
+        if let (Some(target), Some(gpu)) = (w.target.as_mut(), self.gpu.as_ref()) {
+            target.resize(gpu, size);
+        }
+        // The aspect only matters where flyers re-enter, and the size
+        // changes almost only right after start, so a new world is fine.
+        let aspect = aspect_of(size);
+        if size.height > 0 && (aspect - w.aspect).abs() > 1e-3 {
+            w.world = World::new(seed(w.index), aspect, self.params);
+            w.aspect = aspect;
+            w.last_frame = None;
         }
     }
 
@@ -441,8 +512,11 @@ impl ApplicationHandler for SaverApp {
             WindowEvent::CursorMoved { .. } => {
                 win::cursor_pos().map(|(x, y)| Event::CursorMoved { x, y })
             }
+            // Why `index` of the window, not its position in `windows`:
+            // windows are closed while running (F-07), which moves the
+            // positions, and the exit policy must keep telling them apart.
             WindowEvent::Focused(focused) => Some(Event::FocusChanged {
-                window: exit_policy::WindowId(index as u64),
+                window: exit_policy::WindowId(self.windows[index].index as u64),
                 focused,
             }),
             WindowEvent::CloseRequested => Some(Event::CloseRequested),
@@ -457,27 +531,17 @@ impl ApplicationHandler for SaverApp {
             } => {
                 let w = &self.windows[index];
                 log!("window {}: scale factor changed to {scale_factor}", w.index);
-                if let Some(size) = w.monitor_size
-                    && let Err(e) = inner_size_writer.request_inner_size(size)
+                if let Some((_, area)) = w.monitor
+                    && let Err(e) = inner_size_writer
+                        .request_inner_size(PhysicalSize::new(area.width, area.height))
                 {
                     log!("window {}: keeping the monitor size failed: {e}", w.index);
                 }
                 None
             }
             WindowEvent::Resized(size) => {
-                let w = &mut self.windows[index];
-                log!("window {}: resized to {size:?}", w.index);
-                if let (Some(target), Some(gpu)) = (w.target.as_mut(), self.gpu.as_ref()) {
-                    target.resize(gpu, size);
-                }
-                // The aspect only matters where flyers re-enter, and the size
-                // changes almost only right after start, so a new world is fine.
-                let aspect = aspect_of(size);
-                if size.height > 0 && (aspect - w.aspect).abs() > 1e-3 {
-                    w.world = World::new(seed(w.index), aspect, self.params);
-                    w.aspect = aspect;
-                    w.last_frame = None;
-                }
+                log!("window {}: resized to {size:?}", self.windows[index].index);
+                self.fit_to_size(index, size);
                 None
             }
             WindowEvent::RedrawRequested => {
