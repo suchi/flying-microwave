@@ -31,6 +31,7 @@ use windows_sys::Win32::Foundation::HWND;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 use crate::cli::Owner;
+use crate::licenses;
 use crate::log::log;
 use crate::storage::{self, Location, Startup};
 use crate::win;
@@ -81,6 +82,21 @@ pub fn run(owner: Owner) -> i32 {
     }
     let location = startup.location.clone();
     let owner = resolve_owner(owner);
+    // Read once, when the window opens, not on every visit of the About tab.
+    let notices = match licenses::load() {
+        Ok(text) => {
+            log!(
+                "settings: {} read ({} bytes)",
+                licenses::FILE_NAME,
+                text.len()
+            );
+            Some(text)
+        }
+        Err(reason) => {
+            log!("settings: {} not shown: {reason}", licenses::FILE_NAME);
+            None
+        }
+    };
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -102,7 +118,7 @@ pub fn run(owner: Owner) -> i32 {
     let result = eframe::run_native(
         "flying-microwave-settings",
         options,
-        Box::new(move |cc| Ok(Box::new(SettingsApp::new(cc, startup, owner)))),
+        Box::new(move |cc| Ok(Box::new(SettingsApp::new(cc, startup, owner, notices)))),
     );
     release_owner("the window has closed");
     match result {
@@ -328,11 +344,18 @@ struct SettingsApp {
     warned_at: Option<Instant>,
     /// Why the last save failed.
     error: Option<String>,
+    /// The third-party license notices, if they could be read.
+    notices: Option<String>,
 }
 
 impl SettingsApp {
     /// The eframe creation callback: fonts and style, then the owner.
-    fn new(cc: &eframe::CreationContext<'_>, startup: Startup, owner: Option<HWND>) -> Self {
+    fn new(
+        cc: &eframe::CreationContext<'_>,
+        startup: Startup,
+        owner: Option<HWND>,
+        notices: Option<String>,
+    ) -> Self {
         log!("settings: window created");
         install_fonts(&cc.egui_ctx);
         apply_style(&cc.egui_ctx);
@@ -347,6 +370,7 @@ impl SettingsApp {
             ),
             warned_at: None,
             error: None,
+            notices,
         }
     }
 
@@ -521,30 +545,60 @@ impl SettingsApp {
         );
     }
 
-    fn about(ui: &mut Ui) {
+    fn about(&self, ui: &mut Ui) {
+        // Why: the tab is only about 225 points high. With rows of the text
+        // height, tighter spacing and the small text below, the notices get
+        // about 110 to 125 of them (measured headlessly with egui 0.37 and
+        // Arial-sized and wider fonts); with the spacing of the other tabs,
+        // about 60, which overlapped the rows below.
+        ui.spacing_mut().interact_size.y = 0.0;
+        ui.spacing_mut().item_spacing.y = 6.0;
         ui.horizontal_wrapped(|ui| {
             ui.label(RichText::new("Version").color(DIM));
             ui.label(env!("CARGO_PKG_VERSION"));
         });
-        ui.add_space(4.0);
-        // Why: provisional for v0.2.0-alpha (plan 0004, E-2): only the name
-        // of the license file that comes with the release.
         ui.horizontal_wrapped(|ui| {
             ui.label(RichText::new("License").color(DIM));
-            ui.label("MIT. Third-party licenses are listed in THIRD-PARTY-LICENSES.txt.");
+            ui.label(format!(
+                "MIT. Third-party licenses are listed in {}.",
+                licenses::FILE_NAME
+            ));
         });
-        ui.add_space(4.0);
-        ui.add(
-            Label::new(
-                "Inspired by the classic flying-appliance screen savers. This is an \
-                 independent work, not affiliated with or endorsed by their creators or \
-                 rights holders.",
-            )
-            .wrap(),
-        );
-        ui.add_space(4.0);
-        // Why: shown as text; opening links is off (plan 0004, E-5).
-        ui.label(RichText::new(PROJECT_URL).color(ACCENT));
+        // The rows under the notices are laid out from the bottom up, so that
+        // the notices take whatever height is left between them.
+        ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
+            // Why: shown as text; opening links is off (plan 0004, E-5).
+            ui.label(RichText::new(PROJECT_URL).color(ACCENT));
+            ui.add(
+                Label::new(
+                    RichText::new(
+                        "Inspired by the classic flying-appliance screen savers. This is an \
+                         independent work, not affiliated with or endorsed by their creators \
+                         or rights holders.",
+                    )
+                    .small(),
+                )
+                .wrap(),
+            );
+            ui.with_layout(Layout::top_down(Align::Min), |ui| match &self.notices {
+                Some(text) => notices(ui, text),
+                // The release puts the file next to the program; without it,
+                // say so and name the file (plan 0004, D-12).
+                None => {
+                    ui.add(
+                        Label::new(
+                            RichText::new(format!(
+                                "{} could not be read from the folder of the program.",
+                                licenses::FILE_NAME
+                            ))
+                            .small()
+                            .color(DIM),
+                        )
+                        .wrap(),
+                    );
+                }
+            });
+        });
     }
 }
 
@@ -568,6 +622,26 @@ fn row(ui: &mut Ui, label: &str, hint: Option<&str>, add: impl FnOnce(&mut Ui)) 
         });
     });
     ui.add_space(10.0);
+}
+
+/// The third-party license notices (plan 0004, F-05 and D-12), in a framed
+/// area that fills the height left and scrolls; long lines wrap.
+fn notices(ui: &mut Ui, text: &str) {
+    Frame::NONE
+        .fill(BG)
+        .stroke(Stroke::new(1.0, LINE))
+        .corner_radius(CornerRadius::same(4))
+        .inner_margin(Margin::same(8))
+        .show(ui, |ui| {
+            egui::ScrollArea::vertical()
+                // Why: the default minimum (64) would grow the area over the
+                // rows below it when less height is left (larger fonts).
+                .min_scrolled_height(0.0)
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    ui.add(Label::new(RichText::new(text).small().color(DIM)).wrap());
+                });
+        });
 }
 
 /// A slider for a multiplier, shown like `1.00×`.
@@ -615,7 +689,7 @@ impl eframe::App for SettingsApp {
             .show(ui, |ui| match self.tab {
                 Tab::Flight => self.flight(ui),
                 Tab::Display => self.display(ui),
-                Tab::About => Self::about(ui),
+                Tab::About => self.about(ui),
             });
     }
 

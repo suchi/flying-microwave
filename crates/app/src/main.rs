@@ -4,6 +4,9 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 mod cli;
+// Used by the settings window; tested on every host.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod licenses;
 #[cfg(windows)]
 mod log;
 #[cfg(windows)]

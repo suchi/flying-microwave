@@ -42,8 +42,11 @@ impl Progress {
             }
             if message.starts_with("Flying Microwave ") && message.contains(" started: ") {
                 progress.started_ms.get_or_insert(ms);
-            } else if let Some(n) = message.strip_prefix("monitors: ") {
-                progress.monitors = n.trim().parse().ok();
+            } else if let Some(n) = message
+                .strip_prefix("monitors: ")
+                .and_then(|n| n.trim().parse().ok())
+            {
+                progress.monitors = Some(n);
             } else if message.ends_with("first frame presented") {
                 progress.first_frames_ms.push(ms);
             } else if let Some(adapter) = message.strip_prefix("adapter: ") {
@@ -238,6 +241,14 @@ mod tests {
         let partial = "+0ms pid=1 monitors: 2\n+5ms pid=1 window 0: first frame presented\n";
         assert!(!Progress::read(partial, 1).screensaver_ready());
         assert!(Progress::read(LOG, 10).screensaver_ready());
+    }
+
+    #[test]
+    fn a_monitors_line_without_a_count_keeps_the_count() {
+        // Review: a line such as "monitors: 1 left out, ..." must not clear
+        // the monitor count, which would make one frame look like enough.
+        let log = "+0ms pid=1 monitors: 2\n+1ms pid=1 monitors: 1 left out, their area is unknown\n+5ms pid=1 window 0: first frame presented\n";
+        assert!(!Progress::read(log, 1).screensaver_ready());
     }
 
     #[test]

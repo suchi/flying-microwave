@@ -8,7 +8,9 @@ use std::path::PathBuf;
 use windows_sys::Win32::Foundation::{
     ERROR_ALREADY_EXISTS, GetLastError, HANDLE, HWND, POINT, RECT, SetLastError,
 };
-use windows_sys::Win32::Graphics::Gdi::{BLACK_BRUSH, FillRect, GetDC, GetStockObject, ReleaseDC};
+use windows_sys::Win32::Graphics::Gdi::{
+    BLACK_BRUSH, FillRect, GetDC, GetMonitorInfoW, GetStockObject, MONITORINFO, ReleaseDC,
+};
 use windows_sys::Win32::System::Com::CoTaskMemFree;
 use windows_sys::Win32::System::LibraryLoader::{
     LOAD_LIBRARY_SEARCH_SYSTEM32, SetDefaultDllDirectories,
@@ -24,7 +26,11 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     SetWindowLongPtrW,
 };
 use windows_sys::core::{GUID, PWSTR};
+use winit::monitor::MonitorHandle;
+use winit::platform::windows::MonitorHandleExtWindows;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+use flying_microwave_core::monitors::Area;
 
 /// SEC-1 (docs/design/architecture.md): load DLLs only from System32, so a
 /// DLL planted next to the .scr is never picked up. Called first in `main`.
@@ -121,6 +127,48 @@ pub fn fill_black(hwnd: HWND) -> bool {
         ReleaseDC(hwnd, hdc);
         filled != 0
     }
+}
+
+/// The area of a monitor on the desktop, in physical pixels; `None` when
+/// Windows does not know the monitor (it was just removed).
+///
+/// Why not `MonitorHandle::size`: winit 0.30.13 unwraps the result of
+/// `GetMonitorInfoW` there (platform_impl/windows/monitor.rs), which panics
+/// when the monitor is gone.
+pub fn monitor_area(monitor: &MonitorHandle) -> Option<Area> {
+    let mut info = MONITORINFO {
+        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+        rcMonitor: RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        },
+        rcWork: RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        },
+        dwFlags: 0,
+    };
+    // Why the cast: winit declares `HMONITOR` as `isize`, windows-sys as a pointer.
+    let hmonitor = monitor.hmonitor() as windows_sys::Win32::Graphics::Gdi::HMONITOR;
+    // SAFETY: `info` is a valid, writable MONITORINFO with `cbSize` set; a
+    // monitor handle that is no longer valid only makes the call fail.
+    let ok = unsafe { GetMonitorInfoW(hmonitor, &mut info) };
+    if ok == 0 {
+        return None;
+    }
+    let rect = info.rcMonitor;
+    let width = u32::try_from(rect.right.checked_sub(rect.left)?).ok()?;
+    let height = u32::try_from(rect.bottom.checked_sub(rect.top)?).ok()?;
+    Some(Area {
+        x: rect.left,
+        y: rect.top,
+        width,
+        height,
+    })
 }
 
 /// The window handle passed on the command line (`/p <HWND>`).
