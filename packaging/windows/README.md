@@ -32,7 +32,7 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 
 - Flight: 電子レンジの数(Number of microwaves)、速さ(Speed)、大きさ(Size)。
 - Display: フレームレートの上限(Frame rate limit)、表示するモニター(Monitors。Primary only では、ほかのモニターは黒で覆います)、マウスの感度(Mouse sensitivity。終わらせるのに必要なマウスの移動の量)。
-- About: 版、ライセンス、プロジェクトの URL。
+- About: 版、ライセンス、プロジェクトの URL、依存しているライブラリのライセンス表記。
 
 [OK] で保存し、[Cancel] で変更を捨てます。[Defaults] で既定値に戻します。設定は `%APPDATA%\FlyingMicrowave\config.toml` に保存され、次にスクリーン セーバーが起動したときから使われます。
 
@@ -93,7 +93,7 @@ Open Screen Saver Settings, select FlyingMicrowave, and click Settings to open t
 
 - Flight: the number of microwaves, their speed, and their size.
 - Display: the frame rate limit, the monitors to use (with "Primary only", the other monitors are covered in black), and the mouse sensitivity (how far the mouse must move to end the screen saver).
-- About: the version, the license, and the project URL.
+- About: the version, the license, the project URL, and the license notices of the libraries it depends on.
 
 Click OK to save, or Cancel to discard your changes. Defaults restores the default values. The settings are saved to `%APPDATA%\FlyingMicrowave\config.toml` and are used from the next time the screen saver starts.
 
