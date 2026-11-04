@@ -97,6 +97,9 @@ struct SaverApp {
     /// The monitor list of the last check (at start, the one the windows
     /// were created for).
     known_monitors: Vec<(MonitorHandle, Area)>,
+    /// How many monitors the last check left out because their area was
+    /// unknown (logged only when it changes).
+    skipped_monitors: usize,
     /// The `index` of the next window.
     next_index: usize,
     /// When the monitor list is read again; `None` until the windows and
@@ -139,6 +142,7 @@ pub fn run() -> i32 {
         max_fps: 0,
         only_primary: false,
         known_monitors: Vec::new(),
+        skipped_monitors: 0,
         next_index: 0,
         next_monitor_check: None,
         monitors_empty: false,
@@ -209,16 +213,21 @@ pub(crate) fn aspect_of(size: PhysicalSize<u32>) -> f32 {
     }
 }
 
-/// The area of a monitor, in physical pixels.
-fn area_of(monitor: &MonitorHandle) -> Area {
-    let position = monitor.position();
-    let size = monitor.size();
-    Area {
-        x: position.x,
-        y: position.y,
-        width: size.width,
-        height: size.height,
+/// The monitors whose area Windows knows, with their areas, and how many
+/// were left out. A monitor that was just removed can still be listed while
+/// its area is already unknown.
+fn monitors_with_area(
+    monitors: impl Iterator<Item = MonitorHandle>,
+) -> (Vec<(MonitorHandle, Area)>, usize) {
+    let mut known = Vec::new();
+    let mut skipped = 0;
+    for m in monitors {
+        match win::monitor_area(&m) {
+            Some(area) => known.push((m, area)),
+            None => skipped += 1,
+        }
     }
+    (known, skipped)
 }
 
 /// Creates a borderless, topmost window that covers the monitor area
@@ -301,19 +310,21 @@ impl SaverApp {
     }
 
     fn create_windows(&mut self, event_loop: &ActiveEventLoop) {
-        let monitors: Vec<_> = event_loop.available_monitors().collect();
+        let (monitors, skipped) = monitors_with_area(event_loop.available_monitors());
+        self.skipped_monitors = skipped;
         log!("monitors: {}", monitors.len());
-        for (i, m) in monitors.iter().enumerate() {
+        if skipped > 0 {
+            log!("monitors: {skipped} left out, their area is unknown");
+        }
+        for (i, (m, area)) in monitors.iter().enumerate() {
             log!(
-                "monitor {i}: position {:?} size {:?} scale {} refresh {:?} mHz",
-                m.position(),
-                m.size(),
+                "monitor {i}: {area:?} scale {} refresh {:?} mHz",
                 m.scale_factor(),
                 m.refresh_rate_millihertz()
             );
         }
         let primary = event_loop.primary_monitor();
-        self.known_monitors = monitors.iter().map(|m| (m.clone(), area_of(m))).collect();
+        self.known_monitors = monitors.clone();
         // Without monitor information, one maximized window.
         let targets: Vec<_> = if monitors.is_empty() {
             vec![None]
@@ -324,10 +335,6 @@ impl SaverApp {
         // First cover every monitor in black (W-9); the settings come after.
         let mut created = Vec::new();
         for (index, monitor) in targets.into_iter().enumerate() {
-            let monitor = monitor.map(|m| {
-                let area = area_of(&m);
-                (m, area)
-            });
             let area = monitor.as_ref().map(|(_, area)| *area);
             if let Some(window) = create_black_window(event_loop, area, index, true) {
                 created.push((index, window, monitor));
@@ -423,13 +430,11 @@ impl SaverApp {
 
     /// F-07: reads the monitor list again and makes the windows follow it.
     fn check_monitors(&mut self, event_loop: &ActiveEventLoop) {
-        let current: Vec<(MonitorHandle, Area)> = event_loop
-            .available_monitors()
-            .map(|m| {
-                let area = area_of(&m);
-                (m, area)
-            })
-            .collect();
+        let (current, skipped) = monitors_with_area(event_loop.available_monitors());
+        if skipped != self.skipped_monitors {
+            log!("monitor change: {skipped} monitors left out, their area is unknown");
+            self.skipped_monitors = skipped;
+        }
         let Some(changes) = monitors::compare(&self.known_monitors, &current) else {
             if !self.monitors_empty {
                 log!("monitor change: the monitor list is empty; keeping the windows");
