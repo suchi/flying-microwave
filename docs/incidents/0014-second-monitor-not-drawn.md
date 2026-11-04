@@ -36,9 +36,9 @@
 | --- | --- |
 | `RedrawRequested received`の行がなく、まとめが`0 RedrawRequested received` | 再描画のイベントが2台目に届いていない(2つ目の候補) |
 | `frame skipped: <理由>`の行があり、まとめのskippedがreceivedとほぼ同じ | 届いているが、毎回スキップしている。理由ごとの回数で、どの理由かを見る |
-| `RedrawRequested received (#1)`のあと、`first frame presented`も`frame skipped`も出ない | `draw`が戻らない。この場合はwindow 0も止まるはずなので、window 0の行と合わせて読む |
-| まとめのreceivedが、frames・paced・blank・skippedの和と合わない | 数え方の誤り。コードを確かめ直す |
-| まとめの行がない | ログの書き方の誤りか、ログを書く前に終わった。ログの最後の行と`screensaver ended`の行を確かめる |
+| まとめのreceivedが1以上で、framesが0、pacedかblankが大半 | 描いていないが、`draw`は戻っている。pacedなら`display.max_fps`の間引き、blankなら描画先かGPUがない(`surface setup failed`と`animate`の行を確かめる) |
+| まとめのreceivedが、frames・paced・blank・skippedの和と合わない | 数え方の誤り(4つの経路のどれか1つだけを数える作りなので、和は一致するはず)。コードを確かめ直す |
+| window 1のまとめの行がない | そのウィンドウを作れなかった(`window 1: creation failed`の行)、GPUの準備のウォッチドッグで終わった(`GPU initialization timed out`の行。このときはどのウィンドウのまとめも出ない)、パニックで終わった、のどれか。キーで終わらず、window 0のまとめもないなら、`draw`などが戻らずイベントループが止まった可能性がある |
 
 `F frames`は`present`を呼んだ回数で、画面に出たことの証明ではない(wgpuとDX12は、`DXGI_STATUS_OCCLUDED`を成功として扱う)。window 1のframesが1以上なのに見た目で描かれていなければ、その違いを別に調べる。
 
