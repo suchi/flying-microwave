@@ -1,6 +1,6 @@
 # 開発参加者向けオンボーディング
 
-- ステータス: 2026-11-03時点。v0.1.1をリリースし(実機での確認の項目ごとの記録と商標の確認は、Issue #47に残っている。計画のD-33)、Phase 2の試作版`v0.2.0-alpha.1`(電子レンジの絵と設定画面)を準備している。実態が変わったら更新する
+- ステータス: 2026-11-04時点。v0.1.1をリリースし(実機での確認の項目ごとの記録と商標の確認は、Issue #47に残っている。計画のD-33)、Phase 2の試作版`v0.2.0-alpha.1`(電子レンジの絵と設定画面)を公開している(2画面での表示の件はIssue #50)。実態が変わったら更新する
 - 対象: 後から参加する開発者(人間・AIエージェント)
 - 関連: [README](../../README.md)、[AGENTS.md](../../AGENTS.md)、[ドキュメント一覧](../README.md)
 
@@ -119,7 +119,7 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 | 項目 | 内容 |
 | --- | --- |
 | 言語 | Rust stable。バージョンは`rust-toolchain.toml`で固定し、`rustup toolchain install`で導入する |
-| Windows向けターゲット | `x86_64-pc-windows-msvc`。Microsoftが提供するMSVCビルドツールとWindows SDKが必要。arm64には当面対応しないが、CIのLinuxのジョブで`aarch64-pc-windows-msvc`向けの型検査だけを続けている([ADR-0022](../adr/0022-ship-x64-only-for-now.md)、Issue #44) |
+| Windows向けターゲット | `x86_64-pc-windows-msvc`。Microsoftが提供するMSVCビルドツールとWindows SDKが必要。arm64には当面対応しないが、CIのLinuxのジョブで`aarch64-pc-windows-msvc`向けの型チェックだけを続けている([ADR-0022](../adr/0022-ship-x64-only-for-now.md)、Issue #44) |
 | Linuxでのビルド | `core`と`app`の両crateがLinuxでもビルドできる状態を保つ。Windows固有のコードは`cfg`で分岐させる。Linuxではコンパイルされない部分は、WindowsのCIで確認する |
 | 手動確認 | Windows 11が必要。エージェントの開発環境はLinuxなので、Windowsの画面を伴う動作は確認できない([8. Windows実機での確認](#8-windows実機での確認)) |
 | 検証コマンド | AGENTS.mdの「検証コマンド」の表に従う(fmt・clippy・テスト・型チェック・ビルド)。どれもLinuxでも実行できる |
@@ -134,7 +134,7 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
 
 - rustup(Rustのツールチェーンの管理ツール)
 - Visual Studio Build Tools の「C++ によるデスクトップ開発」(MSVCのリンカとWindows SDK。SDKのリソースコンパイラ`rc.exe`で、アイコンとバージョン情報を実行ファイルに入れる。見つからないとビルドが失敗する)
-- Git for Windows(フックを動かすGit Bashも入る。6.3)
+- Git for Windows(フックを実行するGit Bashも入る。6.3)
 - Python 3(依存の7日の検査とフックの検査に使う。この節のコマンドはWindowsの`python`で書いている。LinuxとmacOSでは`python3`にする)
 - jq(フックが入力の解析に使い、フックの検査にも要る。導入の方法は6.3)
 
@@ -178,7 +178,7 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
    target\x86_64-pc-windows-msvc\release\flying-microwave-smoke.exe target\x86_64-pc-windows-msvc\release\flying-microwave.exe
    ```
 
-4. スクリーンセーバーとしての動作確認。実行ファイルを`FlyingMicrowave.scr`という名前でコピーし、エクスプローラーで右クリックして「インストール」か「テスト」を選ぶ(Windows 11では、先に「その他のオプションを確認」を選ぶことがある)。名前を変えずに試す方法は5.2にある。
+4. スクリーンセーバーとしての動作確認。実行ファイルを`FlyingMicrowave.scr`という名前でコピーし、エクスプローラーで右クリックして「インストール」か「テスト」を選ぶ(Windows 11では、先に「その他のオプションを確認」を選ぶことがある)。名前を変えずに実行する方法は5.2にある。
 
    ```powershell
    Copy-Item target\x86_64-pc-windows-msvc\release\flying-microwave.exe FlyingMicrowave.scr
@@ -218,18 +218,18 @@ python3 -I scripts/check_hooks.py
 引数ごとの動作:
 
 - `flying-microwave.exe /s`: スクリーンセーバーとして、すべてのモニタを覆って動く。キーの押下、マウスのボタンやホイール、タッチ、マウスを16ピクセル以上動かしたとき、ほかのウィンドウが前面に出たときに終了する。起動直後の0.5秒間のマウスの動きは無視する。
-- `flying-microwave.exe /c`: 設定画面(eframe)を表示する。前面のウィンドウをオーナーにして、閉じるまで無効にする(`/c:<番号>`では、その番号のウィンドウ)。`.scr`を引数なしで起動したときは、オーナーなしで表示する。設定は`%APPDATA%\FlyingMicrowave\config.toml`に保存する。ローカルで試すときに本当の設定を書き換えないよう、環境変数`FLYING_MICROWAVE_CONFIG_DIR`に、ドライブ文字で始まる絶対パスのフォルダを指定すると、その下の`config.toml`を使う。それ以外の値(相対パス、UNCのパスなど)を指定したときは、本当の設定ファイルを使わずにエラーにする(読み込みでは既定値で動き、保存では画面にエラーを示す。試作版の仮の扱い。計画0004のD-6のE-1、D-10)。設定画面を開けないときは、メッセージボックスを表示して終了コード7で終わる。
-- `flying-microwave.exe /p <ウィンドウの番号>`: 指定したウィンドウのクライアント領域に子ウィンドウを作り、プレビューを表示する。入力は無視し、親のウィンドウが閉じられたとき(500ミリ秒ごとに確かめる)か、自分のウィンドウが閉じられたときに終了する。ウィンドウの番号はスクリーンセーバーの設定画面が渡すので、ふつうは設定画面のプレビュー枠で確かめる(5.1の手順4)。番号が有効なウィンドウでないときは、何も表示せず終了コード2で終わる。番号がないか数字でないときは、オーナーなしの設定画面になる。
-- `/s`をすでに動いている間に起動すると、何も表示せずにすぐ終わる(単一起動。N-15)。
+- `flying-microwave.exe /c`: 設定画面(eframe)を表示する。前面のウィンドウをオーナーにして、閉じるまで無効にする(`/c:<番号>`では、その番号のウィンドウ)。`.scr`を引数なしで起動したときは、オーナーなしで表示する。設定は`%APPDATA%\FlyingMicrowave\config.toml`に保存する。ローカルで動作を確認するときに本当の設定を書き換えないよう、環境変数`FLYING_MICROWAVE_CONFIG_DIR`に、ドライブ文字で始まる絶対パスのフォルダを指定すると、その下の`config.toml`を使う。それ以外の値(相対パス、UNCのパスなど)を指定したときは、本当の設定ファイルを使わずにエラーにする(読み込みでは既定値で動き、保存では画面にエラーを示す。試作版の仮の扱い。計画0004のD-6のE-1、D-10)。設定画面を開けないときは、メッセージボックスを表示して終了コード7で終わる。
+- `flying-microwave.exe /p <ウィンドウの番号>`: 指定したウィンドウのクライアント領域に子ウィンドウを作り、プレビューを表示する。入力は無視し、親のウィンドウが閉じられたとき(500ミリ秒ごとに確かめる)か、自分のウィンドウが閉じられたときに終了する。ウィンドウの番号はスクリーンセーバーの設定画面が渡すので、通常はスクリーンセーバーの設定画面のプレビュー枠で確かめる(5.1の手順4)。番号が有効なウィンドウでないときは、何も表示せず終了コード2で終わる。番号がないか数字でないときは、オーナーなしの設定画面になる。
+- `/s`がすでに実行されている間に起動すると、何も表示せずにすぐ終わる(単一起動。N-15)。
 - 認識できない最初の引数: オーナーなしの設定画面になる。
-- `--settings`: オーナーなしの設定画面になる。`--window`と`--fullscreen`: 単独のアプリとしては、まだ動かない旨のメッセージになる(単独のアプリはPhase 6で判断する)。
-- 引数なしの`flying-microwave.exe`: 単独のアプリとしては動かない旨のメッセージを表示する。
+- `--settings`: オーナーなしの設定画面になる。`--window`と`--fullscreen`: 単独アプリとしてはまだ実行できない旨のメッセージになる(単独アプリはPhase 6で判断する)。
+- 引数なしの`flying-microwave.exe`: 単独アプリとしてはまだ実行できない旨のメッセージを表示する。
 - スクリーンセーバーの設定画面から動作を確認するには、5.1の手順4のとおり`.scr`にしてインストールする。
 
 ### 5.3 ログとデバッグ
 
 - コンソールはない。スクリーンセーバーなので、デバッグのビルドでもコンソールを開かない(`main.rs`の`windows_subsystem = "windows"`)。`println!`や`eprintln!`の出力は見えない。
-- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`。正確には`std::env::temp_dir()`の場所で、Windowsでは環境変数`TMP`を`TEMP`より先に見る。ふつうは同じ場所である)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
+- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`。正確には`std::env::temp_dir()`の場所で、Windowsでは環境変数`TMP`を`TEMP`より先に見る。通常は同じ場所である)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
 
   ```powershell
   Get-Content $env:TEMP\flying-microwave.log -Tail 50
@@ -262,7 +262,7 @@ python3 -I scripts/check_hooks.py
     ```
 
   - Visual Studio: 「File > Open > Project」で実行ファイル(`.exe`)を開き、「Debug > Start Debugging」で始める([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/how-to-debug-an-executable-not-part-of-a-visual-studio-solution))。
-  - プレビュー(`/p`)は、設定画面がウィンドウの番号を渡して起動するので、デバッガから起動できない。設定画面でスクリーンセーバーを選んでプレビューを動かし、そのプロセス(`FlyingMicrowave.scr`)にあとからデバッガを接続する。Visual Studioでは「Debug > Attach to Process」(Ctrl+Alt+P)を使う([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/attach-to-running-processes-with-the-visual-studio-debugger))。VS Codeでは、`cppvsdbg`の`"request": "attach"`の構成で、`processId`を既定の`${command:pickProcess}`のままにして、一覧から選ぶ([launch.jsonのリファレンス](https://code.visualstudio.com/docs/cpp/launch-json-reference))。
+  - プレビュー(`/p`)は、スクリーンセーバーの設定画面がウィンドウの番号を渡して起動するので、デバッガから起動できない。スクリーンセーバーの設定画面でスクリーンセーバーを選んでプレビューを表示し、そのプロセス(`FlyingMicrowave.scr`)にあとからデバッガを接続する。Visual Studioでは「Debug > Attach to Process」(Ctrl+Alt+P)を使う([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/attach-to-running-processes-with-the-visual-studio-debugger))。VS Codeでは、`cppvsdbg`の`"request": "attach"`の構成で、`processId`を既定の`${command:pickProcess}`のままにして、一覧から選ぶ([launch.jsonのリファレンス](https://code.visualstudio.com/docs/cpp/launch-json-reference))。
   - 注意: `/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。ブレークポイントで止めて調べるときは、`/c`や`/p`で動く部分を対象にするか、ログ(上の項目)と組み合わせる。
 
 ### 5.4 トラブルシューティング
@@ -272,7 +272,7 @@ python3 -I scripts/check_hooks.py
 - 依存の7日の検査が通らない: 公開から7日たっていない版を使っている。7日以上前に公開された版を選ぶか、7日たつまで待つ(6.3の「依存の公開からの日数」)。
 - フックの検査が通らない: `jq`が入っているか、LinuxかmacOS(WindowsではWSL)で実行しているかを確かめる(5.1の手順6、6.3)。
 - 描画が始まらない: ログに`first frame presented`の行(`/s`ではウィンドウごとに`window N: first frame presented`、`/p`では`preview: first frame presented`)があれば、少なくとも1枚は描画できている。この行で、起動の速さ(計画のN-01)のうち「最初のアニメーションのフレームまで1秒以内」を測る。同じ`pid=`の行だけを使い(ログには複数のプロセスが追記する)、起点は`started`の行(`+0ms`)とする。プロセスの起動からこの行までの時間(ローダーが依存を解決する時間)は含まない。`/s`で複数のモニタがあるときは、ウィンドウごとの行のうち最も遅いもので判定する。「全モニタが黒で覆われるまで0.5秒以内」のほうは、`window N: inner ...`の行(黒く塗った直後に書く)の時刻で測り、複数のモニタがあるときは、ウィンドウごとの行のうち最も遅いもので判定する。
-- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。ただし、次の場合は、その行を書かずに終わる。最後の行で見分ける。
+- 描画が正しくない、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。ただし、次の場合は、その行を書かずに終わる。最後の行で見分ける。
   - `another screensaver instance is running; exiting`: `/s`の2つめの起動。終了コード0。
   - `preview: N is not a valid window; exiting`: `/p`の番号が有効なウィンドウでない。終了コード2。
   - `GPU initialization timed out; exiting`: GPUの初期化が15秒で終わらなかった。終了コード6。
@@ -280,7 +280,7 @@ python3 -I scripts/check_hooks.py
   - どれにも当たらずに行が途中で切れていれば、panicなどで異常終了している。
 - `/s`の終了コード: 0が正常、1がイベントループの失敗、5がウィンドウを1つも作れなかった(`no window could be created`)、6がGPUの初期化が15秒で終わらなかったことを表す。
 - プレビューの終了の理由: ログの`preview exit:`の行に出る。終了コードは、0が正常、1がイベントループの失敗、2が親のウィンドウが無効(引数の番号が不正か、すでに閉じられていた)、4が初期化の失敗、6がGPUの初期化が15秒で終わらなかったことを表す。
-- プレビューのプロセスが残る: 設定画面を閉じたあとも、タスクマネージャーに`FlyingMicrowave.scr`が残っていれば、ログの最後の行を添えて報告する。通常は、親のウィンドウが閉じられてから500ミリ秒以内に終了する。
+- プレビューのプロセスが残る: スクリーンセーバーの設定画面を閉じたあとも、タスクマネージャーに`FlyingMicrowave.scr`が残っていれば、ログの最後の行を添えて報告する。通常は、親のウィンドウが閉じられてから500ミリ秒以内に終了する。
 
 ### 5.5 アイコンの作り直し
 
@@ -348,7 +348,7 @@ python3 -I scripts/check_hooks.py
 
 `.claude/settings.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`の変更は、メンテナーの承認を得てから行う。Dependabotの`cooldown`はサプライチェーン攻撃への対策なので、承認なしに削除・無効化しない。
 
-依存の公開からの日数: Dependabotの`cooldown`(7日)は、手元の`cargo`での解決には効かない。cargo 1.99の安定版には、同じ設定もない(`min-publish-age`は`-Zmin-publish-age`が必要)。そのため、`scripts/check_publish_age.py`で、ロックファイルのcrates.ioのすべての版と、CIで入れるツール(cargo-about)の版とそのロックファイルが、公開から7日以上たっているかを確かめる。公開日時は、crates.ioの索引の`pubtime`を使う。索引に版が見つからない場合、公開日時のない版、crates.io以外から来る依存(gitなど)、索引を読めない場合も失敗にする。CIのLinuxのジョブが毎回実行し、配布物を作るWindowsのジョブはその成功を待つ(`needs: linux`)。`spikes.yml`も、ビルドの前に実行する。GitHub Actionsの版とRustのツールチェーンは、この検査の対象外である(incidents 0007の対策5)。手元で`Cargo.lock`を変えたときは、コミットの前に実行する(AGENTS.mdの検証コマンド)。新しい依存を加えたいのに検査を通らないときは、7日以上前に公開された版を選ぶか、7日たつまで待つ([incidents 0007](../incidents/0007-dependencies-inside-cooldown.md))。
+依存の公開からの日数: Dependabotの`cooldown`(7日)は、ローカルでの`cargo`の解決には効かない。cargo 1.99の安定版には、同じ設定もない(`min-publish-age`は`-Zmin-publish-age`が必要)。そのため、`scripts/check_publish_age.py`で、ロックファイルのcrates.ioのすべての版と、CIで入れるツール(cargo-about)の版とそのロックファイルが、公開から7日以上たっているかを確かめる。公開日時は、crates.ioの索引の`pubtime`を使う。索引に版が見つからない場合、公開日時のない版、crates.io以外から来る依存(gitなど)、索引を読めない場合も失敗にする。CIのLinuxのジョブが毎回実行し、配布物を作るWindowsのジョブはその成功を待つ(`needs: linux`)。`spikes.yml`も、ビルドの前に実行する。GitHub Actionsの版とRustのツールチェーンは、この検査の対象外である(incidents 0007の対策5)。ローカルで`Cargo.lock`を変えたときは、コミットの前に実行する(AGENTS.mdの検証コマンド)。新しい依存を加えたいのに検査を通らないときは、7日以上前に公開された版を選ぶか、7日たつまで待つ([incidents 0007](../incidents/0007-dependencies-inside-cooldown.md))。
 
 ### 6.4 モデルの使い分け
 
@@ -401,7 +401,7 @@ cargo fetch --locked || true
 - 検討の経緯: 計画、調査結果、設計、レビュー記録はすべてリポジトリ内のドキュメントに残す。配置は[docs/README.md](../README.md)に従う
 - 個人情報: リポジトリは将来公開するため、個人名、GitHubのハンドル、メールアドレス、マシン名、会話の引用や言い換えをドキュメントに書かない。人は「メンテナー」「開発参加者」「利用者」のように役割で書く。フィードバックの内容は、個人を特定できない形で記録してよい
 - 実態との一致: ファイルの追加・削除・リネームやコマンド・構成の変更をしたら、同じ変更の中でドキュメントも更新する
-- READMEの役割: ルートの[README.md](../../README.md)はリポジトリの訪問者向け。[packaging/windows/README.md](../../packaging/windows/README.md)は配布物のzipに同梱する、エンドユーザー向けの説明である。Markdownで書き、日本語、英語の順に置き、冒頭に両方の節へのリンクを置く(2026-11-02にメンテナーが決めた。当初はテキスト形式で、英語、日本語の順だった)
+- READMEの役割: ルートの[README.md](../../README.md)はリポジトリの訪問者向け。[packaging/windows/README.md](../../packaging/windows/README.md)は配布物のzipに同梱する、利用者向けの説明である。Markdownで書き、日本語、英語の順に置き、冒頭に両方の節へのリンクを置く(2026-11-02にメンテナーが決めた。当初はテキスト形式で、英語、日本語の順だった)
 
 ## 8. Windows実機での確認
 
@@ -442,7 +442,7 @@ cargo fetch --locked || true
 
 | 用語 | 意味 |
 | --- | --- |
-| スクリーンセーバーのモード(`/s`、`/p`、`/c`) | Windowsがスクリーンセーバー(`.scr`)に引数で伝える動作モード。`/s`は全画面で実行、`/p <HWND>`は設定画面のプレビュー枠への表示、`/c`は設定画面の表示。引数なし(実行ファイルの拡張子が`.scr`の場合)や認識できない引数も設定画面として扱う。拡張子が`.exe`のときに引数なしで起動すると単独アプリと判定する([ADR-0012](../adr/0012-standalone-app-mode.md))。単独アプリはまだなく、今はその旨のメッセージを表示する。仕様は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md) |
+| スクリーンセーバーのモード(`/s`、`/p`、`/c`) | Windowsがスクリーンセーバー(`.scr`)に引数で伝える動作モード。`/s`は全画面で実行、`/p <HWND>`はスクリーンセーバーの設定画面のプレビュー枠への表示、`/c`は設定画面の表示。引数なし(実行ファイルの拡張子が`.scr`の場合)や認識できない引数も設定画面として扱う。拡張子が`.exe`のときに引数なしで起動すると単独アプリと判定する([ADR-0012](../adr/0012-standalone-app-mode.md))。単独アプリはまだなく、今はその旨のメッセージを表示する。仕様は[Windowsスクリーンセーバーの仕様調査](../research/windows-screensaver.md) |
 | Standalone mode | スクリーンセーバーとしてではなく、通常のアプリ(ウィンドウ表示または全画面)として起動するモードで、計画中のもの。決定内容は[ADR-0012](../adr/0012-standalone-app-mode.md)を参照 |
 | flyer | 飛行物体。電子レンジと食べ物を同じ構造で表す。`core`のシミュレーションが扱う |
 | core / app | 製品を作るCargoワークスペースの2つのcrate(ほかにテスト用の`smoke`がある)。`core`(`flying-microwave-core`)はOSやGPUに依存しないロジック(シミュレーション、設定モデル、終了判定など)、`app`(`flying-microwave`)は実行ファイル(起動モード、描画、設定画面、プラットフォーム固有処理) |
@@ -452,4 +452,11 @@ cargo fetch --locked || true
 | 敵対的レビュー | 作成者とは別のコンテキストを持つレビュアーが、結論を知らされずに欠陥を探すレビュー。このリポジトリのPRすべてで行う |
 | `.scr` | スクリーンセーバーの実行ファイルの拡張子。実体は通常のWindows実行ファイルで、拡張子だけが異なる |
 | Phase | 段階的な実装の区切り。Phase 0は基盤整備、Phase 1以降でv0.1.0からv1.0.0までをリリースする |
-| メンテナー | このリポジトリの管理者。AGENTS.mdや計画に出てくる「ユーザー」の判断・承認は、メンテナーが行う |
+| メンテナー | エージェントに指示し、判断・承認をする人。AGENTS.mdや計画に出てくる「ユーザー」の判断・承認は、メンテナーが行う。GitHubのリポジトリの権限の「管理者」(9.1のルールセットの例外など)とは区別する |
+| 開発参加者・利用者 | 開発参加者は、開発に参加する人(人間・AIエージェント)。利用者は、配布物を使う人。人は、メンテナー・開発参加者・利用者の役割で書く(AGENTS.md) |
+| 設定画面 | 本製品の設定のウィンドウ(eframe)。`/c`などで開き、`config.toml`に保存する。Windowsのスクリーンセーバーの設定のウィンドウ(スクリーンセーバーの一覧、プレビュー枠、「設定」「プレビュー」のボタンがあるもの)は「スクリーンセーバーの設定画面」と書いて区別する |
+| プレビュー枠 | スクリーンセーバーの設定画面の中の、小さなモニタの絵の部分。Windowsがその枠のウィンドウを`/p <HWND>`で渡し、製品はその子ウィンドウに描く。「プレビュー」のボタンで起動する全画面の表示(`/s`)とは別である |
+| モニタ | 画面を表示する装置。開発者向けの文書では「モニタ」と書く。「ディスプレイ」は、ディスプレイの電源やスリープ、Windowsの「ディスプレイの設定」のように、Windowsの表記に合わせるときに使う。利用者向けの[packaging/windows/README.md](../../packaging/windows/README.md)は、Windowsの画面の表記(Microsoftの日本語の表記)に合わせ、「モニター」「フォルダー」「スクリーン セーバー」と書く |
+| CI | PRと`main`へのプッシュ(と手動実行)で実行する`ci.yml`のワークフロー。`spikes/`などを変えるPRでは`spikes.yml`も実行する。タグで実行する`release.yml`は「リリースのワークフロー」と書き、CIと区別する。「CIで入れるツール」のように、GitHub Actionsのワークフロー全体を指して「CI」と書くこともある |
+| 実機での確認 | メンテナーが、Windows 11の実機で動作を確かめること(エージェントの開発環境はLinuxで、画面を伴う動作を確かめられないため)。リリースの前の確認は、[計画0001の8.2](../plans/0001-initial-implementation-plan.md#82-手動テストwindows実機)の手動テストのチェックリストで行う(8章) |
+| 試作版 | プレリリース(`vX.Y.Z-alpha.N`)として公開する版。動作は保証しない。[計画0001の7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順)の手順で公開する |
