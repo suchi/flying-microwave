@@ -344,22 +344,18 @@ impl SaverApp {
             config.input.exit_sensitivity.threshold_px(),
             ExitPolicy::DEFAULT_GRACE,
         );
-        // Which windows animate: all, or only the primary monitor's. If no
-        // window is on the primary monitor, the first window animates, so
-        // that the animation is always shown somewhere.
-        let on_primary = |monitor: &Option<(MonitorHandle, Area)>| {
-            monitor
-                .as_ref()
-                .is_some_and(|(m, _)| primary.as_ref() == Some(m))
-        };
-        let any_on_primary = created.iter().any(|(_, _, monitor)| on_primary(monitor));
-        for (position, (index, window, monitor)) in created.into_iter().enumerate() {
-            let animate = !self.only_primary
-                || if any_on_primary {
-                    on_primary(&monitor)
-                } else {
-                    position == 0
-                };
+        // Which windows animate: all, or only the primary monitor's (and the
+        // first one if none is there, so that the animation is shown somewhere).
+        let on_primary: Vec<bool> = created
+            .iter()
+            .map(|(_, _, monitor)| {
+                monitor
+                    .as_ref()
+                    .is_some_and(|(m, _)| primary.as_ref() == Some(m))
+            })
+            .collect();
+        let animate = monitors::animated(self.only_primary, &on_primary);
+        for ((index, window, monitor), animate) in created.into_iter().zip(animate) {
             let w = self.saver_window(index, window, monitor, animate);
             self.windows.push(w);
         }
@@ -454,15 +450,12 @@ impl SaverApp {
         }
         // The window of each known monitor (none if it could not be made),
         // looked up before any window changes.
-        let windows_of_known: Vec<Option<usize>> = self
-            .known_monitors
+        let window_monitors: Vec<Option<&MonitorHandle>> = self
+            .windows
             .iter()
-            .map(|(known, _)| {
-                self.windows
-                    .iter()
-                    .position(|w| w.monitor.as_ref().is_some_and(|(m, _)| m == known))
-            })
+            .map(|w| w.monitor.as_ref().map(|(m, _)| m))
             .collect();
+        let windows_of_known = monitors::windows_of_known(&self.known_monitors, &window_monitors);
         let primary = event_loop.primary_monitor();
         let mut closing = Vec::new();
         for change in changes {
@@ -543,13 +536,12 @@ impl SaverApp {
     }
 
     /// Closes the windows at `positions`, whose monitors are gone.
-    fn close_windows(&mut self, event_loop: &ActiveEventLoop, mut positions: Vec<usize>) {
+    fn close_windows(&mut self, event_loop: &ActiveEventLoop, positions: Vec<usize>) {
         if positions.is_empty() {
             return;
         }
-        positions.sort_unstable();
-        positions.dedup();
-        if positions.len() >= self.windows.len() {
+        let positions = monitors::closable(&positions, self.windows.len());
+        if positions.is_empty() {
             log!("monitor change: no window would remain; keeping the windows");
             return;
         }
@@ -562,9 +554,8 @@ impl SaverApp {
             .iter()
             .any(|&p| win::hwnd_of(&self.windows[p].window) == Some(foreground));
         if closes_foreground
-            && let Some(hwnd) = (0..self.windows.len())
-                .filter(|p| !positions.contains(p))
-                .find_map(|p| win::hwnd_of(&self.windows[p].window))
+            && let Some(hwnd) = monitors::foreground_after_close(&positions, self.windows.len())
+                .and_then(|p| win::hwnd_of(&self.windows[p].window))
         {
             log!("SetForegroundWindow: {}", win::set_foreground(hwnd));
         }

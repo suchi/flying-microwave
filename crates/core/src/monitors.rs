@@ -3,7 +3,8 @@
 //! `/s` polls the monitor list while it runs and compares it with the
 //! monitors its windows cover, to find the monitors that were added, moved or
 //! resized, or removed. The comparison has no platform dependency, so it is
-//! tested on every host; the monitor handle is a type parameter.
+//! tested on every host; the monitor handle is a type parameter. The helpers
+//! after `compare` decide which windows follow from the result.
 
 /// The area of a monitor on the desktop, in physical pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +97,55 @@ pub fn compare<K: PartialEq>(old: &[(K, Area)], new: &[(K, Area)]) -> Option<Vec
             .map(|(j, _)| Change::Added { new: j }),
     );
     Some(changes)
+}
+
+/// The position of the window that covers each known monitor, or `None` when
+/// no window does (it could not be made). `window_monitors` holds the monitor
+/// of each window, `None` for a window not tied to a monitor.
+pub fn windows_of_known<K: PartialEq>(
+    known: &[(K, Area)],
+    window_monitors: &[Option<&K>],
+) -> Vec<Option<usize>> {
+    known
+        .iter()
+        .map(|(key, _)| window_monitors.iter().position(|m| *m == Some(key)))
+        .collect()
+}
+
+/// Which windows animate. Without `only_primary`, all of them. With it, those
+/// on the primary monitor (`on_primary`, one flag per window); when none is
+/// there, the first window, so that the animation is shown somewhere.
+pub fn animated(only_primary: bool, on_primary: &[bool]) -> Vec<bool> {
+    if !only_primary {
+        return vec![true; on_primary.len()];
+    }
+    if on_primary.iter().any(|&p| p) {
+        return on_primary.to_vec();
+    }
+    (0..on_primary.len()).map(|i| i == 0).collect()
+}
+
+/// The positions of the windows to close, out of `positions` (the windows
+/// whose monitors are gone): sorted, without duplicates and positions beyond
+/// `window_count`. Empty when closing them would leave no window.
+pub fn closable(positions: &[usize], window_count: usize) -> Vec<usize> {
+    let mut positions: Vec<usize> = positions
+        .iter()
+        .copied()
+        .filter(|&p| p < window_count)
+        .collect();
+    positions.sort_unstable();
+    positions.dedup();
+    if positions.len() >= window_count {
+        positions.clear();
+    }
+    positions
+}
+
+/// The first window that is not closing: the one to bring to the foreground
+/// before the others close.
+pub fn foreground_after_close(closing: &[usize], window_count: usize) -> Option<usize> {
+    (0..window_count).find(|p| !closing.contains(p))
 }
 
 #[cfg(test)]
@@ -222,5 +272,76 @@ mod tests {
             compare(&old, &new),
             Some(vec![Moved { old: 0, new: 0 }, Removed { old: 1 }])
         );
+    }
+
+    #[test]
+    fn each_known_monitor_finds_its_window() {
+        let known = [(1, LEFT), (2, RIGHT)];
+        let windows = [Some(&2), Some(&1)];
+        assert_eq!(windows_of_known(&known, &windows), vec![Some(1), Some(0)]);
+    }
+
+    #[test]
+    fn a_known_monitor_without_a_window_has_none() {
+        let known = [(1, LEFT), (2, RIGHT)];
+        let windows = [Some(&1), None];
+        assert_eq!(windows_of_known(&known, &windows), vec![Some(0), None]);
+    }
+
+    #[test]
+    fn the_first_window_of_a_monitor_is_taken() {
+        let known = [(1, LEFT)];
+        let windows = [Some(&1), Some(&1)];
+        assert_eq!(windows_of_known(&known, &windows), vec![Some(0)]);
+    }
+
+    #[test]
+    fn every_window_animates_unless_only_the_primary_does() {
+        assert_eq!(animated(false, &[false, true, false]), vec![true; 3]);
+    }
+
+    #[test]
+    fn only_the_windows_on_the_primary_monitor_animate() {
+        assert_eq!(
+            animated(true, &[false, true, false]),
+            vec![false, true, false]
+        );
+    }
+
+    #[test]
+    fn the_first_window_animates_when_none_is_on_the_primary_monitor() {
+        assert_eq!(
+            animated(true, &[false, false, false]),
+            vec![true, false, false]
+        );
+    }
+
+    #[test]
+    fn no_windows_animate_nothing() {
+        assert_eq!(animated(true, &[]), Vec::<bool>::new());
+    }
+
+    #[test]
+    fn closable_sorts_and_removes_duplicates_and_positions_out_of_range() {
+        assert_eq!(closable(&[3, 1, 1, 7], 4), vec![1, 3]);
+    }
+
+    #[test]
+    fn nothing_is_closable_when_no_window_would_remain() {
+        assert_eq!(closable(&[1, 0, 2], 3), Vec::<usize>::new());
+        assert_eq!(closable(&[0, 0, 5], 1), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn nothing_is_closable_without_positions() {
+        assert_eq!(closable(&[], 3), Vec::<usize>::new());
+        assert_eq!(closable(&[9], 3), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn the_foreground_goes_to_the_first_window_that_stays() {
+        assert_eq!(foreground_after_close(&[0, 1], 4), Some(2));
+        assert_eq!(foreground_after_close(&[1], 3), Some(0));
+        assert_eq!(foreground_after_close(&[0, 1, 2], 3), None);
     }
 }
