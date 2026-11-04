@@ -316,7 +316,7 @@ impl SaverApp {
         self.skipped_monitors = skipped;
         log!("monitors: {}", monitors.len());
         if skipped > 0 {
-            log!("monitors: {skipped} left out, their area is unknown");
+            log!("monitor list: {skipped} left out, their area is unknown");
         }
         for (i, (m, area)) in monitors.iter().enumerate() {
             log!(
@@ -534,8 +534,9 @@ impl SaverApp {
             w.animate = animate;
             log!("window {}: animate {animate}", w.index);
             if animate {
+                // Why `presented` is kept: the N-01 line is written once per
+                // window, so that the log has one such line per monitor.
                 w.last_frame = None;
-                w.presented = false;
                 if w.target.is_none() {
                     self.attach_target(position);
                 }
