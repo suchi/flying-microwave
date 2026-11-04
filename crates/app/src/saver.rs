@@ -70,6 +70,8 @@ struct SaverWindow {
     animate: bool,
     /// `display.max_fps` for the monitor of this window.
     pacer: FramePacer,
+    /// The refresh rate of that monitor (mHz) that `pacer` was made for.
+    refresh: Option<u32>,
     /// `None` when the GPU failed: the window then stays black.
     target: Option<Target>,
     world: World,
@@ -397,6 +399,7 @@ impl SaverApp {
             monitor,
             animate,
             pacer,
+            refresh,
             target: None,
             last_frame: None,
             presented: false,
@@ -475,6 +478,16 @@ impl SaverApp {
                             log!("window {}: its monitor has a new handle", w.index);
                         }
                         w.monitor = Some(current[new].clone());
+                        let refresh = current[new].0.refresh_rate_millihertz();
+                        if w.refresh != refresh {
+                            log!(
+                                "window {}: refresh rate changed {:?} -> {refresh:?} mHz",
+                                w.index,
+                                w.refresh
+                            );
+                            w.pacer = FramePacer::new(self.max_fps, refresh);
+                            w.refresh = refresh;
+                        }
                     }
                 }
                 Change::Moved { old, new } => {
@@ -502,6 +515,7 @@ impl SaverApp {
         // raises ScaleFactorChanged, which asks for the size of `w.monitor`.
         w.monitor = Some(monitor);
         w.pacer = FramePacer::new(self.max_fps, refresh);
+        w.refresh = refresh;
         w.window
             .set_outer_position(PhysicalPosition::new(area.x, area.y));
         // The render target and the world follow in the Resized event.
