@@ -19,7 +19,7 @@
 
 ## 構成要素
 
-次の図は、目標とする構成である。v0.2.0の試作版の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`licenses.rs`、`monitors.rs`、`win.rs`、`log.rs`と、coreの`config.rs`、`pacing.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
+次の図は、目標とする構成である。v0.2.0の試作版の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`licenses.rs`、`win.rs`、`log.rs`と、coreの`config.rs`、`pacing.rs`、`monitors.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
 
 ```mermaid
 flowchart TB
@@ -80,7 +80,7 @@ flowchart TB
 | `crates/core/` | `flying-microwave-core`。OS・GPUに依存しない純粋なロジック |
 | `crates/app/` | `flying-microwave`。実行ファイル(起動モード、描画、設定画面、設定ファイル入出力、プラットフォーム固有処理) |
 | `crates/app/src/licenses.rs` | 設定画面のAboutに表示する、依存ライブラリのライセンス表記(`THIRD-PARTY-LICENSES.txt`)の読み込み。Windowsに依存しない |
-| `crates/app/src/monitors.rs` | `/s`の実行中のモニタの一覧の比較(増えた・位置や大きさが変わった・なくなったを求める)。Windowsに依存しない純粋な関数 |
+| `crates/core/src/monitors.rs` | `/s`の実行中のモニタの一覧の比較(増えた・位置や大きさが変わった・なくなったを求める)。Windowsに依存しない純粋な関数 |
 | `crates/app/build.rs` | Windowsリソース(アイコン、バージョン情報、String Tableの序数1)の埋め込み。バージョン情報は`Cargo.toml`のバージョンから生成する |
 | `crates/smoke/` | `flying-microwave-smoke`。ビルドした実行ファイルを各モードで起動し、起動と終了を確かめるスモークテスト(Windows専用。[計画0003](../plans/0003-v0.1.1-smoke-test.md))。製品には含めない |
 | `crates/app/res/` | リソース定義ファイル(`app.rc`)と、アイコン(`icon.svg`と、そこから作る`flying-microwave.ico`) |
@@ -239,7 +239,7 @@ Phase 1の暫定の扱い(スパイクS4と実機の結果で見直す):
 ## マルチモニタ
 
 - Phase 1では、モニタごとに全画面ウィンドウを作り、それぞれ独立したシミュレーションを実行する。ウィンドウは、winitの全画面の指定を使わず、枠のない最前面のウィンドウをモニタの位置と大きさで作る([ADR-0019](../adr/0019-screensaver-windows-without-winit-fullscreen.md))。どのウィンドウで終了条件を満たしても全体を終了する。
-- 実行中にモニタが追加・変更された場合も、すべてのモニタを覆う(仕様調査のW-10、計画0004のF-07。v0.2.0で実装)。winit 0.30.13は`WM_DISPLAYCHANGE`をアプリに渡さない(`WM_DPICHANGED`だけをイベントにする。ソースで確認)ため、1秒ごとにモニタの一覧を取り直し、ウィンドウが覆っているモニタと比べる(計画0004のD-12)。比較は`monitors.rs`が行う。ハンドルが同じモニタ、またはハンドルが替わっても位置と大きさが同じモニタを、同じモニタとみなす。一覧が空のときは、取得の失敗とみなして何も変えない。
+- 実行中にモニタが追加・変更された場合も、すべてのモニタを覆う(仕様調査のW-10、計画0004のF-07。v0.2.0で実装)。winit 0.30.13は`WM_DISPLAYCHANGE`をアプリに渡さない(`WM_DPICHANGED`だけをイベントにする。ソースで確認)ため、1秒ごとにモニタの一覧を取り直し、ウィンドウが覆っているモニタと比べる(計画0004のD-12)。比較はcoreの`monitors.rs`が行う。ハンドルが同じモニタ、またはハンドルが替わっても位置と大きさが同じモニタを、同じモニタとみなす。一覧が空のときは、取得の失敗とみなして何も変えない。
   - 増えたモニタ: 黒い枠なしのウィンドウを、アクティブにしない(`with_active(false)`)で作り、描画の準備をする。アクティブにすると前面のウィンドウからキーボードのフォーカスを奪うため。
   - 位置や大きさが変わったモニタ: ウィンドウを新しい位置と大きさに合わせ、描画先と世界を作り直す。
   - なくなったモニタ: ウィンドウを閉じる。ただし、すべてのウィンドウが閉じることになるときは、閉じない。前面のウィンドウを閉じる場合は、先に残るウィンドウを前面にする(そうしないと、別のアプリが前面になってフォーカスを失い、終了してしまうため)。閉じたウィンドウは、終了判定にフォーカスを失ったことを伝える。

@@ -6,6 +6,7 @@
 
 pub mod config;
 pub mod exit_policy;
+pub mod monitors;
 pub mod pacing;
 pub mod rng;
 pub mod sim;
