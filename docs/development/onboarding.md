@@ -134,7 +134,7 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
 
 - rustup(Rustのツールチェーンの管理ツール)
 - Visual Studio Build Tools の「C++ によるデスクトップ開発」(MSVCのリンカとWindows SDK。SDKのリソースコンパイラ`rc.exe`で、アイコンとバージョン情報を実行ファイルに入れる。見つからないとビルドが失敗する)
-- Git for Windows(フックを動かすGit Bashも入る。6.3)
+- Git for Windows(フックを実行するGit Bashも入る。6.3)
 - Python 3(依存の7日の検査とフックの検査に使う。この節のコマンドはWindowsの`python`で書いている。LinuxとmacOSでは`python3`にする)
 - jq(フックが入力の解析に使い、フックの検査にも要る。導入の方法は6.3)
 
@@ -178,7 +178,7 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
    target\x86_64-pc-windows-msvc\release\flying-microwave-smoke.exe target\x86_64-pc-windows-msvc\release\flying-microwave.exe
    ```
 
-4. スクリーンセーバーとしての動作確認。実行ファイルを`FlyingMicrowave.scr`という名前でコピーし、エクスプローラーで右クリックして「インストール」か「テスト」を選ぶ(Windows 11では、先に「その他のオプションを確認」を選ぶことがある)。名前を変えずに試す方法は5.2にある。
+4. スクリーンセーバーとしての動作確認。実行ファイルを`FlyingMicrowave.scr`という名前でコピーし、エクスプローラーで右クリックして「インストール」か「テスト」を選ぶ(Windows 11では、先に「その他のオプションを確認」を選ぶことがある)。名前を変えずに実行する方法は5.2にある。
 
    ```powershell
    Copy-Item target\x86_64-pc-windows-msvc\release\flying-microwave.exe FlyingMicrowave.scr
@@ -218,18 +218,18 @@ python3 -I scripts/check_hooks.py
 引数ごとの動作:
 
 - `flying-microwave.exe /s`: スクリーンセーバーとして、すべてのモニタを覆って動く。キーの押下、マウスのボタンやホイール、タッチ、マウスを16ピクセル以上動かしたとき、ほかのウィンドウが前面に出たときに終了する。起動直後の0.5秒間のマウスの動きは無視する。
-- `flying-microwave.exe /c`: 設定画面(eframe)を表示する。前面のウィンドウをオーナーにして、閉じるまで無効にする(`/c:<番号>`では、その番号のウィンドウ)。`.scr`を引数なしで起動したときは、オーナーなしで表示する。設定は`%APPDATA%\FlyingMicrowave\config.toml`に保存する。ローカルで試すときに本当の設定を書き換えないよう、環境変数`FLYING_MICROWAVE_CONFIG_DIR`に、ドライブ文字で始まる絶対パスのフォルダを指定すると、その下の`config.toml`を使う。それ以外の値(相対パス、UNCのパスなど)を指定したときは、本当の設定ファイルを使わずにエラーにする(読み込みでは既定値で動き、保存では画面にエラーを示す。試作版の仮の扱い。計画0004のD-6のE-1、D-10)。設定画面を開けないときは、メッセージボックスを表示して終了コード7で終わる。
-- `flying-microwave.exe /p <ウィンドウの番号>`: 指定したウィンドウのクライアント領域に子ウィンドウを作り、プレビューを表示する。入力は無視し、親のウィンドウが閉じられたとき(500ミリ秒ごとに確かめる)か、自分のウィンドウが閉じられたときに終了する。ウィンドウの番号はスクリーンセーバーの設定画面が渡すので、ふつうは設定画面のプレビュー枠で確かめる(5.1の手順4)。番号が有効なウィンドウでないときは、何も表示せず終了コード2で終わる。番号がないか数字でないときは、オーナーなしの設定画面になる。
-- `/s`をすでに動いている間に起動すると、何も表示せずにすぐ終わる(単一起動。N-15)。
+- `flying-microwave.exe /c`: 設定画面(eframe)を表示する。前面のウィンドウをオーナーにして、閉じるまで無効にする(`/c:<番号>`では、その番号のウィンドウ)。`.scr`を引数なしで起動したときは、オーナーなしで表示する。設定は`%APPDATA%\FlyingMicrowave\config.toml`に保存する。ローカルで動作を確認するときに本当の設定を書き換えないよう、環境変数`FLYING_MICROWAVE_CONFIG_DIR`に、ドライブ文字で始まる絶対パスのフォルダを指定すると、その下の`config.toml`を使う。それ以外の値(相対パス、UNCのパスなど)を指定したときは、本当の設定ファイルを使わずにエラーにする(読み込みでは既定値で動き、保存では画面にエラーを示す。試作版の仮の扱い。計画0004のD-6のE-1、D-10)。設定画面を開けないときは、メッセージボックスを表示して終了コード7で終わる。
+- `flying-microwave.exe /p <ウィンドウの番号>`: 指定したウィンドウのクライアント領域に子ウィンドウを作り、プレビューを表示する。入力は無視し、親のウィンドウが閉じられたとき(500ミリ秒ごとに確かめる)か、自分のウィンドウが閉じられたときに終了する。ウィンドウの番号はスクリーンセーバーの設定画面が渡すので、通常は設定画面のプレビュー枠で確かめる(5.1の手順4)。番号が有効なウィンドウでないときは、何も表示せず終了コード2で終わる。番号がないか数字でないときは、オーナーなしの設定画面になる。
+- `/s`がすでに実行されている間に起動すると、何も表示せずにすぐ終わる(単一起動。N-15)。
 - 認識できない最初の引数: オーナーなしの設定画面になる。
-- `--settings`: オーナーなしの設定画面になる。`--window`と`--fullscreen`: 単独のアプリとしては、まだ動かない旨のメッセージになる(単独のアプリはPhase 6で判断する)。
-- 引数なしの`flying-microwave.exe`: 単独のアプリとしては動かない旨のメッセージを表示する。
+- `--settings`: オーナーなしの設定画面になる。`--window`と`--fullscreen`: 単独のアプリとしてはまだ実行できない旨のメッセージになる(単独のアプリはPhase 6で判断する)。
+- 引数なしの`flying-microwave.exe`: 単独のアプリとしてはまだ実行できない旨のメッセージを表示する。
 - スクリーンセーバーの設定画面から動作を確認するには、5.1の手順4のとおり`.scr`にしてインストールする。
 
 ### 5.3 ログとデバッグ
 
 - コンソールはない。スクリーンセーバーなので、デバッグのビルドでもコンソールを開かない(`main.rs`の`windows_subsystem = "windows"`)。`println!`や`eprintln!`の出力は見えない。
-- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`。正確には`std::env::temp_dir()`の場所で、Windowsでは環境変数`TMP`を`TEMP`より先に見る。ふつうは同じ場所である)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
+- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`。正確には`std::env::temp_dir()`の場所で、Windowsでは環境変数`TMP`を`TEMP`より先に見る。通常は同じ場所である)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
 
   ```powershell
   Get-Content $env:TEMP\flying-microwave.log -Tail 50
@@ -262,7 +262,7 @@ python3 -I scripts/check_hooks.py
     ```
 
   - Visual Studio: 「File > Open > Project」で実行ファイル(`.exe`)を開き、「Debug > Start Debugging」で始める([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/how-to-debug-an-executable-not-part-of-a-visual-studio-solution))。
-  - プレビュー(`/p`)は、設定画面がウィンドウの番号を渡して起動するので、デバッガから起動できない。設定画面でスクリーンセーバーを選んでプレビューを動かし、そのプロセス(`FlyingMicrowave.scr`)にあとからデバッガを接続する。Visual Studioでは「Debug > Attach to Process」(Ctrl+Alt+P)を使う([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/attach-to-running-processes-with-the-visual-studio-debugger))。VS Codeでは、`cppvsdbg`の`"request": "attach"`の構成で、`processId`を既定の`${command:pickProcess}`のままにして、一覧から選ぶ([launch.jsonのリファレンス](https://code.visualstudio.com/docs/cpp/launch-json-reference))。
+  - プレビュー(`/p`)は、設定画面がウィンドウの番号を渡して起動するので、デバッガから起動できない。設定画面でスクリーンセーバーを選んでプレビューを表示し、そのプロセス(`FlyingMicrowave.scr`)にあとからデバッガを接続する。Visual Studioでは「Debug > Attach to Process」(Ctrl+Alt+P)を使う([Visual Studioのドキュメント](https://learn.microsoft.com/en-us/visualstudio/debugger/attach-to-running-processes-with-the-visual-studio-debugger))。VS Codeでは、`cppvsdbg`の`"request": "attach"`の構成で、`processId`を既定の`${command:pickProcess}`のままにして、一覧から選ぶ([launch.jsonのリファレンス](https://code.visualstudio.com/docs/cpp/launch-json-reference))。
   - 注意: `/s`は全画面の最前面に出て、入力やフォーカスの移動で終了するため、デバッガの操作で終了しやすい。ブレークポイントで止めて調べるときは、`/c`や`/p`で動く部分を対象にするか、ログ(上の項目)と組み合わせる。
 
 ### 5.4 トラブルシューティング
@@ -272,7 +272,7 @@ python3 -I scripts/check_hooks.py
 - 依存の7日の検査が通らない: 公開から7日たっていない版を使っている。7日以上前に公開された版を選ぶか、7日たつまで待つ(6.3の「依存の公開からの日数」)。
 - フックの検査が通らない: `jq`が入っているか、LinuxかmacOS(WindowsではWSL)で実行しているかを確かめる(5.1の手順6、6.3)。
 - 描画が始まらない: ログに`first frame presented`の行(`/s`ではウィンドウごとに`window N: first frame presented`、`/p`では`preview: first frame presented`)があれば、少なくとも1枚は描画できている。この行で、起動の速さ(計画のN-01)のうち「最初のアニメーションのフレームまで1秒以内」を測る。同じ`pid=`の行だけを使い(ログには複数のプロセスが追記する)、起点は`started`の行(`+0ms`)とする。プロセスの起動からこの行までの時間(ローダーが依存を解決する時間)は含まない。`/s`で複数のモニタがあるときは、ウィンドウごとの行のうち最も遅いもので判定する。「全モニタが黒で覆われるまで0.5秒以内」のほうは、`window N: inner ...`の行(黒く塗った直後に書く)の時刻で測り、複数のモニタがあるときは、ウィンドウごとの行のうち最も遅いもので判定する。
-- 描画がおかしい、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。ただし、次の場合は、その行を書かずに終わる。最後の行で見分ける。
+- 描画が正しくない、すぐ終了する: ログ(5.3)の、終了の理由とGPUの行を見る。正常に終わったときは、最後に`/s`では`screensaver ended:`、`/p`では`preview ended:`の行がある。ただし、次の場合は、その行を書かずに終わる。最後の行で見分ける。
   - `another screensaver instance is running; exiting`: `/s`の2つめの起動。終了コード0。
   - `preview: N is not a valid window; exiting`: `/p`の番号が有効なウィンドウでない。終了コード2。
   - `GPU initialization timed out; exiting`: GPUの初期化が15秒で終わらなかった。終了コード6。
@@ -348,7 +348,7 @@ python3 -I scripts/check_hooks.py
 
 `.claude/settings.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`の変更は、メンテナーの承認を得てから行う。Dependabotの`cooldown`はサプライチェーン攻撃への対策なので、承認なしに削除・無効化しない。
 
-依存の公開からの日数: Dependabotの`cooldown`(7日)は、手元の`cargo`での解決には効かない。cargo 1.99の安定版には、同じ設定もない(`min-publish-age`は`-Zmin-publish-age`が必要)。そのため、`scripts/check_publish_age.py`で、ロックファイルのcrates.ioのすべての版と、CIで入れるツール(cargo-about)の版とそのロックファイルが、公開から7日以上たっているかを確かめる。公開日時は、crates.ioの索引の`pubtime`を使う。索引に版が見つからない場合、公開日時のない版、crates.io以外から来る依存(gitなど)、索引を読めない場合も失敗にする。CIのLinuxのジョブが毎回実行し、配布物を作るWindowsのジョブはその成功を待つ(`needs: linux`)。`spikes.yml`も、ビルドの前に実行する。GitHub Actionsの版とRustのツールチェーンは、この検査の対象外である(incidents 0007の対策5)。手元で`Cargo.lock`を変えたときは、コミットの前に実行する(AGENTS.mdの検証コマンド)。新しい依存を加えたいのに検査を通らないときは、7日以上前に公開された版を選ぶか、7日たつまで待つ([incidents 0007](../incidents/0007-dependencies-inside-cooldown.md))。
+依存の公開からの日数: Dependabotの`cooldown`(7日)は、ローカルでの`cargo`の解決には効かない。cargo 1.99の安定版には、同じ設定もない(`min-publish-age`は`-Zmin-publish-age`が必要)。そのため、`scripts/check_publish_age.py`で、ロックファイルのcrates.ioのすべての版と、CIで入れるツール(cargo-about)の版とそのロックファイルが、公開から7日以上たっているかを確かめる。公開日時は、crates.ioの索引の`pubtime`を使う。索引に版が見つからない場合、公開日時のない版、crates.io以外から来る依存(gitなど)、索引を読めない場合も失敗にする。CIのLinuxのジョブが毎回実行し、配布物を作るWindowsのジョブはその成功を待つ(`needs: linux`)。`spikes.yml`も、ビルドの前に実行する。GitHub Actionsの版とRustのツールチェーンは、この検査の対象外である(incidents 0007の対策5)。ローカルで`Cargo.lock`を変えたときは、コミットの前に実行する(AGENTS.mdの検証コマンド)。新しい依存を加えたいのに検査を通らないときは、7日以上前に公開された版を選ぶか、7日たつまで待つ([incidents 0007](../incidents/0007-dependencies-inside-cooldown.md))。
 
 ### 6.4 モデルの使い分け
 

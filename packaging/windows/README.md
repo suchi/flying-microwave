@@ -21,7 +21,7 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
    Get-FileHash <zip ファイルのパス> -Algorithm SHA256
    ```
 
-2. 置き続けるフォルダー(例: `%LOCALAPPDATA%\Programs\FlyingMicrowave`)を作り、そこに zip ファイルを展開します。ダウンロード フォルダーなどの一時的な場所は避けてください。後でファイルを移動・削除すると、スクリーン セーバーが動かなくなることがあります。
+2. インストール先にするフォルダー(例: `%LOCALAPPDATA%\Programs\FlyingMicrowave`)を作り、そこに zip ファイルを展開します。ダウンロード フォルダーなどの一時的な場所は避けてください。後でファイルを移動・削除すると、スクリーン セーバーが動作しなくなることがあります。
 3. `FlyingMicrowave.scr` を右クリックして [インストール] を選びます。Windows 11 では、先に [その他のオプションを確認] を選ぶ必要がある場合があります。
 
 スクリーン セーバーの設定では、ファイル名のとおり「FlyingMicrowave」と表示されます。
