@@ -8,6 +8,11 @@
 //! The settings (plan 0004, F-06) are read on another thread while the
 //! windows are created and painted black, so reading them never delays
 //! covering the screen. They are waited for only before the animation starts.
+//!
+//! While it runs, the screensaver reads the monitor list again every
+//! [`MONITOR_CHECK_INTERVAL`] and makes the windows follow it (plan 0004,
+//! F-07): a window for each added monitor, moved or resized windows for
+//! changed monitors, and no window for a removed monitor.
 
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver};
@@ -25,7 +30,7 @@ use winit::monitor::MonitorHandle;
 use winit::window::{Window, WindowId, WindowLevel};
 
 use crate::log::log;
-use crate::monitors::Area;
+use crate::monitors::{self, Area, Change};
 use crate::render::{self, Gpu, Target};
 use crate::storage::Startup;
 use crate::win;
@@ -38,6 +43,15 @@ const GPU_INIT_TIMEOUT: Duration = Duration::from_secs(15);
 /// How long the animation waits for the settings once the screen is covered.
 /// Later, the defaults are used (plan 0001, N-01: first frame within 1 s).
 const CONFIG_WAIT: Duration = Duration::from_millis(500);
+/// How often the monitor list is read again while running (plan 0004, F-07).
+///
+/// Why polling: winit 0.30.13 passes no event for WM_DISPLAYCHANGE (its
+/// platform_impl/windows/event_loop.rs turns only WM_DPICHANGED into an
+/// event), and subclassing the windows to receive it was not chosen (plan
+/// 0004, D-12). Why one second: a monitor that is plugged in stays uncovered
+/// for at most about that long, and reading the list (EnumDisplayMonitors)
+/// once a second costs next to nothing.
+const MONITOR_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 
 const EXIT_OK: i32 = 0;
 const EXIT_EVENT_LOOP_FAILED: i32 = 1;
@@ -80,6 +94,16 @@ struct SaverApp {
     max_fps: u32,
     /// `display.monitors = "primary"`.
     only_primary: bool,
+    /// The monitor list of the last check (at start, the one the windows
+    /// were created for).
+    known_monitors: Vec<(MonitorHandle, Area)>,
+    /// The `index` of the next window.
+    next_index: usize,
+    /// When the monitor list is read again; `None` until the windows and
+    /// the GPU are ready.
+    next_monitor_check: Option<Instant>,
+    /// Whether the last check found no monitor at all (logged only once).
+    monitors_empty: bool,
     /// The fixed start of the times passed to the frame pacers.
     epoch: Instant,
     /// Start of the grace period; `None` until the windows and the GPU are ready.
@@ -114,6 +138,10 @@ pub fn run() -> i32 {
         params: SimParams::default(),
         max_fps: 0,
         only_primary: false,
+        known_monitors: Vec::new(),
+        next_index: 0,
+        next_monitor_check: None,
+        monitors_empty: false,
         epoch: Instant::now(),
         grace_start: None,
         created: false,
@@ -285,12 +313,14 @@ impl SaverApp {
             );
         }
         let primary = event_loop.primary_monitor();
+        self.known_monitors = monitors.iter().map(|m| (m.clone(), area_of(m))).collect();
         // Without monitor information, one maximized window.
         let targets: Vec<_> = if monitors.is_empty() {
             vec![None]
         } else {
             monitors.into_iter().map(Some).collect()
         };
+        self.next_index = targets.len();
         // First cover every monitor in black (W-9); the settings come after.
         let mut created = Vec::new();
         for (index, monitor) in targets.into_iter().enumerate() {
@@ -368,6 +398,189 @@ impl SaverApp {
             last_frame: None,
             presented: false,
             retry_at: None,
+        }
+    }
+
+    /// Creates the render target of a window made while running. Without a
+    /// GPU, or when that fails, the window stays black (W-9).
+    fn attach_target(&mut self, position: usize) {
+        let w = &self.windows[position];
+        let index = w.index;
+        let (Some(instance), Some(gpu)) = (self.instance.as_ref(), self.gpu.as_ref()) else {
+            log!("window {index}: no GPU; it stays black");
+            return;
+        };
+        // Why the watchdog: as at start, a hung driver call must not leave
+        // the black windows on the screen for good.
+        let _watchdog = render::Watchdog::start(GPU_INIT_TIMEOUT, EXIT_GPU_INIT_TIMEOUT);
+        let sprite_size = w.world.instances().first().map_or(0.12, |s| s.size);
+        log!("window {index}: setting up the surface");
+        let result = render::guarded("surface setup", || {
+            let surface = render::create_surface(instance, &w.window)?;
+            Target::new(gpu, surface, w.window.inner_size(), sprite_size)
+        });
+        match result {
+            Ok(target) => self.windows[position].target = Some(target),
+            Err(e) => log!("window {index}: surface setup failed: {e}; it stays black"),
+        }
+    }
+
+    /// F-07: reads the monitor list again and makes the windows follow it.
+    fn check_monitors(&mut self, event_loop: &ActiveEventLoop) {
+        let current: Vec<(MonitorHandle, Area)> = event_loop
+            .available_monitors()
+            .map(|m| {
+                let area = area_of(&m);
+                (m, area)
+            })
+            .collect();
+        let Some(changes) = monitors::compare(&self.known_monitors, &current) else {
+            if !self.monitors_empty {
+                log!("monitor change: the monitor list is empty; keeping the windows");
+                self.monitors_empty = true;
+            }
+            return;
+        };
+        self.monitors_empty = false;
+        if changes.iter().any(|c| !matches!(c, Change::Kept { .. })) {
+            log!("monitor change: {} monitors now", current.len());
+            for (i, (m, area)) in current.iter().enumerate() {
+                log!(
+                    "monitor change: monitor {i}: {area:?} scale {} refresh {:?} mHz",
+                    m.scale_factor(),
+                    m.refresh_rate_millihertz()
+                );
+            }
+        }
+        // The window of each known monitor (none if it could not be made),
+        // looked up before any window changes.
+        let windows_of_known: Vec<Option<usize>> = self
+            .known_monitors
+            .iter()
+            .map(|(known, _)| {
+                self.windows
+                    .iter()
+                    .position(|w| w.monitor.as_ref().is_some_and(|(m, _)| m == known))
+            })
+            .collect();
+        let primary = event_loop.primary_monitor();
+        let mut closing = Vec::new();
+        for change in changes {
+            match change {
+                Change::Kept { old, new } => {
+                    if let Some(p) = windows_of_known[old] {
+                        let w = &mut self.windows[p];
+                        if w.monitor
+                            .as_ref()
+                            .is_some_and(|(m, _)| *m != current[new].0)
+                        {
+                            log!("window {}: its monitor has a new handle", w.index);
+                        }
+                        w.monitor = Some(current[new].clone());
+                    }
+                }
+                Change::Moved { old, new } => {
+                    if let Some(p) = windows_of_known[old] {
+                        self.move_window(p, current[new].clone());
+                    }
+                }
+                Change::Added { new } => {
+                    self.add_window(event_loop, current[new].clone(), primary.as_ref());
+                }
+                Change::Removed { old } => closing.extend(windows_of_known[old]),
+            }
+        }
+        self.close_windows(event_loop, closing);
+        self.known_monitors = current;
+    }
+
+    /// Fits a window to the new position and size of its monitor.
+    fn move_window(&mut self, position: usize, monitor: (MonitorHandle, Area)) {
+        let area = monitor.1;
+        let refresh = monitor.0.refresh_rate_millihertz();
+        let w = &mut self.windows[position];
+        log!("window {}: moving to {area:?}", w.index);
+        // Why before moving: moving onto a monitor with another scale factor
+        // raises ScaleFactorChanged, which asks for the size of `w.monitor`.
+        w.monitor = Some(monitor);
+        w.pacer = FramePacer::new(self.max_fps, refresh);
+        w.window
+            .set_outer_position(PhysicalPosition::new(area.x, area.y));
+        // The render target and the world follow in the Resized event.
+        let resized = w
+            .window
+            .request_inner_size(PhysicalSize::new(area.width, area.height));
+        if let Some(size) = resized {
+            self.fit_to_size(position, size);
+        }
+    }
+
+    /// Covers a monitor that was added while running, as at start.
+    fn add_window(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        monitor: (MonitorHandle, Area),
+        primary: Option<&MonitorHandle>,
+    ) {
+        let index = self.next_index;
+        self.next_index += 1;
+        // Why not activated: activating it would take the keyboard focus from
+        // the foreground window. Were it activated anyway, the focus would
+        // only move between our windows, which does not end the screensaver
+        // (exit_policy: the loss and the gain arrive in one batch).
+        let Some(window) = create_black_window(event_loop, Some(monitor.1), index, false) else {
+            return;
+        };
+        log!("window {index}: created for a new monitor");
+        let animate = !self.only_primary || primary == Some(&monitor.0);
+        let w = self.saver_window(index, window, Some(monitor), animate);
+        self.windows.push(w);
+        let position = self.windows.len() - 1;
+        if animate {
+            self.attach_target(position);
+        }
+        self.windows[position].window.request_redraw();
+    }
+
+    /// Closes the windows at `positions`, whose monitors are gone.
+    fn close_windows(&mut self, event_loop: &ActiveEventLoop, mut positions: Vec<usize>) {
+        if positions.is_empty() {
+            return;
+        }
+        positions.sort_unstable();
+        positions.dedup();
+        if positions.len() >= self.windows.len() {
+            log!("monitor change: no window would remain; keeping the windows");
+            return;
+        }
+        // Why: keyboard input only reaches the foreground window. When it is
+        // closed, Windows activates some other window, maybe not ours, and
+        // the focus loss would end the screensaver. So the foreground moves
+        // to a remaining window first.
+        let foreground = win::foreground_window();
+        let closes_foreground = positions
+            .iter()
+            .any(|&p| win::hwnd_of(&self.windows[p].window) == Some(foreground));
+        if closes_foreground
+            && let Some(hwnd) = (0..self.windows.len())
+                .filter(|p| !positions.contains(p))
+                .find_map(|p| win::hwnd_of(&self.windows[p].window))
+        {
+            log!("SetForegroundWindow: {}", win::set_foreground(hwnd));
+        }
+        for &p in positions.iter().rev() {
+            let w = self.windows.remove(p);
+            log!("window {}: closed, its monitor is gone", w.index);
+            // A closed window is no longer in `windows`, so its own focus and
+            // Destroyed events are ignored (window_event). Tell the exit
+            // policy here that it has no focus any more.
+            self.decide(
+                event_loop,
+                Event::FocusChanged {
+                    window: exit_policy::WindowId(w.index as u64),
+                    focused: false,
+                },
+            );
         }
     }
 
@@ -489,6 +702,7 @@ impl ApplicationHandler for SaverApp {
         // Start the grace period only now: events queued while the windows
         // and the GPU were being set up are delivered inside it.
         self.grace_start = Some(Instant::now());
+        self.next_monitor_check = Some(Instant::now() + MONITOR_CHECK_INTERVAL);
         for w in &self.windows {
             w.window.request_redraw();
         }
@@ -567,6 +781,13 @@ impl ApplicationHandler for SaverApp {
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         self.decide(event_loop, Event::EventsProcessed);
+        if self.exit_reason.is_none()
+            && let Some(at) = self.next_monitor_check
+            && at <= Instant::now()
+        {
+            self.check_monitors(event_loop);
+            self.next_monitor_check = Some(Instant::now() + MONITOR_CHECK_INTERVAL);
+        }
         let now = Instant::now();
         // Wake when the grace period ends, so a focus loss during it is
         // checked even if no further event arrives (ExitPolicy::handle).
@@ -574,6 +795,10 @@ impl ApplicationHandler for SaverApp {
             .grace_start
             .map(|t| t + ExitPolicy::DEFAULT_GRACE)
             .filter(|&end| end > now);
+        // Wake for the next monitor check, even when no window draws.
+        if let Some(at) = self.next_monitor_check {
+            next = Some(next.map_or(at, |n| n.min(at)));
+        }
         for w in &mut self.windows {
             if let Some(at) = w.retry_at {
                 if at <= now {
