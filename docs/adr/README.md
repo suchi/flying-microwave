@@ -52,3 +52,4 @@
 | [0021](0021-spdx-sbom-with-own-script.md) | リリースのSBOMを、SPDX 2.3の形式で、自前のスクリプトで作る | 採用 | 2026-11-02 |
 | [0022](0022-ship-x64-only-for-now.md) | 当面はx64版だけを配布し、arm64には対応しない | 採用 | 2026-11-03 |
 | [0023](0023-svg-sprites-from-v0.2.0.md) | 素材をSVGで作り、v0.2.0の試作版からresvgでラスタライズして描く | 採用 | 2026-11-03 |
+| [0024](0024-settings-file-location-and-handling.md) | 設定ファイルの場所と扱いを決める | 採用 | 2026-11-04 |
