@@ -30,6 +30,18 @@
 - `first frame presented`の行は`window 0`だけで(起動から約0.54秒)、`window 1`の行は、キーで終わるまでの約3.1秒のあいだ出なかった。
 - 残る候補は、2つ目(再描画の順番が2台目に回らない)と、2台目の描画が毎回スキップされること(`get_current_texture`の`Timeout`・`Occluded`など)である。`v0.2.0-alpha.2`は、どちらの場合もログに何も書かないため、見分けられない。そのため、ウィンドウごとの`RedrawRequested`の回数と、スキップの理由をログに書く版(`v0.2.0-alpha.3`)を作り、もう一度ログを集める。
 
+`v0.2.0-alpha.3`のログの読み方(ログを受け取る前に決めておく判定の基準)。メンテナーには、2画面で「プレビュー」(`/s`)を数秒実行してキーで終わらせ、ログを送ってもらう。終了のときに、ウィンドウごとに`window N: R RedrawRequested received, F frames, P paced, B blank, S skipped (理由ごとの回数)`の行が出る(モニターを外して閉じたウィンドウは、閉じたときに出る)。
+
+| window 1のログ | 判定 |
+| --- | --- |
+| `RedrawRequested received`の行がなく、まとめが`0 RedrawRequested received` | 再描画のイベントが2台目に届いていない(2つ目の候補) |
+| `frame skipped: <理由>`の行があり、まとめのskippedがreceivedとほぼ同じ | 届いているが、毎回スキップしている。理由ごとの回数で、どの理由かを見る |
+| `RedrawRequested received (#1)`のあと、`first frame presented`も`frame skipped`も出ない | `draw`が戻らない。この場合はwindow 0も止まるはずなので、window 0の行と合わせて読む |
+| まとめのreceivedが、frames・paced・blank・skippedの和と合わない | 数え方の誤り。コードを確かめ直す |
+| まとめの行がない | ログの書き方の誤りか、ログを書く前に終わった。ログの最後の行と`screensaver ended`の行を確かめる |
+
+`F frames`は`present`を呼んだ回数で、画面に出たことの証明ではない(wgpuとDX12は、`DXGI_STATUS_OCCLUDED`を成功として扱う)。window 1のframesが1以上なのに見た目で描かれていなければ、その違いを別に調べる。
+
 ## なぜなぜ分析
 
 | なぜ | 答え(確かめた事実) |
