@@ -450,8 +450,8 @@ impl Target {
         }
     }
 
-    /// Draws one frame. Returns false when the frame was skipped.
-    pub fn draw(&mut self, gpu: &Gpu, sprites: &[SpriteInstance]) -> bool {
+    /// Draws one frame. Returns why the frame was skipped, if it was.
+    pub fn draw(&mut self, gpu: &Gpu, sprites: &[SpriteInstance]) -> Frame {
         use wgpu::CurrentSurfaceTexture as Acquired;
 
         let (texture, suboptimal) = match self.surface.get_current_texture() {
@@ -459,11 +459,17 @@ impl Target {
             // Usable now; reconfigured after presenting (wgpu panics if the
             // surface is configured while a surface texture is alive).
             Acquired::Suboptimal(texture) => (texture, true),
-            Acquired::Outdated | Acquired::Lost => {
+            Acquired::Outdated => {
                 self.surface.configure(&gpu.device, &self.config);
-                return false;
+                return Frame::Skipped(Skip::Outdated);
             }
-            Acquired::Timeout | Acquired::Occluded | Acquired::Validation => return false,
+            Acquired::Lost => {
+                self.surface.configure(&gpu.device, &self.config);
+                return Frame::Skipped(Skip::Lost);
+            }
+            Acquired::Timeout => return Frame::Skipped(Skip::Timeout),
+            Acquired::Occluded => return Frame::Skipped(Skip::Occluded),
+            Acquired::Validation => return Frame::Skipped(Skip::Validation),
         };
 
         let (width, height) = (self.config.width, self.config.height);
@@ -516,8 +522,25 @@ impl Target {
         if suboptimal {
             self.surface.configure(&gpu.device, &self.config);
         }
-        true
+        Frame::Presented
     }
+}
+
+/// The result of `Target::draw`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Frame {
+    Presented,
+    Skipped(Skip),
+}
+
+/// Why `Target::draw` did not draw (the surface texture was not available).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Skip {
+    Outdated,
+    Lost,
+    Timeout,
+    Occluded,
+    Validation,
 }
 
 /// Ends the process if GPU initialization hangs. Dropping it disarms it.

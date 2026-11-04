@@ -28,7 +28,7 @@ use winit::raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use winit::window::{Window, WindowId};
 
 use crate::log::log;
-use crate::render::{self, Gpu, Target};
+use crate::render::{self, Frame, Gpu, Target};
 use crate::saver::{aspect_of, seed};
 use crate::storage::Startup;
 use crate::win;
@@ -237,7 +237,7 @@ impl PreviewApp {
             world.advance(now - last);
         }
         self.last_frame = Some(now);
-        if target.draw(gpu, &world.instances()) {
+        if target.draw(gpu, &world.instances()) == Frame::Presented {
             self.frames += 1;
             if self.frames == 1 {
                 log!("preview: first frame presented");

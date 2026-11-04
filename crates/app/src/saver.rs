@@ -31,7 +31,7 @@ use winit::monitor::MonitorHandle;
 use winit::window::{Window, WindowId, WindowLevel};
 
 use crate::log::log;
-use crate::render::{self, Gpu, Target};
+use crate::render::{self, Frame, Gpu, Target};
 use crate::storage::Startup;
 use crate::win;
 
@@ -728,7 +728,7 @@ impl SaverApp {
             w.world.advance(now - last);
         }
         w.last_frame = Some(now);
-        if target.draw(gpu, &w.world.instances()) {
+        if target.draw(gpu, &w.world.instances()) == Frame::Presented {
             // N-01 (first animation frame within 1 s) is measured from this line.
             if !w.presented {
                 w.presented = true;
