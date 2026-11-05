@@ -59,6 +59,12 @@ SAMPLES = {
     ".claude/hooks/require-japanese-reply.sh": [
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "終わりました。"}, None),
+        # docs/incidents/0015: checked also while another Stop hook keeps the
+        # turn going, with a limit on the rewrites asked for in a row.
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "Done."}, "block"),
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "Done."}, None),
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "終わりました。"}, None),
     ],
 }
 
