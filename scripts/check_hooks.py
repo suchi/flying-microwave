@@ -38,6 +38,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 COMMAND_PATTERN = re.compile(r'"\$CLAUDE_PROJECT_DIR/(\.claude/hooks/[A-Za-z0-9_-]+\.sh)"')
 
@@ -59,6 +60,15 @@ SAMPLES = {
     ".claude/hooks/require-japanese-reply.sh": [
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "終わりました。"}, None),
+        # docs/incidents/0015: checked also while another Stop hook keeps the
+        # turn going, with a limit on the rewrites asked for in a row.
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "Done."}, "block"),
+        # The main agent is at the limit here; a subagent has its own count.
+        ({"hook_event_name": "SubagentStop", "session_id": "check-hooks-limit", "agent_id": "a1", "stop_hook_active": True, "last_assistant_message": "Done."}, "block"),
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "Done."}, None),
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "終わりました。"}, None),
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "Done."}, "block"),
     ],
 }
 
@@ -143,19 +153,22 @@ def unsupported_problems(settings):
 
 def run_problems(commands, samples, root):
     problems = []
-    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(root))
-    for command in commands:
-        path = hook_path(command)
-        for sample, expected in samples[path]:
-            # Why sh -c: on Linux and macOS, Claude Code passes the command
-            # string to sh -c (Hooks reference), so this is how it starts.
-            result = subprocess.run(
-                ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
-            )
-            got = decision(result.stdout)
-            if result.returncode != 0 or got != expected:
-                detail = (result.stderr or result.stdout).strip()[:300]
-                problems.append(f"{path}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}")
+    # Why a temporary directory: hooks may keep state in it (docs/incidents/0015),
+    # and runs at the same time must not share that state.
+    with tempfile.TemporaryDirectory() as temp:
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(root), TMPDIR=temp, XDG_RUNTIME_DIR=temp)
+        for command in commands:
+            path = hook_path(command)
+            for sample, expected in samples[path]:
+                # Why sh -c: on Linux and macOS, Claude Code passes the command
+                # string to sh -c (Hooks reference), so this is how it starts.
+                result = subprocess.run(
+                    ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
+                )
+                got = decision(result.stdout)
+                if result.returncode != 0 or got != expected:
+                    detail = (result.stderr or result.stdout).strip()[:300]
+                    problems.append(f"{path}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}")
     return problems
 
 
