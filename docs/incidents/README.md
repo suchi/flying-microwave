@@ -44,3 +44,4 @@
 | [0012](0012-hook-check-tests-failed-on-windows.md) | フックの検査のテストが、Windowsのスパイクのビルドで失敗した | 2026-11-02 |
 | [0013](0013-arm64-smoke-test-only-at-release.md) | arm64のスモークテストを、タグを付けるまで試せず、リリースが2回続けて止まった | 2026-11-03 |
 | [0014](0014-second-monitor-not-drawn.md) | 2台目のモニタに電子レンジが描かれないまま、リリースした | 2026-11-04 |
+| [0015](0015-english-reports-after-stop-hook.md) | メンテナーへの報告を英語で書き、一部はフックでも止まらなかった | 2026-11-05 |

@@ -383,6 +383,24 @@ fn screensaver_ends_on_input_with(
             return Err(format!("exit code {code}"));
         }
         reason?;
+        // Why: the summary line was never written once (issue #50), and a
+        // window that drew nothing must not pass.
+        let progress = target.progress();
+        match progress.summary_of(0) {
+            Some(s) if s.received >= 1 && s.frames >= 1 => {
+                println!(
+                    "  window 0: {} RedrawRequested received, {} frames",
+                    s.received, s.frames
+                );
+            }
+            Some(s) => {
+                return Err(format!(
+                    "window 0 summary: {} RedrawRequested received, {} frames (expected at least 1 each)",
+                    s.received, s.frames
+                ));
+            }
+            None => return Err("the log has no summary line for window 0".to_owned()),
+        }
         if gone > GONE_AFTER_INPUT {
             return Err(format!(
                 "the screen was gone {} ms after the {} (limit {} ms)",

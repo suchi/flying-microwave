@@ -21,6 +21,7 @@ use flying_microwave_core::sim::SpriteInstance;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
+use crate::diag;
 use crate::log::log;
 use crate::sprite::{self, AtlasLayout};
 
@@ -450,8 +451,8 @@ impl Target {
         }
     }
 
-    /// Draws one frame. Returns false when the frame was skipped.
-    pub fn draw(&mut self, gpu: &Gpu, sprites: &[SpriteInstance]) -> bool {
+    /// Draws one frame. Returns why the frame was skipped, if it was.
+    pub fn draw(&mut self, gpu: &Gpu, sprites: &[SpriteInstance]) -> Frame {
         use wgpu::CurrentSurfaceTexture as Acquired;
 
         let (texture, suboptimal) = match self.surface.get_current_texture() {
@@ -459,11 +460,17 @@ impl Target {
             // Usable now; reconfigured after presenting (wgpu panics if the
             // surface is configured while a surface texture is alive).
             Acquired::Suboptimal(texture) => (texture, true),
-            Acquired::Outdated | Acquired::Lost => {
+            Acquired::Outdated => {
                 self.surface.configure(&gpu.device, &self.config);
-                return false;
+                return Frame::Skipped(diag::Skip::Outdated);
             }
-            Acquired::Timeout | Acquired::Occluded | Acquired::Validation => return false,
+            Acquired::Lost => {
+                self.surface.configure(&gpu.device, &self.config);
+                return Frame::Skipped(diag::Skip::Lost);
+            }
+            Acquired::Timeout => return Frame::Skipped(diag::Skip::Timeout),
+            Acquired::Occluded => return Frame::Skipped(diag::Skip::Occluded),
+            Acquired::Validation => return Frame::Skipped(diag::Skip::Validation),
         };
 
         let (width, height) = (self.config.width, self.config.height);
@@ -516,8 +523,15 @@ impl Target {
         if suboptimal {
             self.surface.configure(&gpu.device, &self.config);
         }
-        true
+        Frame::Presented
     }
+}
+
+/// The result of `Target::draw`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Frame {
+    Presented,
+    Skipped(diag::Skip),
 }
 
 /// Ends the process if GPU initialization hangs. Dropping it disarms it.
