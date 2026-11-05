@@ -38,6 +38,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 COMMAND_PATTERN = re.compile(r'"\$CLAUDE_PROJECT_DIR/(\.claude/hooks/[A-Za-z0-9_-]+\.sh)"')
 
@@ -65,6 +66,8 @@ SAMPLES = {
         ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "Done."}, "block"),
         ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "Done."}, None),
         ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "終わりました。"}, None),
+        ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": True, "last_assistant_message": "Done."}, "block"),
+        ({"hook_event_name": "SubagentStop", "session_id": "check-hooks-limit", "agent_id": "a1", "stop_hook_active": True, "last_assistant_message": "Done."}, "block"),
     ],
 }
 
@@ -149,7 +152,10 @@ def unsupported_problems(settings):
 
 def run_problems(commands, samples, root):
     problems = []
-    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(root))
+    # Why a temporary directory: hooks may keep state in it (docs/incidents/0015),
+    # and runs at the same time must not share that state.
+    temp = tempfile.TemporaryDirectory()
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(root), TMPDIR=temp.name, XDG_RUNTIME_DIR=temp.name)
     for command in commands:
         path = hook_path(command)
         for sample, expected in samples[path]:
