@@ -28,12 +28,22 @@ pub struct Progress {
 }
 
 /// The counts of one window from its summary line
-/// (`window N: A draws attempted, F frames, ...`).
+/// (`window N: A draws attempted, F frames, P paced, B blank, S skipped ...`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WindowSummary {
     pub window: u32,
     pub attempts: u64,
     pub frames: u64,
+    pub paced: u64,
+    pub blank: u64,
+    pub skipped: u64,
+}
+
+impl WindowSummary {
+    /// Whether every attempt is accounted for by exactly one outcome.
+    pub fn is_consistent(&self) -> bool {
+        self.attempts == self.frames + self.paced + self.blank + self.skipped
+    }
 }
 
 impl WindowSummary {
@@ -41,11 +51,17 @@ impl WindowSummary {
         let rest = message.strip_prefix("window ")?;
         let (window, rest) = rest.split_once(": ")?;
         let (attempts, rest) = rest.split_once(" draws attempted, ")?;
-        let (frames, _) = rest.split_once(" frames, ")?;
+        let (frames, rest) = rest.split_once(" frames, ")?;
+        let (paced, rest) = rest.split_once(" paced, ")?;
+        let (blank, rest) = rest.split_once(" blank, ")?;
+        let (skipped, _) = rest.split_once(" skipped")?;
         Some(Self {
             window: window.parse().ok()?,
             attempts: attempts.parse().ok()?,
             frames: frames.parse().ok()?,
+            paced: paced.parse().ok()?,
+            blank: blank.parse().ok()?,
+            skipped: skipped.parse().ok()?,
         })
     }
 }
@@ -358,9 +374,13 @@ mod tests {
             Some(&WindowSummary {
                 window: 0,
                 attempts: 12,
-                frames: 10
+                frames: 10,
+                paced: 1,
+                blank: 0,
+                skipped: 1
             })
         );
+        assert!(p.summary_of(0).is_some_and(WindowSummary::is_consistent));
         assert_eq!(p.summary_of(1).map(|s| s.frames), Some(0));
         assert_eq!(p.summary_of(2), None);
         assert_eq!(Progress::read(log, 3).summary_of(0), None);
