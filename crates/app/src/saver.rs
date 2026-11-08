@@ -20,6 +20,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use flying_microwave_core::config::{Config, Monitors};
 use flying_microwave_core::exit_policy::{self, Decision, Event, ExitPolicy};
+use flying_microwave_core::frame_loop::{Flow, next_flow};
 use flying_microwave_core::monitors::{self, Area, Change};
 use flying_microwave_core::pacing::{FramePacer, Pace};
 use flying_microwave_core::sim::{SimParams, World};
@@ -881,40 +882,36 @@ impl ApplicationHandler for SaverApp {
             self.check_monitors(event_loop);
             self.next_monitor_check = Some(Instant::now() + MONITOR_CHECK_INTERVAL);
         }
-        if self.exit_reason.is_some() {
-            event_loop.set_control_flow(ControlFlow::Wait);
-            return;
-        }
+        let exiting = self.exit_reason.is_some();
         let now = Instant::now();
         // Why here and not in `RedrawRequested`: every window that is due is
         // drawn on each pass, whichever window Windows sends WM_PAINT to
-        // (Issue #50, ADR-0025).
+        // (Issue #50, ADR-0025). Nothing is drawn once the exit is decided.
         let mut presented = false;
-        for position in 0..self.windows.len() {
-            presented |= self.try_draw(position, now);
-        }
-        if presented {
-            // Continuous rendering; the Fifo present paces it to the display.
-            event_loop.set_control_flow(ControlFlow::Poll);
-            return;
+        if !exiting {
+            for position in 0..self.windows.len() {
+                presented |= self.try_draw(position, now);
+            }
         }
         // Wake when the grace period ends, so a focus loss during it is
-        // checked even if no further event arrives (ExitPolicy::handle).
-        let mut next = self
+        // checked even if no further event arrives (ExitPolicy::handle); for
+        // the next monitor check, even when no window draws; and for the next
+        // retry or paced frame of a window.
+        let grace_end = self
             .grace_start
             .map(|t| t + ExitPolicy::DEFAULT_GRACE)
             .filter(|&end| end > now);
-        // Wake for the next monitor check, even when no window draws.
-        if let Some(at) = self.next_monitor_check {
-            next = Some(next.map_or(at, |n| n.min(at)));
-        }
-        // Wake for the next retry or paced frame of a window.
-        for w in &self.windows {
-            if let Some(at) = w.retry_at {
-                next = Some(next.map_or(at, |n| n.min(at)));
-            }
-        }
-        event_loop.set_control_flow(next.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
+        let wake_times = grace_end
+            .into_iter()
+            .chain(self.next_monitor_check)
+            .chain(self.windows.iter().filter_map(|w| w.retry_at));
+        // Why `Poll` when exiting: winit waits with this control flow before
+        // it checks for the exit, so `Wait` would hang until a message arrives.
+        event_loop.set_control_flow(match next_flow(exiting, presented, wake_times) {
+            Flow::Poll => ControlFlow::Poll,
+            Flow::WaitUntil(at) => ControlFlow::WaitUntil(at),
+            Flow::Wait => ControlFlow::Wait,
+        });
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {

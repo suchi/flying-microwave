@@ -82,6 +82,7 @@ flowchart TB
 | `crates/app/src/diag.rs` | 診断用のログで、ウィンドウごとの毎フレームの出来事(描こうとしたこと、描画のスキップ)を最初の数回だけ書くための判定と、終了のときに書く回数のまとめ(Issue #50の切り分け)。Windowsに依存しない |
 | `crates/app/src/licenses.rs` | 設定画面のAboutに表示する、依存ライブラリのライセンス表記(`THIRD-PARTY-LICENSES.txt`)の読み込み。Windowsに依存しない |
 | `crates/core/src/monitors.rs` | `/s`の実行中のモニタの一覧の比較(増えた・位置や大きさが変わった・なくなったを求める)と、それに基づくウィンドウの決め方(既知のモニタとウィンドウの対応、描くウィンドウ、閉じるウィンドウ、前面にするウィンドウ)。Windowsに依存しない純粋な関数 |
+| `crates/core/src/frame_loop.rs` | `/s`のイベントループが1回の処理のあとどう待つか(待たない・時刻まで待つ・イベントまで待つ)を決める。終了が決まっていれば待たない(winitがWindowsで、終了を確かめる前にこの待ち方で待つため)。Windowsに依存しない純粋な関数([ADR-0025](../adr/0025-draw-every-window-from-one-place.md)) |
 | `crates/app/build.rs` | Windowsリソース(アイコン、バージョン情報、String Tableの序数1)の埋め込み。バージョン情報は`Cargo.toml`のバージョンから生成する |
 | `crates/smoke/` | `flying-microwave-smoke`。ビルドした実行ファイルを各モードで起動し、起動と終了を確かめるスモークテスト(Windows専用。[計画0003](../plans/0003-v0.1.1-smoke-test.md))。製品には含めない |
 | `crates/app/res/` | リソース定義ファイル(`app.rc`)と、アイコン(`icon.svg`と、そこから作る`flying-microwave.ico`) |
