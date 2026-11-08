@@ -15,7 +15,7 @@
 - v0.1.0は、実機での確認をしないまま出した(計画0001のD-30)。v0.1.1の実機での確認では、複数モニタの項目(手順E)は「環境がある場合」の任意の項目で、項目ごとの結果は受け取っていない(Issue #47)。
 - CIとリリースのワークフローのランナーはモニタが1つで、スモークテストでは2台目を確かめられない。
 
-原因はまだ確定していない(Issue #50)。候補は次のとおり。
+原因は、下の`v0.2.0-alpha.3`のログで確かめた(Issue #50)。それまでの候補は次のとおり。
 
 - 設定の`Primary only`が残っていた。ただし、Phase 0のスパイクには設定の機能がないのに、3回目で2台目が描かなかったので、この候補だけではスパイクの症状を説明できない。
 - 再描画の順番が2台目に回らない(推測)。winit 0.30.13のWindowsの実装(`platform_impl/windows`)では、`request_redraw`は`RedrawWindow(RDW_INTERNALPAINT)`で再描画の印を付け、`RedrawRequested`は`WM_PAINT`の処理の中で送る。`RedrawRequested`を1回送るたびに、メッセージの処理を打ち切る(`dispatch_peeked_messages`の`interrupt_msg_dispatch`)。製品もスパイクも、描画の直後に同じウィンドウの`request_redraw`を呼ぶ。そのため、2つのウィンドウにいつも印が付いた状態になり、どちらの`WM_PAINT`が先に取り出されるかはWindowsに任される。その順番は、Win32の文書では決まっていない(一次情報で確かめていないのは、Windowsが実際に主画面のウィンドウを選び続けるかである)。
@@ -41,6 +41,14 @@
 | window 1のまとめの行がない | そのウィンドウを作れなかった(`window 1: creation failed`の行)、GPUの準備のウォッチドッグで終わった(`GPU initialization timed out`の行。このときはどのウィンドウのまとめも出ない)、パニックで終わった、のどれか。キーで終わらず、window 0のまとめもないなら、`draw`などが戻らずイベントループが止まった可能性がある |
 
 `F frames`は`present`を呼んだ回数で、画面に出たことの証明ではない(wgpuとDX12は、`DXGI_STATUS_OCCLUDED`を成功として扱う)。window 1のframesが1以上なのに見た目で描かれていなければ、その違いを別に調べる。
+
+`v0.2.0-alpha.3`の実機のログ(2026-11-08。2画面、1600x1200と1280x1024、拡大率100%、Intel UHD Graphics 770、DX12)で、原因が分かった。
+
+- 設定は既定値(`monitors: All`)で、2つのウィンドウとも`animate true`、サーフェスの準備もエラーなく終わった。
+- 終了のときのまとめは、`window 0: 232 RedrawRequested received, 232 frames, 0 paced, 0 blank, 0 skipped`と`window 1: 0 RedrawRequested received, 0 frames, 0 paced, 0 blank, 0 skipped`だった(起動からキーで終わるまで約8秒)。`window 1: RedrawRequested received`の行は1行もない。
+- 判定の表の1行目のとおり、`RedrawRequested`が2台目のウィンドウに1回も届いていない。2台目は、描こうとしてスキップしたのではなく、描く機会がなかった。メンテナーの報告(2台目に表示されない)とも合う。
+- 製品は、起動のときにすべてのウィンドウで`request_redraw`を呼び、描いたあとに同じウィンドウの`request_redraw`を呼ぶ(`crates/app/src/saver.rs`)。winit 0.30.13のWindowsの実装は、`RedrawRequested`を`WM_PAINT`の処理の中で送り、1回送るたびにメッセージの処理を打ち切る(`platform_impl/windows/event_loop.rs`)。window 0は描くたびに再描画の印を付け直すため、window 1の`WM_PAINT`が取り出されないまま、window 0の`WM_PAINT`だけが処理され続けた。Windowsが、印の付いた複数のウィンドウのどれの`WM_PAINT`を先に返すかは、Win32の文書に決まりがない(実際にwindow 0が選ばれ続けたことは、このログの事実)。
+- 2画面での描画を、ウィンドウごとの`RedrawRequested`(`WM_PAINT`)の順番に任せた設計が原因である。Phase 0のスパイクも同じ作りだったため、3回目のログで2台目の行がなかった(上の訂正のとおり)。
 
 ## なぜなぜ分析
 
