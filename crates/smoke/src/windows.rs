@@ -387,16 +387,16 @@ fn screensaver_ends_on_input_with(
         // window that drew nothing must not pass.
         let progress = target.progress();
         match progress.summary_of(0) {
-            Some(s) if s.received >= 1 && s.frames >= 1 => {
+            Some(s) if s.attempts >= 1 && s.frames >= 1 => {
                 println!(
-                    "  window 0: {} RedrawRequested received, {} frames",
-                    s.received, s.frames
+                    "  window 0: {} draws attempted, {} frames",
+                    s.attempts, s.frames
                 );
             }
             Some(s) => {
                 return Err(format!(
-                    "window 0 summary: {} RedrawRequested received, {} frames (expected at least 1 each)",
-                    s.received, s.frames
+                    "window 0 summary: {} draws attempted, {} frames (expected at least 1 each)",
+                    s.attempts, s.frames
                 ));
             }
             None => return Err("the log has no summary line for window 0".to_owned()),
