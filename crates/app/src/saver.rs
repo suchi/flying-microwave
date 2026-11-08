@@ -544,7 +544,6 @@ impl SaverApp {
                 if w.target.is_none() {
                     self.attach_target(position);
                 }
-                self.windows[position].window.request_redraw();
             } else {
                 w.target = None;
                 w.retry_at = None;
@@ -603,7 +602,6 @@ impl SaverApp {
         if animate {
             self.attach_target(position);
         }
-        self.windows[position].window.request_redraw();
     }
 
     /// Closes the windows at `positions`, whose monitors are gone.
@@ -713,27 +711,51 @@ impl SaverApp {
         }
     }
 
-    fn redraw(&mut self, index: usize) {
+    /// Paints a window that has nothing to draw (no GPU, or it does not
+    /// animate) black again. Only `RedrawRequested` calls this.
+    fn repaint_black(&mut self, index: usize) {
         let w = &mut self.windows[index];
-        let received = w.stats.received();
-        if diag::first_few(received) {
-            log!("window {}: RedrawRequested received (#{received})", w.index);
-        }
-        let (Some(target), Some(gpu)) = (w.target.as_mut(), self.gpu.as_ref()) else {
-            // No GPU for this window, or it does not animate: keep it black,
-            // no further redraws.
-            w.stats.blank();
-            if let Some(hwnd) = win::hwnd_of(&w.window) {
-                win::fill_black(hwnd);
-            }
+        // Why `RedrawRequested` is used only here: with several windows,
+        // winit 0.30.13 on Windows delivers it for one window only (Issue #50,
+        // ADR-0025). Windows that draw are driven by `about_to_wait`.
+        if w.target.is_some() && self.gpu.is_some() {
             return;
+        }
+        let attempts = w.stats.attempted();
+        if diag::first_few(attempts) {
+            log!("window {}: draw attempted (#{attempts})", w.index);
+        }
+        w.stats.blank();
+        if let Some(hwnd) = win::hwnd_of(&w.window) {
+            win::fill_black(hwnd);
+        }
+    }
+
+    /// Tries to draw the window at `position` (ADR-0025). Returns whether a
+    /// frame was presented. A window with no target is not drawn here.
+    fn try_draw(&mut self, position: usize, now: Instant) -> bool {
+        let w = &mut self.windows[position];
+        let (Some(target), Some(gpu)) = (w.target.as_mut(), self.gpu.as_ref()) else {
+            return false;
         };
-        let now = Instant::now();
-        // display.max_fps: skip this frame and draw at the given time.
-        if let Pace::WaitUntil(at) = w.pacer.poll(now - self.epoch) {
+        if !w.animate {
+            return false;
+        }
+        // Not yet time (paced or retrying): it is counted when it is tried.
+        if w.retry_at.is_some_and(|at| at > now) {
+            return false;
+        }
+        w.retry_at = None;
+        // display.max_fps: skip this frame and try again at the given time.
+        let pace = w.pacer.poll(now - self.epoch);
+        let attempts = w.stats.attempted();
+        if diag::first_few(attempts) {
+            log!("window {}: draw attempted (#{attempts})", w.index);
+        }
+        if let Pace::WaitUntil(at) = pace {
             w.stats.paced();
             w.retry_at = Some(self.epoch + at);
-            return;
+            return false;
         }
         if let Some(last) = w.last_frame {
             w.world.advance(now - last);
@@ -745,6 +767,7 @@ impl SaverApp {
                 log!("window {}: frame skipped: {skip:?}", w.index);
             }
             w.retry_at = Some(now + RETRY_DELAY);
+            false
         } else {
             w.stats.drawn();
             // N-01 (first animation frame within 1 s) is measured from this line.
@@ -752,8 +775,7 @@ impl SaverApp {
                 w.presented = true;
                 log!("window {}: first frame presented", w.index);
             }
-            // Continuous rendering; the Fifo present paces it to the display.
-            w.window.request_redraw();
+            true
         }
     }
 }
@@ -777,9 +799,6 @@ impl ApplicationHandler for SaverApp {
         // and the GPU were being set up are delivered inside it.
         self.grace_start = Some(Instant::now());
         self.next_monitor_check = Some(Instant::now() + MONITOR_CHECK_INTERVAL);
-        for w in &self.windows {
-            w.window.request_redraw();
-        }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
@@ -843,7 +862,7 @@ impl ApplicationHandler for SaverApp {
                 None
             }
             WindowEvent::RedrawRequested => {
-                self.redraw(index);
+                self.repaint_black(index);
                 None
             }
             _ => None,
@@ -862,7 +881,23 @@ impl ApplicationHandler for SaverApp {
             self.check_monitors(event_loop);
             self.next_monitor_check = Some(Instant::now() + MONITOR_CHECK_INTERVAL);
         }
+        if self.exit_reason.is_some() {
+            event_loop.set_control_flow(ControlFlow::Wait);
+            return;
+        }
         let now = Instant::now();
+        // Why here and not in `RedrawRequested`: every window that is due is
+        // drawn on each pass, whichever window Windows sends WM_PAINT to
+        // (Issue #50, ADR-0025).
+        let mut presented = false;
+        for position in 0..self.windows.len() {
+            presented |= self.try_draw(position, now);
+        }
+        if presented {
+            // Continuous rendering; the Fifo present paces it to the display.
+            event_loop.set_control_flow(ControlFlow::Poll);
+            return;
+        }
         // Wake when the grace period ends, so a focus loss during it is
         // checked even if no further event arrives (ExitPolicy::handle).
         let mut next = self
@@ -873,14 +908,10 @@ impl ApplicationHandler for SaverApp {
         if let Some(at) = self.next_monitor_check {
             next = Some(next.map_or(at, |n| n.min(at)));
         }
-        for w in &mut self.windows {
+        // Wake for the next retry or paced frame of a window.
+        for w in &self.windows {
             if let Some(at) = w.retry_at {
-                if at <= now {
-                    w.retry_at = None;
-                    w.window.request_redraw();
-                } else {
-                    next = Some(next.map_or(at, |n| n.min(at)));
-                }
+                next = Some(next.map_or(at, |n| n.min(at)));
             }
         }
         event_loop.set_control_flow(next.map_or(ControlFlow::Wait, ControlFlow::WaitUntil));
