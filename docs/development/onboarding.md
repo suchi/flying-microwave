@@ -1,6 +1,6 @@
 # 開発参加者向けオンボーディング
 
-- ステータス: 2026-11-04時点。v0.1.1をリリースし(実機での確認の項目ごとの記録と商標の確認は、Issue #47に残っている。計画のD-33)、Phase 2の試作版`v0.2.0-alpha.1`(電子レンジの絵と設定画面)を公開している(2画面での表示の件はIssue #50)。実態が変わったら更新する
+- ステータス: 2026-11-09時点。v0.1.1をリリースし(実機での確認の項目ごとの記録と商標の確認は、Issue #47に残っている。計画のD-33)、Phase 2の試作版を`v0.2.0-alpha.4`まで公開している(2画面で2台目に描かれない件はIssue #50で、直して2画面の実機で確かめた。計画0004のD-14)。実態が変わったら更新する
 - 対象: 後から参加する開発者(人間・AIエージェント)
 - 関連: [README](../../README.md)、[AGENTS.md](../../AGENTS.md)、[ドキュメント一覧](../README.md)
 
@@ -29,7 +29,7 @@ Flying Microwaveは、電子レンジが画面を飛ぶWindowsスクリーンセ
 現在の状況:
 
 - 実装計画: 合意済み。[0001: 初期実装計画](../plans/0001-initial-implementation-plan.md)に従って進める
-- 次の作業: Phase 2(設定画面、v0.2.0。[計画0004](../plans/0004-v0.2.0-settings.md))。試作版`v0.2.0-alpha.1`を先に出し(計画0004のD-6)、そのあとで用語の点検(Issue #28)、仮の扱いにしたこと(E-1〜E-6)の正式な決定などを行う。v0.1.1の実機での確認の記録と商標の確認(Issue #47)は、v0.2.0のリリースの前に済ませる
+- 次の作業: Phase 2(設定画面、v0.2.0。[計画0004](../plans/0004-v0.2.0-settings.md))。試作版を先に出し(計画0004のD-6)、`v0.2.0-alpha.4`まで公開した。仮の扱いにしたこと(E-1〜E-6)は決定済みで([ADR-0024](../adr/0024-settings-file-location-and-handling.md)、計画0004のD-12)、用語の点検(Issue #28)は済んだ(PR #51)。2画面の描画は直して実機で確かめた(D-14)。`spikes/`は削除した。次は、v0.2.0の実機での確認と、正式なリリースである。v0.1.1の実機での確認の記録と商標の確認(Issue #47)は、v0.2.0のリリースの前に済ませる
 - コード: `/s`の全画面と`/p`のプレビュー枠で、SVGで描いた立体的な電子レンジが、ドアを羽ばたかせて飛ぶ。`/c`などで設定画面が開き、設定は`/s`と`/p`に反映される(`crates/core`と`crates/app`。スモークテストは`crates/smoke`)
 - ライセンス: MIT([LICENSE](../../LICENSE)、[ADR-0005](../adr/0005-license-mit.md))
 - リリース: 基本機能から段階的に実装し、フェーズごとにセマンティックバージョニングでGitHub Releaseを公開する。最初のリリースはv0.1.0(Phase 1)
@@ -218,7 +218,7 @@ python3 -I scripts/check_hooks.py
 引数ごとの動作:
 
 - `flying-microwave.exe /s`: スクリーンセーバーとして、すべてのモニタを覆って動く。キーの押下、マウスのボタンやホイール、タッチ、マウスを16ピクセル以上動かしたとき、ほかのウィンドウが前面に出たときに終了する。起動直後の0.5秒間のマウスの動きは無視する。
-- `flying-microwave.exe /c`: 設定画面(eframe)を表示する。前面のウィンドウをオーナーにして、閉じるまで無効にする(`/c:<番号>`では、その番号のウィンドウ)。`.scr`を引数なしで起動したときは、オーナーなしで表示する。設定は`%APPDATA%\FlyingMicrowave\config.toml`に保存する。ローカルで動作を確認するときに本当の設定を書き換えないよう、環境変数`FLYING_MICROWAVE_CONFIG_DIR`に、ドライブ文字で始まる絶対パスのフォルダを指定すると、その下の`config.toml`を使う。それ以外の値(相対パス、UNCのパスなど)を指定したときは、本当の設定ファイルを使わずにエラーにする(読み込みでは既定値で動き、保存では画面にエラーを示す。試作版の仮の扱い。計画0004のD-6のE-1、D-10)。設定画面を開けないときは、メッセージボックスを表示して終了コード7で終わる。
+- `flying-microwave.exe /c`: 設定画面(eframe)を表示する。前面のウィンドウをオーナーにして、閉じるまで無効にする(`/c:<番号>`では、その番号のウィンドウ)。`.scr`を引数なしで起動したときは、オーナーなしで表示する。設定は`%APPDATA%\FlyingMicrowave\config.toml`に保存する。ローカルで動作を確認するときに本当の設定を書き換えないよう、環境変数`FLYING_MICROWAVE_CONFIG_DIR`に、ドライブ文字で始まる絶対パスのフォルダを指定すると、その下の`config.toml`を使う。それ以外の値(相対パス、UNCのパスなど)を指定したときは、本当の設定ファイルを使わずにエラーにする(読み込みでは既定値で動き、保存では画面にエラーを示す。[ADR-0024](../adr/0024-settings-file-location-and-handling.md)のE-1)。設定画面を開けないときは、メッセージボックスを表示して終了コード7で終わる。
 - `flying-microwave.exe /p <ウィンドウの番号>`: 指定したウィンドウのクライアント領域に子ウィンドウを作り、プレビューを表示する。入力は無視し、親のウィンドウが閉じられたとき(500ミリ秒ごとに確かめる)か、自分のウィンドウが閉じられたときに終了する。ウィンドウの番号はスクリーンセーバーの設定画面が渡すので、通常はスクリーンセーバーの設定画面のプレビュー枠で確かめる(5.1の手順4)。番号が有効なウィンドウでないときは、何も表示せず終了コード2で終わる。番号がないか数字でないときは、オーナーなしの設定画面になる。
 - `/s`がすでに実行されている間に起動すると、何も表示せずにすぐ終わる(単一起動。N-15)。
 - 認識できない最初の引数: オーナーなしの設定画面になる。
@@ -235,7 +235,7 @@ python3 -I scripts/check_hooks.py
   Get-Content $env:TEMP\flying-microwave.log -Tail 50
   ```
 
-- panic: panicのメッセージは標準エラー出力に出るため、見えず、ログにも残らない(panicのフックをまだ設定していない。Rustの[`std::panic::set_hook`](https://doc.rust-lang.org/std/panic/fn.set_hook.html)で、ログに書くようにできる)。GPUの初期化の中のpanicは捕まえて、panicが起きたことだけをログに書く(`/s`では`GPU initialization failed: GPU initialization panicked`、`/p`では`preview: setup failed: GPU initialization panicked`。`render.rs`の`guarded`)。panicのメッセージと場所は残らない。初期化の外でpanicが起きると、プロセスが終わる。
+- panic: 設定画面のプロセスは、panicのフックを設定し(`crates/app/src/settings.rs`。Rustの[`std::panic::set_hook`](https://doc.rust-lang.org/std/panic/fn.set_hook.html))、`panic:`で始まる行(メッセージと場所)をログに書く。`/s`と`/p`にはフックがなく、panicのメッセージは標準エラー出力に出るため、見えず、ログにも残らない。GPUの初期化の中のpanicは捕まえて、panicが起きたことだけをログに書く(`/s`では`GPU initialization failed: GPU initialization panicked`、`/p`では`preview: setup failed: GPU initialization panicked`。`render.rs`の`guarded`)。この場合、`/s`と`/p`ではpanicのメッセージと場所は残らない。初期化の外でpanicが起きると、プロセスが終わる。
 - デバッグのビルド: `--release`を付けずにビルドする。実行ファイルは`target\x86_64-pc-windows-msvc\debug\flying-microwave.exe`にできる。
 
   ```powershell
