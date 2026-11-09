@@ -28,24 +28,40 @@ pub struct Progress {
 }
 
 /// The counts of one window from its summary line
-/// (`window N: R RedrawRequested received, F frames, ...`).
+/// (`window N: A draws attempted, F frames, P paced, B blank, S skipped ...`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WindowSummary {
     pub window: u32,
-    pub received: u64,
+    pub attempts: u64,
     pub frames: u64,
+    pub paced: u64,
+    pub blank: u64,
+    pub skipped: u64,
+}
+
+impl WindowSummary {
+    /// Whether every attempt is accounted for by exactly one outcome.
+    pub fn is_consistent(&self) -> bool {
+        self.attempts == self.frames + self.paced + self.blank + self.skipped
+    }
 }
 
 impl WindowSummary {
     fn parse(message: &str) -> Option<Self> {
         let rest = message.strip_prefix("window ")?;
         let (window, rest) = rest.split_once(": ")?;
-        let (received, rest) = rest.split_once(" RedrawRequested received, ")?;
-        let (frames, _) = rest.split_once(" frames, ")?;
+        let (attempts, rest) = rest.split_once(" draws attempted, ")?;
+        let (frames, rest) = rest.split_once(" frames, ")?;
+        let (paced, rest) = rest.split_once(" paced, ")?;
+        let (blank, rest) = rest.split_once(" blank, ")?;
+        let (skipped, _) = rest.split_once(" skipped")?;
         Some(Self {
             window: window.parse().ok()?,
-            received: received.parse().ok()?,
+            attempts: attempts.parse().ok()?,
             frames: frames.parse().ok()?,
+            paced: paced.parse().ok()?,
+            blank: blank.parse().ok()?,
+            skipped: skipped.parse().ok()?,
         })
     }
 }
@@ -348,19 +364,23 @@ mod tests {
     #[test]
     fn the_summary_line_gives_the_counts_of_each_window() {
         let log = "\
-+900ms pid=1 window 0: 12 RedrawRequested received, 10 frames, 1 paced, 0 blank, 1 skipped (Outdated 1, Lost 0, Timeout 0, Occluded 0, Validation 0)
-+901ms pid=1 window 1: 0 RedrawRequested received, 0 frames, 0 paced, 0 blank, 0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0)
-+902ms pid=2 window 0: 99 RedrawRequested received, 99 frames, 0 paced, 0 blank, 0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0)
++900ms pid=1 window 0: 12 draws attempted, 10 frames, 1 paced, 0 blank, 1 skipped (Outdated 1, Lost 0, Timeout 0, Occluded 0, Validation 0)
++901ms pid=1 window 1: 0 draws attempted, 0 frames, 0 paced, 0 blank, 0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0)
++902ms pid=2 window 0: 99 draws attempted, 99 frames, 0 paced, 0 blank, 0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0)
 ";
         let p = Progress::read(log, 1);
         assert_eq!(
             p.summary_of(0),
             Some(&WindowSummary {
                 window: 0,
-                received: 12,
-                frames: 10
+                attempts: 12,
+                frames: 10,
+                paced: 1,
+                blank: 0,
+                skipped: 1
             })
         );
+        assert!(p.summary_of(0).is_some_and(WindowSummary::is_consistent));
         assert_eq!(p.summary_of(1).map(|s| s.frames), Some(0));
         assert_eq!(p.summary_of(2), None);
         assert_eq!(Progress::read(log, 3).summary_of(0), None);
@@ -370,7 +390,7 @@ mod tests {
     fn other_window_lines_are_not_summaries() {
         let log = "\
 +1ms pid=1 window 0: first frame presented
-+2ms pid=1 window 0: RedrawRequested received (#1)
++2ms pid=1 window 0: draw attempted (#1)
 +3ms pid=1 window 0: frame skipped: Occluded
 +4ms pid=1 window 0: closed, its monitor is gone
 ";

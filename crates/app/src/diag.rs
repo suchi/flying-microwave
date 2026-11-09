@@ -22,7 +22,7 @@ pub enum Skip {
 /// Counts of one window, for the summary line in the log (issue #50).
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct FrameStats {
-    received: u64,
+    attempts: u64,
     frames: u64,
     paced: u64,
     blank: u64,
@@ -34,10 +34,11 @@ pub struct FrameStats {
 }
 
 impl FrameStats {
-    /// Records a `RedrawRequested` event. Returns how many have been received.
-    pub fn received(&mut self) -> u64 {
-        self.received += 1;
-        self.received
+    /// Records an attempt to draw. Returns how many have been made. Every
+    /// attempt ends as exactly one of drawn, paced, blank or skipped.
+    pub fn attempted(&mut self) -> u64 {
+        self.attempts += 1;
+        self.attempts
     }
 
     /// Records a drawn frame.
@@ -50,7 +51,7 @@ impl FrameStats {
         self.paced += 1;
     }
 
-    /// Records a redraw that left the window black (no target or no GPU).
+    /// Records an attempt that left the window black (no target or no GPU).
     pub fn blank(&mut self) {
         self.blank += 1;
     }
@@ -76,9 +77,9 @@ impl FrameStats {
     /// The summary line of window `index`, written when it ends.
     pub fn summary(&self, index: usize) -> String {
         format!(
-            "window {index}: {} RedrawRequested received, {} frames, {} paced, {} blank, \
+            "window {index}: {} draws attempted, {} frames, {} paced, {} blank, \
              {} skipped (Outdated {}, Lost {}, Timeout {}, Occluded {}, Validation {})",
-            self.received,
+            self.attempts,
             self.frames,
             self.paced,
             self.blank,
@@ -119,7 +120,7 @@ mod tests {
     fn a_new_window_has_an_all_zero_summary() {
         assert_eq!(
             FrameStats::default().summary(2),
-            "window 2: 0 RedrawRequested received, 0 frames, 0 paced, 0 blank, \
+            "window 2: 0 draws attempted, 0 frames, 0 paced, 0 blank, \
              0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0)"
         );
     }
@@ -128,7 +129,7 @@ mod tests {
     fn the_summary_lists_every_count() {
         let mut s = FrameStats::default();
         for _ in 0..9 {
-            s.received();
+            s.attempted();
         }
         s.drawn();
         s.drawn();
@@ -141,16 +142,16 @@ mod tests {
         s.skipped(Skip::Validation);
         assert_eq!(
             s.summary(0),
-            "window 0: 9 RedrawRequested received, 2 frames, 1 paced, 2 blank, \
+            "window 0: 9 draws attempted, 2 frames, 1 paced, 2 blank, \
              4 skipped (Outdated 1, Lost 0, Timeout 0, Occluded 2, Validation 1)"
         );
     }
 
     #[test]
-    fn received_returns_its_running_count() {
+    fn attempted_returns_its_running_count() {
         let mut s = FrameStats::default();
-        assert_eq!(s.received(), 1);
-        assert_eq!(s.received(), 2);
+        assert_eq!(s.attempted(), 1);
+        assert_eq!(s.attempted(), 2);
     }
 
     #[test]
