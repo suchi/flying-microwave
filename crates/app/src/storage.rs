@@ -16,7 +16,7 @@ use flying_microwave_core::config::{Loaded, MAX_FILE_BYTES, Source};
 
 /// Environment variable that moves the settings file to another folder.
 ///
-/// Why: provisional for v0.2.0-alpha (plan 0004, E-1). Tests (the smoke
+/// Why: decided in ADR-0024 (E-1). Tests (the smoke
 /// test, local runs) use it so that they never touch the user's own file.
 /// An empty value counts as not set. Any other value must be an absolute
 /// path (on Windows, one that starts with a drive letter); when it is not,
@@ -40,7 +40,7 @@ pub struct Location {
 /// On Windows only a drive path (`C:\...` or `\\?\C:\...`) counts: a UNC path would make the
 /// screensaver use the network (SEC-5), and a device path (`\\.\pipe\...`)
 /// could block a read (review L-4).
-// Why: provisional for v0.2.0-alpha (plan 0004, E-1).
+// Why: decided in ADR-0024 (E-1).
 fn is_local_absolute(dir: &Path) -> bool {
     if !dir.is_absolute() {
         return false;
@@ -164,7 +164,7 @@ impl Startup {
         let location = location();
         let loaded = match &location {
             Ok(location) => read(&location.path),
-            // Why: provisional for v0.2.0-alpha (plan 0004, E-6): without a
+            // Why: decided in ADR-0024 (E-6): without a
             // location, the defaults are used.
             Err(reason) => Loaded::unreadable(format!("no location: {reason}")),
         };
@@ -217,7 +217,7 @@ pub fn second_ok_confirms(since_warning: Duration) -> bool {
 /// would silently replace a file the user may want to keep (one with a typo,
 /// or one on a share that is unreachable for a moment). A newer file loses
 /// the items this version does not know (plan 0004, F-08).
-// Why: provisional for v0.2.0-alpha (plan 0004, E-3): warn, then save on
+// Why: decided in ADR-0024 (E-3): warn, then save on
 // the second OK.
 pub fn overwrite_warning(source: &Source, newer_schema: Option<i64>) -> Option<String> {
     let reason = match source {

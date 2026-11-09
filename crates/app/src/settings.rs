@@ -128,7 +128,7 @@ pub fn run(owner: Owner) -> i32 {
         }
         Err(e) => {
             log!("settings: the window could not be opened: {e}");
-            // Why: provisional for v0.2.0-alpha (plan 0004, E-4). The settings
+            // Why: decided in ADR-0024 (E-4). The settings
             // mode is interactive, so a message box is fine here.
             win::error_box(&open_failure_text(&location), "Flying Microwave");
             EXIT_WINDOW_FAILED
@@ -247,7 +247,7 @@ fn wgpu_configuration() -> eframe::egui_wgpu::WgpuConfiguration {
 
 /// Loads a system font, as egui's bundled fonts are not used.
 ///
-/// Why: provisional for v0.2.0-alpha (plan 0004, E-5): Segoe UI, then Arial,
+/// Why: decided in ADR-0024 (E-5): Segoe UI, then Arial,
 /// from the fonts folder. Without either, text shows as boxes.
 fn install_fonts(ctx: &egui::Context) {
     let folder = win::fonts_folder().unwrap_or_else(|| PathBuf::from(r"C:\Windows\Fonts"));
@@ -381,7 +381,7 @@ impl SettingsApp {
     }
 
     fn ok(&mut self, ctx: &egui::Context) {
-        // Why: provisional for v0.2.0-alpha (plan 0004, E-3): the first OK
+        // Why: decided in ADR-0024 (E-3): the first OK
         // on a newer or unreadable file only shows the warning; the second
         // one saves.
         if self.overwrite_warning.is_some() {
@@ -404,7 +404,7 @@ impl SettingsApp {
                     )
                 })
             }
-            // Why: provisional for v0.2.0-alpha (plan 0004, E-6).
+            // Why: decided in ADR-0024 (E-6).
             Err(reason) => Err(format!("Could not save the settings: {reason}.")),
         };
         match result {
