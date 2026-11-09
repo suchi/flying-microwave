@@ -1,4 +1,4 @@
-//! The microwave sprite (ADR-0008): where the body and the flapping door are
+//! The microwave sprite (ADR-0023): where the body and the flapping door are
 //! drawn, how their textures are packed into one atlas and, on Windows,
 //! rasterizing the SVG assets with resvg.
 //!

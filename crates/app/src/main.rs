@@ -80,7 +80,7 @@ fn run(mode: Mode) -> i32 {
 
 #[cfg(not(windows))]
 fn run(mode: Mode) -> i32 {
-    // The screensaver is Windows only (ADR-0016); this build exists so the
+    // The screensaver is Windows only (ADR-0022); this build exists so the
     // workspace can be checked and tested on Linux.
     eprintln!("{mode:?}: Flying Microwave runs on Windows only");
     0

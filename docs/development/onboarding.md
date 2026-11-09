@@ -286,7 +286,7 @@ python3 -I scripts/check_hooks.py
 
 アイコンは仮のもので、Phase 3で本番の絵にする。元の絵は`crates/app/res/icon.svg`で、実行ファイルに入るのは、そこから作る`crates/app/res/flying-microwave.ico`である。SVGを変えたら、次のコマンドで`.ico`を作り直し、両方をコミットする。
 
-- 前提: Python 3(標準ライブラリだけを使う)と、SVGを描画するresvgのコマンド。resvgは版を0.49.0に固定する([ADR-0008](../adr/0008-svg-assets-with-resvg.md)と同じ描画の道具)。`--locked`で、crateに同梱されたロックファイルの版を使う。版を変えるときは、`.crate`を展開してそのロックファイルを取り出し、resvg自身の版と一緒に、公開からの日数の検査にかける(ロックファイルの検査は、ルートのパッケージであるresvg自身を含まないため、`--crate`で加える)。通らない版は使わない。
+- 前提: Python 3(標準ライブラリだけを使う)と、SVGを描画するresvgのコマンド。resvgは版を0.49.0に固定する([ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md)と同じ描画の道具)。`--locked`で、crateに同梱されたロックファイルの版を使う。版を変えるときは、`.crate`を展開してそのロックファイルを取り出し、resvg自身の版と一緒に、公開からの日数の検査にかける(ロックファイルの検査は、ルートのパッケージであるresvg自身を含まないため、`--crate`で加える)。通らない版は使わない。
 
   ```sh
   python3 -I scripts/check_publish_age.py --crate resvg@<版> <展開したフォルダ>/Cargo.lock

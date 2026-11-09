@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 flying-microwave-core = { path = "../core" }
 
-# The screensaver itself is Windows only (ADR-0016). On other hosts the
+# The screensaver itself is Windows only (ADR-0022). On other hosts the
 # binary builds without these, so the workspace can be checked on Linux.
 [target.'cfg(windows)'.dependencies]
 # Why: exact pins, because 0.x crates can break on minor updates. The versions
@@ -23,7 +23,7 @@ winit = { version = "=0.30.13", default-features = false, features = ["rwh_06"] 
 # of the sprite shader (it adds no crate to Cargo.lock).
 wgpu = { version = "=30.0.1", default-features = false, features = ["std", "parking_lot", "dx12", "wgsl"] }
 pollster = "=1.0.1"
-# Why: the sprites are SVG files rasterized at startup (ADR-0008). Default
+# Why: the sprites are SVG files rasterized at startup (ADR-0023). Default
 # features are off: the sprites use no text and no embedded images, so the
 # font database and the image decoders are left out.
 resvg = { version = "=0.49.0", default-features = false }
