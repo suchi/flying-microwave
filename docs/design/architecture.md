@@ -19,7 +19,7 @@
 
 ## 構成要素
 
-次の図は、目標とする構成である。v0.2.0の試作版の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`licenses.rs`、`win.rs`、`log.rs`と、coreの`config.rs`、`pacing.rs`、`monitors.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
+次の図は、目標とする構成である。v0.2.0の試作版の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`licenses.rs`、`win.rs`、`log.rs`、`diag.rs`と、coreの`config.rs`、`exit_policy.rs`、`frame_loop.rs`、`pacing.rs`、`monitors.rs`、`rng.rs`、`sim.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
 
 ```mermaid
 flowchart TB
@@ -188,7 +188,7 @@ Phase 1の暫定値(設定画面がまだないため既定値で実行する。
 - スプライトはインスタンス描画で一括して描く(四角形1種類 + インスタンスごとのアフィン変換とUV。WGSLのシェーダー`crates/app/src/sprite.wgsl`、乗算済みのアルファで合成)。飛行物体ごとに、本体、ドアの順に描く。ドアは、左のヒンジを固定した平行四辺形に変形して開閉させる(0°〜70°)。本体は-8°傾ける。描画の準備に失敗したときは、ログに書いて背景だけを描き続ける。
 - 奥行き(depth)の順に並べて描き、奥のものほど小さく遅くすることで立体感を出す(Phase 3)。
 - フレームレートは垂直同期を基本とし、設定の上限値で間引く。
-- GPUアダプタは省電力を優先して選ぶ(ハイブリッドGPU環境で外部GPUを省電力の状態から復帰させないため)。GPUが使えない場合は、wgpuがDX12のWARP(ソフトウェアの描画)を選ぶ想定である。実機での確認はスパイクS6(Phase 1の段階3。計画のD-22)で行う。
+- GPUアダプタは省電力を優先して選ぶ(ハイブリッドGPU環境で外部GPUを省電力の状態から復帰させないため)。GPUが使えない場合は、wgpuがDX12のWARP(ソフトウェアの描画)を選ぶ想定である。CIのGPUのないランナーでは、製品がWARPを自動で選んで描画できた(スパイクS6の結果は[spike-results.md](../research/spike-results.md)。実機のWindows Sandboxでの確認は、まだ受け取っていない)。
 - ディスプレイの電源が切れている間は描画を止める(電源設定の通知でディスプレイの状態を受け取る。Phase 3まで)。
 
 ## 入力と終了判定
@@ -247,8 +247,8 @@ Phase 1の暫定の扱い(スパイクS4と実機の結果で見直す):
   - `display.monitors = "primary"`のとき: 変更のたびに、主モニタのウィンドウで描くように決め直す。主モニタにウィンドウがなければ、最初のウィンドウで描く(どこかで必ず描くため)。描かなくなったウィンドウは描画先を捨てて黒にする。
   - モニタの領域は、winitの`MonitorHandle::size()`(内部で`unwrap`するため、なくなった直後のモニタでpanicしうる)を使わず、Win32の`GetMonitorInfoW`で求める(`win.rs`の`monitor_area`)。求められなかったモニタは、その回の一覧から外す。
   - 描き方: `/s`の描画は、ウィンドウごとの`request_redraw`と`RedrawRequested`ではなく、`about_to_wait`の1か所で、描く時期が来たすべてのウィンドウを順に描く([ADR-0025](../adr/0025-draw-every-window-from-one-place.md))。winit 0.30.13のWindowsは`RedrawRequested`を`WM_PAINT`で送り、1回ごとに処理を打ち切るため、1台目だけに届き続けて2台目に描かれなかった(Issue #50)。描けたウィンドウが1つでもあれば`ControlFlow::Poll`、なければ猶予の終わり・モニタの確認・各ウィンドウの再試行や間引きの時刻の最小まで`WaitUntil`で待つ。`RedrawRequested`は、描画先のないウィンドウを黒く塗り直すことにだけ使う。プレビュー(`/p`)はウィンドウが1つなので、`RedrawRequested`で描く。
-  - 実機での確認(モニタの抜き差し)は、まだしていない。2画面で2台目に描かれない不具合(Issue #50)は、この対応とは別の問題で、上の描き方に変えて直した。2画面の実機では未確認([incidents 0014](../incidents/0014-second-monitor-not-drawn.md))。
-- DPIの異なるモニタが混在しても論理座標で同じ見た目になる。winit 0.30.13はWindowsでイベントループの生成時にモニタごとのDPI対応(`DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2`)を設定する(ソースで確認)。実機での見え方はスパイクS4で確認する。
+  - 実機での確認(モニタの抜き差し)は、まだしていない。2画面で2台目に描かれない不具合(Issue #50)は、この対応とは別の問題で、上の描き方に変えて直した。2026-11-09に、`v0.2.0-alpha.4`で、2画面の実機で両方のモニタに描かれることを確かめた([incidents 0014](../incidents/0014-second-monitor-not-drawn.md))。リフレッシュレートの違うモニタの組み合わせは、環境がなく、まだ確かめていない。
+- DPIの異なるモニタが混在しても論理座標で同じ見た目になる。winit 0.30.13はWindowsでイベントループの生成時にモニタごとのDPI対応(`DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2`)を設定する(ソースで確認)。スパイクS4では、拡大率の違うモニタの組み合わせを試していない([spike-results.md](../research/spike-results.md))。製品での見え方は、計画の8.2の手動テスト(項目20)で確かめる(未確認)。
 - モニタをまたいで電子レンジが飛ぶ演出は将来のアイデアとする([将来のオプションのアイデア](../ideas/future-options.md))。
 
 ## 設定の保存
