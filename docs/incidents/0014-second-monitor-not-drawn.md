@@ -1,7 +1,7 @@
 # 0014: 2台目のモニタに電子レンジが描かれないまま、リリースした
 
 - 日付: 2026-11-04
-- ステータス: 対策中(原因は確定した。現象の修正と真因への対策のPRが、まだマージされていない。修正は2画面の実機で未確認)
+- ステータス: 対策済み(修正はPR #56でマージし、2026-11-09に`v0.2.0-alpha.4`で、2画面の実機で確かめた。真因への対策の規則は、AGENTS.mdにマージ済み)
 - 関連: Issue #50、[スパイクの結果](../research/spike-results.md)のS4と3回目、[計画0001](../plans/0001-initial-implementation-plan.md)のF-01と8.2の6、[v0.1.1の手順書](../development/hardware-check-v0.1.1.md)のE、[計画0004](../plans/0004-v0.2.0-settings.md)のD-11
 
 ## 起きたこと
@@ -49,6 +49,13 @@
 - 判定の表の1行目のとおり、`RedrawRequested`が2台目のウィンドウに1回も届いていない。2台目は、描こうとしてスキップしたのではなく、描く機会がなかった。メンテナーの報告(2台目に表示されない)とも合う。
 - 製品は、起動のときにすべてのウィンドウで`request_redraw`を呼び、描いたあとに同じウィンドウの`request_redraw`を呼ぶ(`crates/app/src/saver.rs`)。winit 0.30.13のWindowsの実装は、`RedrawRequested`を`WM_PAINT`の処理の中で送り、1回送るたびにメッセージの処理を打ち切る(`platform_impl/windows/event_loop.rs`)。window 0は描くたびに再描画の印を付け直すため、window 1の`WM_PAINT`が取り出されないまま、window 0の`WM_PAINT`だけが処理され続けた。Windowsが、印の付いた複数のウィンドウのどれの`WM_PAINT`を先に返すかは、Win32の文書に決まりがない(実際にwindow 0が選ばれ続けたことは、このログの事実)。
 - 2画面での描画を、ウィンドウごとの`RedrawRequested`(`WM_PAINT`)の順番に任せた設計が原因である。Phase 0のスパイクも同じ作りだったため、3回目のログで2台目の行がなかった(上の訂正のとおり)。
+
+`v0.2.0-alpha.4`(ADR-0025の修正を入れた版)の実機のログ(2026-11-09。2画面、1600x1200と1280x1024、拡大率100%、NVIDIA GeForce RTX 5060 Ti、DX12)で、直ったことを確かめた。
+
+- メンテナーは、2画面の両方に電子レンジが表示されたと報告した。
+- `window 0: first frame presented`と`window 1: first frame presented`の行が、起動から約0.37秒で出た。
+- 終了のときのまとめは、`window 0: 531 draws attempted, 531 frames, 0 paced, 0 blank, 0 skipped`と`window 1: 531 draws attempted, 531 frames, 0 paced, 0 blank, 0 skipped`だった(起動からキーで終わるまで約16.9秒)。2つのウィンドウが同じ回数ずつ描いている。
+- 2つのモニタは、どちらもリフレッシュレートが同じ値(ログでは32000 mHz)だった。リフレッシュレートの違うモニタでのコマ数(ADR-0025の結果)は、この環境では確かめられなかった。
 
 ## なぜなぜ分析
 
