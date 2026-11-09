@@ -100,3 +100,4 @@
 | [0016](incidents/0016-tag-before-merge.md) | 試作版のタグが、マージの前のコミットに付いた |
 | [0017](incidents/0017-gitignore-entry-removed-with-spikes.md) | spikesの削除で、.gitignoreのビルドの生成物のエントリも消した |
 | [0018](incidents/0018-english-progress-note-again.md) | 0015の対策のあとも、合間の報告を英語で書いた |
+| [0019](incidents/0019-hooks-miss-crlf-from-native-jq.md) | Windowsのネイティブのjqでは、設定の保護のフックが確認を求めないおそれがある |

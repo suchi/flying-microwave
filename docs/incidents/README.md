@@ -48,3 +48,4 @@
 | [0016](0016-tag-before-merge.md) | 試作版のタグが、マージの前のコミットに付いた | 2026-11-09 |
 | [0017](0017-gitignore-entry-removed-with-spikes.md) | spikesの削除で、.gitignoreのビルドの生成物のエントリも消した | 2026-11-09 |
 | [0018](0018-english-progress-note-again.md) | 0015の対策のあとも、合間の報告を英語で書いた | 2026-11-09 |
+| [0019](0019-hooks-miss-crlf-from-native-jq.md) | Windowsのネイティブのjqでは、設定の保護のフックが確認を求めないおそれがある | 2026-11-10 |
