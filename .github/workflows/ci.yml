@@ -61,7 +61,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$tool.crate" -C "$RUNNER_TEMP" "$tool/Cargo.lock"
           python3 -I scripts/check_publish_age.py \
             --crate "cargo-about@${CARGO_ABOUT_VERSION}" \
-            Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock \
+            Cargo.lock \
             "$RUNNER_TEMP/$tool/Cargo.lock"
 
       - name: Install toolchain from rust-toolchain.toml
@@ -114,9 +114,9 @@ jobs:
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
 
-      # Why: the scripts also run on Windows (spikes.yml, and the maintainer's
-      # machine), and a failure there must show up in every PR, not only when
-      # spikes/ changes (docs/incidents/0012).
+      # Why: the scripts also run on Windows (the release workflow and the
+      # maintainer's machine), and a failure there must show up in every PR
+      # (docs/incidents/0012).
       - name: Script tests
         run: python -I -m unittest discover -s scripts
 

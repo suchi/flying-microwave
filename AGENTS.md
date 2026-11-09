@@ -29,7 +29,7 @@ GitHub Copilot・Claude Code・Codexすべてに対する指示の単一ソー�
 | リント・フォーマット | `cargo fmt --all --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`                                         |
 | 型チェック           | `cargo check --workspace --all-targets --locked`(Windows固有のコードはLinuxでも`--target x86_64-pc-windows-msvc`を付けて確認できる) |
 | ビルド               | `cargo build --release --locked`                                                                                                    |
-| 依存の公開からの日数 | `python3 -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock`                 |
+| 依存の公開からの日数 | `python3 -I scripts/check_publish_age.py Cargo.lock`                                                                                |
 | スクリプトのテスト   | `python3 -I -m unittest discover -s scripts`(`scripts/`のPythonのスクリプトを変えたとき)                                            |
 | ワークフローの検査   | `actionlint`(`.github/workflows/`を変えたとき)                                                                                      |
 | フックの動作         | `python3 -I scripts/check_hooks.py`(`.claude/settings.json`に登録したすべてのフックを、LinuxとmacOSでの起動(`sh -c`)のとおりに起動して確かめる)            |

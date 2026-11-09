@@ -109,7 +109,7 @@ flowchart LR
 - 手順の詳細: [PRのレビュー手順](review-process.md)に従う
 - 指摘への対応: 指摘は検証すべき主張として扱い、一次情報で確かめてから対応する。修正するか、しない理由を記録する。各指摘に返信してから解決する
 - マージの条件: レビュー完了、CIの全ジョブがグリーン、メンテナーの承認の3つがそろってから行う。レビューの深さと再レビューの扱い(medium以上を直したときだけ最大1回)は[ADR-0014](../adr/0014-risk-based-review-depth.md)と[レビュー完了の判定](review-process.md#レビュー完了の判定)に従う。マージの実行は承認を得てからにする
-- PRを作ったあとのプッシュ: 修正はまとめて1回でプッシュし、そのPRのCIの実行中はプッシュしない(AGENTS.mdの手順6)。pull_requestのワークフローの`paths`の条件は、プッシュ1回ごとの差分ではなく、PR全体の差分(three-dot diff)で判定される([GitHubのWorkflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#git-diff-comparisons))。そのため、PR全体の差分(分岐した時点からPRの最新まで)に`spikes.yml`の`paths`のファイル(`spikes/`の下、`spikes.yml`、`rust-toolchain.toml`、`.cargo/config.toml`)が含まれていれば、文書だけのコミットのプッシュでもスパイクのビルドが始まり、実行中のビルドは取り消される([incidents 0008](../incidents/0008-push-cancelled-running-pr-ci.md))
+- PRを作ったあとのプッシュ: 修正はまとめて1回でプッシュし、そのPRのCIの実行中はプッシュしない(AGENTS.mdの手順6)。pull_requestのワークフローの`paths`の条件は、プッシュ1回ごとの差分ではなく、PR全体の差分(three-dot diff)で判定される([GitHubのWorkflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#git-diff-comparisons))。そのため、PR全体の差分(分岐した時点からPRの最新まで)にワークフローの`paths`のファイルが含まれていれば、文書だけのコミットのプッシュでもそのワークフローが始まり、実行中の実行は取り消される(当時はスパイクのビルドで起きた)([incidents 0008](../incidents/0008-push-cancelled-running-pr-ci.md))
 - 禁止: レビュー未完了やCI失敗でのマージ。CIの通過とマージの状態を確認する前に「完了」と報告すること(未確認なら「プッシュ済み、CIの確認待ち」と報告する)
 
 ## 5. 開発環境
@@ -187,7 +187,7 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
 5. 依存の7日の検査。`Cargo.lock`を変えたときは、コミットの前に必ず実行する(AGENTS.md)。
 
    ```powershell
-   python -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock
+   python -I scripts/check_publish_age.py Cargo.lock
    ```
 
 6. フックの検査。LinuxとmacOSでのフックの起動(`sh -c`と実行権限)を確かめるもので、LinuxかmacOS(WindowsではWSL)で実行する。`sh`と`jq`を使う。Windowsのpythonで実行すると、対象外と表示して終わる。CIのLinuxのジョブが毎回実行するので、フックを変えないときは、ローカルで実行しなくてよい。
@@ -201,11 +201,11 @@ Linux と macOS では、手順2・5・6と型チェックを実行できる。P
 ```bash
 cargo test --workspace --locked
 cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc
-python3 -I scripts/check_publish_age.py Cargo.lock spikes/saver-spike/Cargo.lock spikes/settings-spike/Cargo.lock
+python3 -I scripts/check_publish_age.py Cargo.lock
 python3 -I scripts/check_hooks.py
 ```
 
-ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。スパイクのビルドは[spikes/README.md](../../spikes/README.md)を参照する。
+ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。Phase 0の技術スパイクは、v0.2.0の前に削除した(計画0001のD-28。結果は[スパイクの結果](../research/spike-results.md))。
 
 ### 5.2 実行と動作確認
 
@@ -348,7 +348,7 @@ python3 -I scripts/check_hooks.py
 
 `.claude/settings.json`、`.claude/hooks/`、`.github/workflows/`、`.github/dependabot.yml`の変更は、メンテナーの承認を得てから行う。Dependabotの`cooldown`はサプライチェーン攻撃への対策なので、承認なしに削除・無効化しない。
 
-依存の公開からの日数: Dependabotの`cooldown`(7日)は、ローカルでの`cargo`の解決には効かない。cargo 1.99の安定版には、同じ設定もない(`min-publish-age`は`-Zmin-publish-age`が必要)。そのため、`scripts/check_publish_age.py`で、ロックファイルのcrates.ioのすべての版と、CIで入れるツール(cargo-about)の版とそのロックファイルが、公開から7日以上たっているかを確かめる。公開日時は、crates.ioの索引の`pubtime`を使う。索引に版が見つからない場合、公開日時のない版、crates.io以外から来る依存(gitなど)、索引を読めない場合も失敗にする。CIのLinuxのジョブが毎回実行し、配布物を作るWindowsのジョブはその成功を待つ(`needs: linux`)。`spikes.yml`も、ビルドの前に実行する。GitHub Actionsの版とRustのツールチェーンは、この検査の対象外である(incidents 0007の対策5)。ローカルで`Cargo.lock`を変えたときは、コミットの前に実行する(AGENTS.mdの検証コマンド)。新しい依存を加えたいのに検査を通らないときは、7日以上前に公開された版を選ぶか、7日たつまで待つ([incidents 0007](../incidents/0007-dependencies-inside-cooldown.md))。
+依存の公開からの日数: Dependabotの`cooldown`(7日)は、ローカルでの`cargo`の解決には効かない。cargo 1.99の安定版には、同じ設定もない(`min-publish-age`は`-Zmin-publish-age`が必要)。そのため、`scripts/check_publish_age.py`で、ロックファイルのcrates.ioのすべての版と、CIで入れるツール(cargo-about)の版とそのロックファイルが、公開から7日以上たっているかを確かめる。公開日時は、crates.ioの索引の`pubtime`を使う。索引に版が見つからない場合、公開日時のない版、crates.io以外から来る依存(gitなど)、索引を読めない場合も失敗にする。CIのLinuxのジョブが毎回実行し、配布物を作るWindowsのジョブはその成功を待つ(`needs: linux`)。GitHub Actionsの版とRustのツールチェーンは、この検査の対象外である(incidents 0007の対策5)。ローカルで`Cargo.lock`を変えたときは、コミットの前に実行する(AGENTS.mdの検証コマンド)。新しい依存を加えたいのに検査を通らないときは、7日以上前に公開された版を選ぶか、7日たつまで待つ([incidents 0007](../incidents/0007-dependencies-inside-cooldown.md))。
 
 ### 6.4 モデルの使い分け
 
@@ -435,7 +435,6 @@ cargo fetch --locked || true
 | `release-tags` | `v*`のタグ | 作成・更新・削除の制限 | リポジトリの管理者 |
 
 - 必要な承認の数を0にする理由: PRはすべてメンテナーのアカウントで作られ、自分のPRは承認できないため。レビューは、別のコンテキストのエージェントによる敵対的レビューで行う([PRのレビュー手順](review-process.md))。
-- `Build spikes`を必須にしない理由: `spikes/`を変えるPRでしか実行されないため、必須にするとほかのPRがマージできなくなる。
 - ジョブ名を変えるとき: 必須のステータスチェックはジョブ名で指定しているため、`ci.yml`のジョブ名を変えたら、ルールセットも合わせて変える。
 
 ## 10. 用語集
@@ -457,6 +456,6 @@ cargo fetch --locked || true
 | 設定画面 | 本製品の設定のウィンドウ(eframe)。`/c`などで開き、`config.toml`に保存する。Windowsのスクリーンセーバーの設定のウィンドウ(スクリーンセーバーの一覧、プレビュー枠、「設定」「プレビュー」のボタンがあるもの)は「スクリーンセーバーの設定画面」と書いて区別する |
 | プレビュー枠 | スクリーンセーバーの設定画面の中の、小さなモニタの絵の部分。Windowsがその枠のウィンドウを`/p <HWND>`で渡し、製品はその子ウィンドウに描く。「プレビュー」のボタンで起動する全画面の表示(`/s`)とは別である |
 | モニタ | 画面を表示する装置。開発者向けの文書では「モニタ」と書く。「ディスプレイ」は、ディスプレイの電源やスリープ、Windowsの「ディスプレイの設定」のように、Windowsの表記に合わせるときに使う。利用者向けの[packaging/windows/README.md](../../packaging/windows/README.md)は、Windowsの画面の表記(Microsoftの日本語の表記)に合わせ、「モニター」「フォルダー」「スクリーン セーバー」と書く。`CHANGELOG.md`も利用者が読む文書なので、v0.2.0の節から「モニター」「フォルダー」と書く(公開済みの節は変えない。計画0004のD-12) |
-| CI | PRと`main`へのプッシュ(と手動実行)で実行する`ci.yml`のワークフロー。`spikes/`などを変えるPRでは`spikes.yml`も実行する。タグで実行する`release.yml`は「リリースのワークフロー」と書き、CIと区別する。「CIで入れるツール」のように、GitHub Actionsのワークフロー全体を指して「CI」と書くこともある |
+| CI | PRと`main`へのプッシュ(と手動実行)で実行する`ci.yml`のワークフロー。タグで実行する`release.yml`は「リリースのワークフロー」と書き、CIと区別する。「CIで入れるツール」のように、GitHub Actionsのワークフロー全体を指して「CI」と書くこともある |
 | 実機での確認 | メンテナーが、Windows 11の実機で動作を確かめること(エージェントの開発環境はLinuxで、画面を伴う動作を確かめられないため)。リリースの前の確認は、[計画0001の8.2](../plans/0001-initial-implementation-plan.md#82-手動テストwindows実機)の手動テストのチェックリストで行う(8章) |
 | 試作版 | プレリリース(`vX.Y.Z-alpha.N`)として公開する版。動作は保証しない。[計画0001の7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順)の手順で公開する |

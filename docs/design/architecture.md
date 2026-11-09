@@ -87,7 +87,6 @@ flowchart TB
 | `crates/smoke/` | `flying-microwave-smoke`。ビルドした実行ファイルを各モードで起動し、起動と終了を確かめるスモークテスト(Windows専用。[計画0003](../plans/0003-v0.1.1-smoke-test.md))。製品には含めない |
 | `crates/app/res/` | リソース定義ファイル(`app.rc`)と、アイコン(`icon.svg`と、そこから作る`flying-microwave.ico`) |
 | `assets/sprites/` | SVG素材と、作者・ライセンスを記録する`README.md`(v0.2.0の試作版から。[ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md)) |
-| `spikes/` | Phase 0の技術スパイク。ワークスペースには含めず、製品コードから参照しない。Phase 2の終わりに削除する(計画のD-28) |
 
 crate名は製品名(実装計画のD-5)に合わせて`flying-microwave-core`・`flying-microwave`とする。
 
