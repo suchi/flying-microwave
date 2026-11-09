@@ -15,7 +15,7 @@ UIラベルはAGENTS.mdの言語ルールに従い英語とする。
 | `flight.scale` | Size | Flight | 小数 | 0.5〜2.0 | 1.0 | v0.2.0 | 大きさの倍率 |
 | `display.max_fps` | Frame rate limit | Display | 整数 | 0 / 30 / 60 / 120(0はモニタのリフレッシュレートに合わせる) | 60 | v0.2.0 | 描画フレームレートの上限。垂直同期は常に有効で、この値で間引く |
 | `display.monitors` | Monitors | Display | 選択 | all / primary | all | v0.2.0 | アニメーションを表示するモニタ。primaryでも他のモニタは黒で覆う |
-| `input.exit_sensitivity` | Mouse sensitivity | Display | 選択 | low / medium / high | medium | v0.2.0 | 終了と判定するマウス移動の閾値。スクリーン座標の物理ピクセルで、low=48、medium=16、high=4(暫定値。実機で調整する) |
+| `input.exit_sensitivity` | Mouse sensitivity | Display | 選択 | low / medium / high | medium | v0.2.0 | 終了と判定するマウス移動の閾値。スクリーン座標の物理ピクセルで、low=48、medium=16、high=4(2026-11-09に、`v0.2.0-alpha.4`の実機で、3つとも想定どおりに終わることを確かめた。計画0004のD-16) |
 | `flight.food_count` | Number of food items | Flight | 整数 | 0〜30 | 4 | v0.3.0 | 電子レンジとは別に飛ぶ食べ物の数。電子レンジの数を変えずに追加できるよう、別の項目にする |
 | `clock.enabled` | Show clock on display | Display | 真偽 | - | true | v0.3.0 | 電子レンジのLED表示に現在時刻を出す |
 | `clock.format` | Clock format | Display | 選択 | 24h / 12h | 24h | v0.3.0 | 時刻の表示形式 |
