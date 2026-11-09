@@ -38,7 +38,8 @@ log_crate = { package = "log", version = "=0.4.34" }
 #   wgpu backends. DX12 comes from the wgpu dependency above.
 # - not default_fonts: its fonts are not OSI licensed; a system font is
 #   loaded at runtime instead (plan 0004, E-5).
-# - not accesskit, clipboard, links: off for v0.2.0-alpha (plan 0004, E-5).
+# - not accesskit, clipboard, links: off, decided in ADR-0024 (E-5); screen
+#   reader support is reviewed again before v1.0.0.
 eframe = { version = "=0.37.0", default-features = false, features = ["wgpu_no_default_features"] }
 windows-sys = { version = "=0.61.2", features = [
     "Win32_Foundation",

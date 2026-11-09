@@ -1,7 +1,7 @@
 """Builds crates/app/res/flying-microwave.ico from crates/app/res/icon.svg.
 
-Each size is rendered from the SVG with the resvg command (ADR-0008, the
-same renderer as the artwork in Phase 3) instead of being scaled down from
+Each size is rendered from the SVG with the resvg command (ADR-0023, the
+same renderer as the sprites) instead of being scaled down from
 one large image, so that small sizes stay sharp. The images are stored in
 the .ico as PNG, which Windows Vista and later read. Only the Python
 standard library is used. Messages are in Japanese because the maintainer
