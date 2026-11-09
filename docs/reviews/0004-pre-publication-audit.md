@@ -15,7 +15,7 @@
 | テンプレート由来のアカウント名 | `git log --all -p`と`-S`で、`.github/dependabot.yml`と計画0001の履歴を検索 | 所有者と別のアカウント名(テンプレートの作者とみられる)が、5件のコミットの差分に残る(`f467cb7`、`ae9a5f3`、`bbbea20`、`b57a49f`、`9e41046`)。現在のファイルには残っていない | 要判断 |
 | 削除済みの`personal/` | `git log --all --stat -- personal/`と`git show` | `f467cb7`で追加し、`1fd3a4f`で削除した7ファイル。メールアドレスはツールのもの(`@anthropic.com`、`@github.com`)だけで、氏名やローカルのパスはなかった | 問題なし |
 | `Claude-Session:`のトレーラー | `git log --all --format=%B`を検索 | 487件。どれも`https://claude.ai/code/session_<ID>`の形のURL。所有者以外がこのURLを開けるかは確かめていない | 要判断 |
-| 現在のファイルの個人を特定できる情報 | `git grep`でメールアドレスの形、`C:\Users`、`/Users/`、`/home/`を検索 | メールアドレスは0件。パスは、伏せた書き方の注意書き(`spikes/README.md`。このあと削除した)とテスト用の汎用の値(`crates/app/src/storage.rs`)だけ。所有者のアカウント名は、配布元のURLと、`.github/dependabot.yml`の`assignees`(設定の2か所とコメントの5か所)に出る | 問題なし |
+| 現在のファイルの個人を特定できる情報 | `git grep`でメールアドレスの形、`C:\Users`、`/Users/`、`/home/`を検索 | メールアドレスは0件。パスは、伏せた書き方の注意書き(`spikes/README.md`。このあと削除した)とテスト用の汎用の値(`crates/app/src/storage.rs`)だけ。所有者のアカウント名は、配布元のURLと、`.github/dependabot.yml`の`assignees`(設定の2か所とコメントの5か所)に出る | 問題なし(配布元のURLはAGENTS.mdの例外。`assignees`は、下の「判断」でメンテナーのアカウント名を公開してよいとした) |
 | コミットメッセージの個人を特定できる情報 | `git log --all --format=%B`を検索 | 本文に氏名とメールアドレスは0件。GitHubのマージコミットの件名(`Merge pull request #N from <所有者>/<ブランチ>`)に、所有者のアカウント名が49件 | 要判断(配布元のURLと同じ名前) |
 | 秘密情報 | 履歴の追加行で、トークンと鍵の形(`ghp_`、`github_pat_`、`AKIA`、`-----BEGIN`など)と`password`・`token =`などを検索 | 0件(`sk-`の13件は、ADRの名前の`risk-based`の部分一致) | 問題なし(検索の形にない鍵は確かめていない。GitHubのsecret scanningは範囲外) |
 | 仮の値 | `git grep`で`TODO(project)`、`<project URL>`、`example.com`などを検索 | `.github/dependabot.yml`の58行に、テンプレート由来の`TODO(project)`のコメントが残る。`AGENTS.md`の`TODO(project)`は、テンプレートの使い方の説明 | 要対応(公開の前に整える) |
