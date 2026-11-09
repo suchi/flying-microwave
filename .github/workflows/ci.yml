@@ -114,9 +114,9 @@ jobs:
       - name: Install toolchain from rust-toolchain.toml
         run: rustup toolchain install
 
-      # Why: the scripts also run on Windows (the release workflow and the
-      # maintainer's machine), and a failure there must show up in every PR
-      # (docs/incidents/0012).
+      # Why: the scripts also run on the maintainer's Windows machine
+      # (onboarding, section 5.1), and a failure there must show up in every
+      # PR (docs/incidents/0012).
       - name: Script tests
         run: python -I -m unittest discover -s scripts
 
