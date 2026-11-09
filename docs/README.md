@@ -95,3 +95,7 @@
 | [0011](incidents/0011-log-written-against-requirement.md) | 診断用のログが、要件に反していつも書かれていた |
 | [0012](incidents/0012-hook-check-tests-failed-on-windows.md) | フックの検査のテストが、Windowsのスパイクのビルドで失敗した |
 | [0013](incidents/0013-arm64-smoke-test-only-at-release.md) | arm64のスモークテストを、タグを付けるまで試せず、リリースが2回続けて止まった |
+| [0014](incidents/0014-second-monitor-not-drawn.md) | 2台目のモニタに電子レンジが描かれないまま、リリースした |
+| [0015](incidents/0015-english-reports-after-stop-hook.md) | メンテナーへの報告を英語で書き、一部はフックでも止まらなかった |
+| [0016](incidents/0016-tag-before-merge.md) | 試作版のタグが、マージの前のコミットに付いた |
+| [0017](incidents/0017-gitignore-entry-removed-with-spikes.md) | spikesの削除で、.gitignoreのビルドの生成物のエントリも消した |

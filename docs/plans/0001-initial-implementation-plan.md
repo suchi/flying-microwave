@@ -302,6 +302,7 @@ PRは、段階ごとのまとまりで作る。実機での確認も、段階ご
 4. 設定項目の追加(食べ物の数、時計の表示形式など)。
 5. ディスプレイの電源が切れている間の描画停止(N-14)。
 6. 本番の素材に合わせて、READMEのバナー(`docs/assets/banner.svg`)と実行ファイルのアイコン(`crates/app/res/icon.svg`)を作り直す。
+7. CIのWindowsのランナーで2台目のモニターを用意する方法(仮想のディスプレイなど。計画0004のE-7)を調べる。GitHubがホストするランナーで使えるかを、まだ確かめていない([incidents 0014](../incidents/0014-second-monitor-not-drawn.md))。使えれば、複数のモニターの確認をスモークテストに加えることを検討する。
 
 完了条件: 共通のリリース条件に加え、ガイドラインG-1〜G-6のセルフチェックを記録する。
 
@@ -385,7 +386,7 @@ v1.0.0のあとに判断すること: arm64への対応(Issue #44、D-32)。ほ�
 19. 実行ファイルのリソース: エクスプローラーの大アイコンの表示で、`FlyingMicrowave.scr`が、濃い青の角丸の四角に白い電子レンジの絵のアイコンで表示される。右クリックの「プロパティ」の「詳細」タブで、製品名が`Flying Microwave`、製品バージョンが`Cargo.toml`の版(たとえば`0.1.0-alpha.4`)、ファイル バージョンが数値の版(たとえば`0.1.0.0`)と表示される。前の版を置いたことのあるフォルダでは、エクスプローラーのアイコンのキャッシュのために古いアイコンのまま表示されることがあるため(推測)、新しいフォルダに置いて確かめる。
 20. 実行中のモニターの抜き差し(計画0004のF-07。複数のモニターがある環境で行う): `/s`で全画面になったあと、モニターを1台つなぐ(または、表示の設定で拡張に切り替える)。成功の条件は、覆うことと、描くことに分ける。
     - 覆うこと: 増えたモニターが約1秒以内に黒い画面で覆われ、スクリーンセーバーは終了しない。ログ(一時フォルダーの`flying-microwave.log`)に`monitor change:`の行と、`window N: created for a new monitor`の行が出る。
-    - 描くこと: そのNについて、`window N: first frame presented`の行が出て、電子レンジが飛ぶ。この確認は、2台目以降のモニターに描かれないことがある不具合(Issue #50。原因を調べている)に左右される。覆うことが成功でも、描くことが失敗する場合がある。
+    - 描くこと: そのNについて、`window N: first frame presented`の行が出て、電子レンジが飛ぶ。この確認も通常の判定条件にする。2台目以降のモニターに描かれない不具合(Issue #50)は、描き方を変えて直し(計画0004のD-14、[ADR-0025](../adr/0025-draw-every-window-from-one-place.md))、2026-11-09に`v0.2.0-alpha.4`で、2画面の実機で両方のモニターに描かれることを確かめた。覆うことが成功でも、描くことが失敗したら、この項目は失敗である。
     - モニターを1台外すと、残ったモニターの電子レンジが飛び続け、終了しない。ログに`closed, its monitor is gone`の行が出る。
     - 解像度や並びを変えても、すべてのモニターが覆われる。
     - 拡大率(DPI)の違う2つのモニターで、並びや位置を変えたとき、それぞれのモニター全体が覆われる(未確認)。
@@ -396,7 +397,7 @@ v1.0.0のあとに判断すること: arm64への対応(Issue #44、D-32)。ほ�
     - Cancel: 値を変えて Cancel を押す、またはウィンドウの閉じるボタンを押す。どちらも設定画面が閉じ、`/s`の電子レンジの台数や速さは前のままで、設定画面を開き直しても前の値が表示される。ログは閉じ方で変わる。Cancel を押したときは`settings: Cancel clicked`の行が出る。閉じるボタン(Alt+F4を含む)のときは`settings: close requested`の行が出て、`settings: Cancel clicked`の行は出ない。Cancel や OK のあとにも`settings: close requested`の行が続くことがある(eframeの閉じる処理の順序からの推測)ので、閉じ方の区別は`settings: Cancel clicked`の行の有無で行う。
     - Defaults: 値を変えたまま Defaults を押すと、フォームの値が上の既定値に戻る(この時点ではファイルは変わらない)。続けて OK を押すと、`/s`で、各モニターで同時に見える電子レンジが最大12台になる。Defaults を押したあとで Cancel を押すと、ファイルは前のままである。
     - 保存に失敗したとき(任意。設定ファイルを読み取り専用にするか、フォルダーを書き込めなくする): OK を押しても設定画面は閉じず、画面の下に`Could not save the settings to`で始まるエラーが出る。確認のあとで、読み取り専用の属性や書き込みを禁じる設定を元に戻す(そのままでは、以降の項目で設定を保存できない)。
-23. `display.monitors`の「Primary only」(計画0004のF-06、D-12。複数のモニターがある環境で行う。未確認): Display のタブで Monitors を Primary only にして OK を押し、`/s`で起動する。主モニターだけで電子レンジが飛び、ほかのモニターは黒いままで、電子レンジは現れない。ログに`settings: Config { ... display: Display { max_fps: Fps60, monitors: Primary }, ... }`の行が出る。判定は、ログの`window N: animate true`・`window N: animate false`の行で行う。主モニターのウィンドウは`window N: animate true, frame rate limited ...`、ほかのモニターのウィンドウは`window N: animate false, frame rate limited ...`の行になる。All monitors に戻して OK を押すと、すべてのモニターで飛び、ログは`monitors: All`になる。このとき2台目に描かれない場合は、Issue #50の事象として記録する(そのウィンドウの`window N: first frame presented`の行の有無を見る)。この項目の失敗にはしない。`/s`のログに`config: not read within`の行があるときは、設定が間に合わず既定値で動いている。モニターを抜き差ししたときの動作は項目20で確かめる。
+23. `display.monitors`の「Primary only」(計画0004のF-06、D-12。複数のモニターがある環境で行う。未確認): Display のタブで Monitors を Primary only にして OK を押し、`/s`で起動する。主モニターだけで電子レンジが飛び、ほかのモニターは黒いままで、電子レンジは現れない。ログに`settings: Config { ... display: Display { max_fps: Fps60, monitors: Primary }, ... }`の行が出る。判定は、ログの`window N: animate true`・`window N: animate false`の行で行う。主モニターのウィンドウは`window N: animate true, frame rate limited ...`、ほかのモニターのウィンドウは`window N: animate false, frame rate limited ...`の行になる。All monitors に戻して OK を押すと、すべてのモニターで飛び、ログは`monitors: All`になる。描くことも、通常の判定条件にする。描くはずのウィンドウ(Primary only では主モニターのウィンドウ、All monitors ではすべてのウィンドウ)に描かれない場合は、この項目の失敗とする(そのウィンドウの`window N: first frame presented`の行の有無を見る。Issue #50は直した。計画0004のD-14)。`/s`のログに`config: not read within`の行があるときは、設定が間に合わず既定値で動いている。モニターを抜き差ししたときの動作は項目20で確かめる。
 24. 設定画面の起動の3つの経路(計画0004のF-03、D-20。未確認): エクスプローラーでの`.scr`の右クリックの「構成」は引数なしで起動する(`HKCR\scrfile\shell\config`のコマンドは`"%1"`。[spike-results.md](../research/spike-results.md)のS3)。引数なしは、コードでは`Owner::None`である。`/c`だけ(HWNDなし)は`Owner::Foreground`、`/c:<HWND>`は`Owner::Window`である。
     - (a) `/c:<HWND>`(スクリーンセーバーの設定の画面の「設定」ボタン): 設定画面が前面に表示される。設定画面が開いている間、後ろの「スクリーン セーバーの設定」の画面は、クリックしてもボタンが反応せず、設定画面の前に出てこない(モーダルと同じ)。OK または Cancel で閉じると、後ろの画面が再び操作でき、前面に戻る。ログに、開いたときは`settings: owner Window(...) is a window (HWND ...)`と`settings: owner attached; disabled before <値>, now true`の行、閉じたときは`settings: release (...): owner enabled true, SetForegroundWindow true`の行が出る。`disabled before`の値(`false`か`true`か)は、決めつけずに、出た値を記録する。`SetForegroundWindow false`のときは、後ろの画面が前面に戻らない(スパイクS2では失敗した。計画0004のリスクのとおり、その場合はメンテナーに知らせる)。タイトルバーの閉じるボタンまたは Alt+F4 で閉じたときも、同じく後ろの画面が操作できる(ログは`release (close requested)`)。
     - (b) 右クリックの「構成」(引数なし。`Owner::None`): 設定画面がオーナーなしで開き、前面に表示される。ログの起動の行が`started: Settings { owner: None }`で終わる(引数なしで起動したことは、実機ではまだ確かめていないため、この行で確かめる)。ログに`settings: owner`の行も`settings: owner attached`の行も出ない(`Owner::None`ではオーナーのログを書かないため)。設定画面が開いている間、後ろのウィンドウ(右クリックしたフォルダーのウィンドウなど)は反応したままである。閉じたあと、デスクトップやタスクバーが反応しなくなったままでないこと。
@@ -408,6 +409,8 @@ v1.0.0のあとに判断すること: arm64への対応(Issue #44、D-32)。ほ�
     - 大きすぎるファイル(64KiBより大きいファイル)でも同じ警告の形になる(`The settings file is too large to read, so the defaults are shown. ...`。ログは`config: file too large; using the defaults (...)`)。
     - どの確認のあとも、取っておいた`config.toml`の内容を戻し、作った大きなファイルや壊したファイルを残さない。
 26. 設定画面のプロセスのDLLの差し替え(SEC-1、SEC-2、計画0004のF-09。未確認): 項目12と同じ手順を、`/s`ではなく`/c`(と、可能なら`/c:<HWND>`)で行う。`.scr`と同じフォルダーに、中身のない`D3d10warp.dll`・`d3d12.dll`・`dxgi.dll`を置いて`/c`(項目24の(c)と同じく、コピーした名前の`.exe`で`/c`を付けて起動する)で設定画面を開き、Process Monitorで、そのフォルダーのこの3つのファイルのパスへの操作(`CreateFile`を含むすべての操作)が1件もないことを確かめる。成功の見え方は項目12と同じである(読み込み(Load Image)がないことだけでは判定しない)。あわせて、設定画面が正常に開き、文字が四角にならずに表示される。SEC-2(DX12のシェーダーコンパイラを`Fxc`に明示し、`dxcompiler.dll`を読み込まない)の確認は、Process Monitorのフィルターで、Process Nameを起動したプロセスの名前(`FlyingMicrowave-test.exe`。`/c:<HWND>`では`FlyingMicrowave.scr`)に絞って行う。まず、そのプロセスに`C:\Windows\System32\d3dcompiler_47.dll`の Load Image が出ることを確かめ(`Fxc`が読むDLL。記録が取れていることの確認)、そのうえで、フォルダーを問わず「Path ends with dxcompiler.dll」の操作が0件であることを判定にする(未確認)。確認のあとで、コピーした`.exe`と、置いた中身のないDLLを削除する。`.scr`と同じフォルダーに置いたファイルへの操作がないことは、SEC-1(`SetDefaultDllDirectories`)が効いていれば、SEC-2がなくても成り立つため、SEC-2の確認にならない。
+27. 設定画面のタブの表示(計画0004のN-01と完了条件。未確認): 設定画面(`/c`)を、Windowsの拡大率100%と150%で開き、Flight・Display・Aboutの3つのタブを順に表示する。どのタブでも、文字の切れ・重なり・はみ出しがなく、OK・Cancel・Defaultsのボタンがすべて見える。
+28. 終了の感度(計画0004の完了条件。2026-11-09に`v0.2.0-alpha.4`で確かめた。計画0004のD-16): Display のタブの Mouse sensitivity を Low・Medium・High のそれぞれにして OK を押し、そのたびに`/s`で全画面にして、マウスを少しずつ動かす。終了と判定する移動量は、スクリーン座標の物理ピクセルで、Low が48、Medium が16、High が4である([設定項目仕様](../design/settings.md)、`crates/core/src/config.rs`の`threshold_px`)。成功の見え方: High がいちばん少ない動きで終わり、Low がいちばん大きい動きで終わる。机に軽く触れた程度の振動では、Medium で終わらない。終了の理由は、ログ(一時フォルダーの`flying-microwave.log`)の`exit:`の行で確かめる(カーソルの移動で終わったときは`exit: CursorMoved`で始まる行)。起動直後の0.5秒のマウスの動きは、判定に使わない。
 
 ## 9. CI/CD・リリース
 
@@ -530,7 +533,7 @@ flowchart LR
 エージェントの開発環境では行えないため、メンテナーが行う。結果が記録されるまで、この一覧に残す。
 
 - [x] 技術スパイクの4回目の実機での確認(Phase 0の作業7の最後)。2026-11-01に行い、目印の四角でプレビュー枠と全画面の描画を確かめた。2台目のモニタの描画は、モニタごとには確かめておらず、Phase 1の段階1の製品で確かめる。結果は[スパイクの結果](../research/spike-results.md)に記録した。S1・S4の残りの項目とS5・S6はPhase 1の製品で、S2の残りはPhase 2で確かめる(D-20)。
-- [ ] 商標の確認の残り(Phase 0の作業1。D-5。2026-11-03に、Issue #47に移した。D-33)。日本(J-PlatPat)の確認と、米国(USPTO)の結果の再確認、空白なしの表記・類似の商標の確認を、通常のブラウザで行う。結果は[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認)に記録する。
+- [x] 商標の確認の残り(Phase 0の作業1。D-5。2026-11-03に、Issue #47に移した。D-33)。2026-11-09に、メンテナーが通常のブラウザで確かめ、J-PlatPatとUSPTOのどちらでも「FlyingMicrowave」に該当する登録はなかった(計画0004のD-16)。日本(J-PlatPat)の確認と、米国(USPTO)の結果の再確認、空白なしの表記・類似の商標の確認を、通常のブラウザで行う。結果は[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認)に記録する。
 - [x] リリース用のタグの保護([計画0002](0002-phase1-tooling-proposal.md)のT-5)。2026-11-01に、ルールセット`release-tags`として設定した([オンボーディングの9.1](../development/onboarding.md#91-リポジトリのルールセット))。
 
 ## 参考資料
