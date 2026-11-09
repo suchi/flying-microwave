@@ -47,6 +47,10 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 - このファイルにはコード署名がありません。Windows の SmartScreen が警告を表示することがあり、Smart App Control が強制モードの環境ではブロックされる可能性が高いです。
 - 管理されている PC では、グループ ポリシーによってスクリーン セーバーを選べない場合があります。
 - スクリーン セーバーの画面が前面に出なかった場合は、キーを押しても終わりません。押したキーが、画面の後ろにあるアプリに届くことがあります。その場合は、マウスを動かすかクリックして終わらせてください。
+- 設定画面は、スクリーン リーダーに対応していません。About のプロジェクトの URL は文字として表示し、クリックしても開きません。
+- 設定画面を開けないとき(GPU が使えないときなど)は、メッセージを表示して終了します。
+- 新しい版で保存した設定ファイルを、この版の設定画面で保存すると、この版が知らない項目は消えます。保存の前に、設定画面の中で警告します。
+- 設定ファイルの読み込みに 0.5 秒より長くかかったときは、その回は既定の設定で動きます。
 
 ### プライバシー
 
@@ -108,6 +112,10 @@ Click OK to save, or Cancel to discard your changes. Defaults restores the defau
 - The file is not code-signed. Windows SmartScreen may show a warning, and Smart App Control in enforcement mode is likely to block it.
 - Group Policy on managed PCs may prevent you from choosing a screen saver.
 - If the screen saver could not come to the front, pressing a key does not end it, and the key may reach the app behind the screen. In that case, move or click the mouse to end it.
+- The settings window does not support screen readers. The project URL in the About tab is shown as text and does not open when clicked.
+- If the settings window cannot be opened (for example, when no GPU is available), a message is shown and the program exits.
+- If you save, in this version's settings window, a settings file that a newer version wrote, the items this version does not know are removed. The settings window warns you before saving.
+- If reading the settings file takes longer than 0.5 seconds, the screen saver uses the default settings that time.
 
 ### Privacy
 
