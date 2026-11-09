@@ -8,6 +8,10 @@ _work
 # Cargo build output
 /target
 
+# Kept although spikes/ was removed (plan 0001, D-28): building an older
+# commit recreates this build output, which must not be committed by mistake.
+/spikes/*/target
+
 # Temporary worktrees of Claude Code subagents (docs/development/review-process.md)
 /.claude/worktrees/
 
