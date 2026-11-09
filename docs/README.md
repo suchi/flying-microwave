@@ -76,6 +76,7 @@
 | [0001](reviews/0001-plan-adversarial-review.md) | 初期実装計画と関連ドキュメント |
 | [0002](reviews/0002-decision-round-review.md) | 決定事項の反映(ADR、運用ルール、READMEなど) |
 | [0003](reviews/0003-roadmap-concerns-to-v1.md) | v1.0.0までの懸念事項の確認(メンテナーの判断を含む) |
+| [0004](reviews/0004-pre-publication-audit.md) | 公開の前の点検(Issue #3) |
 
 ## 異常の記録
 
