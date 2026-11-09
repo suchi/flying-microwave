@@ -205,7 +205,7 @@ python3 -I scripts/check_publish_age.py Cargo.lock
 python3 -I scripts/check_hooks.py
 ```
 
-ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。Phase 0の技術スパイクは、v0.2.0の前に削除した(計画0001のD-28。結果は[スパイクの結果](../research/spike-results.md))。
+ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。Phase 0の技術スパイクは、v0.2.0の前に削除した(計画0001のD-28。結果は[スパイクの結果](../research/spike-results.md))。コードは、タグ`v0.2.0-alpha.4`の内容で読める(例: `git show v0.2.0-alpha.4:spikes/README.md`)。
 
 ### 5.2 実行と動作確認
 
