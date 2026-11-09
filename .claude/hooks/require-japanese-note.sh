@@ -24,15 +24,18 @@ input=$(cat)
 
 command -v jq >/dev/null 2>&1 || exit 0
 
-transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null) || exit 0
-id=$(printf '%s' "$input" | jq -r '.tool_use_id // empty' 2>/dev/null) || exit 0
+# Why tr: a native jq.exe run from Git Bash on Windows ends its output with
+# CRLF (jq manual, --binary), and a stray CR would make the path or the id
+# never match.
+transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null | tr -d '\r') || exit 0
+id=$(printf '%s' "$input" | jq -r '.tool_use_id // empty' 2>/dev/null | tr -d '\r') || exit 0
 [ -n "$transcript" ] && [ -n "$id" ] && [ -f "$transcript" ] || exit 0
 
 # Why tail: the transcript of a long session is tens of megabytes, and the
 # message of this call is among its last entries. fromjson? skips a line
 # that is being written.
 text=$(tail -n 200 "$transcript" 2>/dev/null | jq -Rnr --arg id "$id" '
-  [inputs | fromjson? | select(type == "object" and .type == "assistant")] as $entries
+  [inputs | fromjson? | select(type == "object" and .type == "assistant" and (.message | type) == "object")] as $entries
   | ([$entries[] | select(any(.message.content[]?; type == "object" and .type == "tool_use" and .id == $id)) | .message.id] | last) as $message
   | if $message == null then empty else
       [$entries[] | select(.message.id == $message) | .message.content[]? | select(type == "object" and .type == "text") | .text] | join("\n")
