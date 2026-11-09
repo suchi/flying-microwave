@@ -99,3 +99,4 @@
 | [0015](incidents/0015-english-reports-after-stop-hook.md) | メンテナーへの報告を英語で書き、一部はフックでも止まらなかった |
 | [0016](incidents/0016-tag-before-merge.md) | 試作版のタグが、マージの前のコミットに付いた |
 | [0017](incidents/0017-gitignore-entry-removed-with-spikes.md) | spikesの削除で、.gitignoreのビルドの生成物のエントリも消した |
+| [0018](incidents/0018-english-progress-note-again.md) | 0015の対策のあとも、合間の報告を英語で書いた |

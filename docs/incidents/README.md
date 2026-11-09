@@ -47,3 +47,4 @@
 | [0015](0015-english-reports-after-stop-hook.md) | メンテナーへの報告を英語で書き、一部はフックでも止まらなかった | 2026-11-05 |
 | [0016](0016-tag-before-merge.md) | 試作版のタグが、マージの前のコミットに付いた | 2026-11-09 |
 | [0017](0017-gitignore-entry-removed-with-spikes.md) | spikesの削除で、.gitignoreのビルドの生成物のエントリも消した | 2026-11-09 |
+| [0018](0018-english-progress-note-again.md) | 0015の対策のあとも、合間の報告を英語で書いた | 2026-11-09 |
