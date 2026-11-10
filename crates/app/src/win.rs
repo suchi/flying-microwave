@@ -277,7 +277,6 @@ pub fn fonts_folder() -> Option<PathBuf> {
     known_folder(&FOLDERID_Fonts)
 }
 
-/// The path of a known folder, or `None` when Windows cannot give it.
 /// N-14: the registration for the display state of the session. Each report
 /// goes to [`crate::display_power::report`]; dropping this unregisters.
 pub struct DisplayWatch {
@@ -325,16 +324,23 @@ impl Drop for DisplayWatch {
     }
 }
 
-/// The callback of [`watch_display`]. Called by Windows on a thread of its
-/// own. The documentation says only that `setting` depends on the type, so
-/// it is read as a `POWERBROADCAST_SETTING` only for a power setting change
-/// of the display state, and at most the four bytes of a DWORD.
+/// The callback of [`watch_display`]. The documentation does not say on
+/// which thread it runs, so it passes the state only through an atomic
+/// ([`crate::display_power`]). It also says only that `setting` depends on
+/// the type, so it is read as a `POWERBROADCAST_SETTING` only for a power
+/// setting change of the display state, and at most the four bytes of a
+/// DWORD. Other reports are logged the first few times, so that a hardware
+/// check can tell them from no report at all.
 unsafe extern "system" fn display_callback(
     _context: *const c_void,
     kind: u32,
     setting: *const c_void,
 ) -> u32 {
     if kind != PBT_POWERSETTINGCHANGE || setting.is_null() {
+        log_unexpected(&format!(
+            "type {kind:#x}, setting null {}",
+            setting.is_null()
+        ));
         return 0;
     }
     let setting = setting as *const POWERBROADCAST_SETTING;
@@ -348,6 +354,7 @@ unsafe extern "system" fn display_callback(
         )
     };
     if !same_guid(&guid, &GUID_SESSION_DISPLAY_STATUS) {
+        log_unexpected(&format!("power setting {:08x}", guid.data1));
         return 0;
     }
     let length = (length as usize).min(4);
@@ -364,10 +371,20 @@ unsafe extern "system" fn display_callback(
     0
 }
 
+/// Logs a report the display callback does not use, the first few times.
+fn log_unexpected(what: &str) {
+    static COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let count = COUNT.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    if crate::diag::first_few(count) {
+        crate::log::write(&format!("display state: unexpected report ({what})"));
+    }
+}
+
 fn same_guid(a: &GUID, b: &GUID) -> bool {
     a.data1 == b.data1 && a.data2 == b.data2 && a.data3 == b.data3 && a.data4 == b.data4
 }
 
+/// The path of a known folder, or `None` when Windows cannot give it.
 fn known_folder(id: &GUID) -> Option<PathBuf> {
     let mut raw: PWSTR = std::ptr::null_mut();
     // SAFETY: `id` is a valid GUID and `raw` a writable pointer; a null

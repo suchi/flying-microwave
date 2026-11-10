@@ -37,7 +37,11 @@ pub fn write(line: &str) {
         .truncate(too_big)
         .open(&path);
     if let Ok(mut file) = file {
-        let _ = writeln!(file, "+{elapsed}ms pid={} {line}", std::process::id());
+        // Why one write: lines may come from other threads too (the GPU
+        // limit, the display state), and one append of the whole line keeps
+        // them from mixing; writeln! writes the parts one by one.
+        let text = format!("+{elapsed}ms pid={} {line}\n", std::process::id());
+        let _ = file.write_all(text.as_bytes());
     }
 }
 
