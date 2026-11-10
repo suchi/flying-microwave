@@ -1,7 +1,7 @@
 # v0.1.1の実機での確認の手順
 
 - 作成日: 2026-11-03
-- 対象: `v0.1.1-alpha.3`(コードはv0.1.1と同じ)。メンテナーは2026-11-03にこの手順で確認し、全体として問題がなかったと報告した。項目ごとの結果は[Issue #47](https://github.com/suchi/flying-microwave/issues/47)で受け取る([計画0001](../plans/0001-initial-implementation-plan.md)のD-33)。
+- 対象: `v0.1.1-alpha.3`(コードはv0.1.1と同じ)。メンテナーは2026-11-03にこの手順で確認し、全体として問題がなかったと報告した。項目ごとの結果は受け取っていない。2026-11-09に、[Issue #47](https://github.com/suchi/flying-microwave/issues/47)で商標の確認とログ(N-01、前面化)を受け取った。項目ごとの結果は受け取らず、確かめなかった項目はIssue #59に移して、Issue #47は閉じた([計画0001](../plans/0001-initial-implementation-plan.md)のD-33)。
 - 関連: [計画0001](../plans/0001-initial-implementation-plan.md)の8.2(手動テスト)・N-01〜N-04、[計画0003](../plans/0003-v0.1.1-smoke-test.md)のD-7、[スパイクの結果](../research/spike-results.md)
 
 手順の記号(P-1、A-5、B-6など)は本書の中だけのもので、アーキテクチャの決まり(A-1〜A-8)や計画の決定とは別である。記号と、計画の項目の対応は次のとおり。

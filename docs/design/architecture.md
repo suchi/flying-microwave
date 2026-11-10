@@ -19,7 +19,7 @@
 
 ## 構成要素
 
-次の図は、目標とする構成である。v0.2.0の試作版の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`licenses.rs`、`win.rs`、`log.rs`、`diag.rs`と、coreの`config.rs`、`exit_policy.rs`、`frame_loop.rs`、`pacing.rs`、`monitors.rs`、`rng.rs`、`sim.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
+次の図は、目標とする構成である。v0.2.0の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`licenses.rs`、`win.rs`、`log.rs`、`diag.rs`と、coreの`config.rs`、`exit_policy.rs`、`frame_loop.rs`、`pacing.rs`、`monitors.rs`、`rng.rs`、`sim.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
 
 ```mermaid
 flowchart TB
@@ -188,7 +188,7 @@ Phase 1の暫定値(設定画面がまだないため既定値で実行する。
 - スプライトはインスタンス描画で一括して描く(四角形1種類 + インスタンスごとのアフィン変換とUV。WGSLのシェーダー`crates/app/src/sprite.wgsl`、乗算済みのアルファで合成)。飛行物体ごとに、本体、ドアの順に描く。ドアは、左のヒンジを固定した平行四辺形に変形して開閉させる(0°〜70°)。本体は-8°傾ける。描画の準備に失敗したときは、ログに書いて背景だけを描き続ける。
 - 奥行き(depth)の順に並べて描き、奥のものほど小さく遅くすることで立体感を出す(Phase 3)。
 - フレームレートは垂直同期を基本とし、設定の上限値で間引く。
-- GPUアダプタは省電力を優先して選ぶ(ハイブリッドGPU環境で外部GPUを省電力の状態から復帰させないため)。GPUが使えない場合は、wgpuがDX12のWARP(ソフトウェアの描画)を選ぶ想定である。CIのGPUのないランナーでは、製品がWARPを自動で選んで描画できた(スパイクS6の結果は[spike-results.md](../research/spike-results.md)。実機のWindows Sandboxでの確認は、まだ受け取っていない)。
+- GPUアダプタは省電力を優先して選ぶ(ハイブリッドGPU環境で外部GPUを省電力の状態から復帰させないため)。GPUが使えない場合は、wgpuがDX12のWARP(ソフトウェアの描画)を選ぶ想定である。CIのGPUのないランナーでは、製品がWARPを自動で選んで描画できた(スパイクS6の結果は[spike-results.md](../research/spike-results.md)。実機のWindows Sandboxでの確認は、v0.2.0では行わず、Issue #59で追う。計画0004のD-16)。
 - ディスプレイの電源が切れている間は描画を止める(電源設定の通知でディスプレイの状態を受け取る。Phase 3まで)。
 
 ## 入力と終了判定

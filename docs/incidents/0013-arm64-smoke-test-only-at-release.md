@@ -1,7 +1,7 @@
 # 0013: arm64のスモークテストを、タグを付けるまで試せず、リリースが2回続けて止まった
 
 - 日付: 2026-11-03
-- ステータス: 対策中(対策のPRがマージされていない)
+- ステータス: 対策済み(対策はPR #45でマージした)
 - 関連: [計画0003](../plans/0003-v0.1.1-smoke-test.md)のD-4・D-7・D-9、[計画0001](../plans/0001-initial-implementation-plan.md)のD-23・D-32、[ADR-0016](../adr/0016-arm64-without-guarantee.md)、[ADR-0022](../adr/0022-ship-x64-only-for-now.md)、Issue #44
 
 ## 起きたこと
