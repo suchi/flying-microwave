@@ -1,7 +1,7 @@
 # 0019: Windowsのネイティブのjqでは、設定の保護のフックが確認を求めないおそれがある
 
 - 日付: 2026-11-10
-- ステータス: 対策の判断待ち(セキュリティ設定の変更のため、メンテナーの承認が要る)
+- ステータス: 対策中(対策のPRがマージされていない。2026-11-10にメンテナーが対策を承認した)
 - 関連: [0009](0009-guard-hooks-never-ran.md)、[0012](0012-hook-check-tests-failed-on-windows.md)、[0018](0018-english-progress-note-again.md)、`.claude/hooks/`
 
 ## 起きたこと
@@ -35,13 +35,13 @@
 
 ## 対策
 
-案を示し、メンテナーの承認を待っている(`.claude/hooks/`と`scripts/check_hooks.py`の変更。前者はセキュリティ設定)。
+2026-11-10にメンテナーが承認した(`.claude/hooks/`と`scripts/check_hooks.py`の変更。前者はセキュリティ設定)。
 
-1. 現象への対応: すべてのフックで、`jq -r`で取り出した値からCRを取り除く(`tr -d '\r'`)。
-2. 仕組み: `scripts/check_hooks.py`で、各サンプルを、出力にCRを付ける仮のjqでも実行し、通常のjqと同じ判定になることを確かめる。Windowsの実機がなくても、LinuxのCIで同じ種類の欠けを見つけられる。
+1. 現象への対応: `jq -r`で取り出した値を比べるフック(`protect-config.sh`、`require-japanese-reply.sh`、`block-dangerous-git.sh`、`require-japanese-note.sh`)で、値からCRを取り除いた(`tr -d '\r'`)。`require-japanese-description.sh`は、値を正規表現で調べるだけで、CRに左右されないため変えていない。`protect-config.sh`の、入力を解析できないときに確認を求める動作は変えていない。
+2. 仕組み: `scripts/check_hooks.py`で、各サンプルを、出力の行末をCRLFにする仮のjq(jqの終了コードは保つ)でも実行し、期待する判断になることを確かめるようにした。Windowsの実機がなくても、LinuxとmacOSの検査とCIで、同じ種類の欠けを見つけられる。1の前のフックでは、この検査が`protect-config.sh`と`require-japanese-reply.sh`で失敗し、1のあとは通ることを確かめた(2026-11-10)。
 3. 確認: メンテナーのWindowsで、jqの出力に`\r`があることを確かめた(2026-11-10。上の「確かめた事実」)。対策のあとに、メンテナーの環境で、`.claude/settings.json`の編集で確認を求めることを確かめる。
 
 ## 確かめ方
 
-- 2の検査が、対策の前のフックで失敗し、対策のあとのフックで通ること。
+- 2の検査が、対策の前のフックで失敗し、対策のあとのフックで通ること(2026-11-10に確かめた)。CIのLinuxのジョブで、毎回確かめる。
 - 対策のあと、メンテナーのWindowsで、`protect-config.sh`が`.claude/settings.json`の編集で確認を求めること。
