@@ -3,10 +3,11 @@
 {"type":"assistant","message":{"id":"msg_en","content":[{"type":"text","text":"Next: bump the version."}]}}
 {"type":"assistant","message":{"id":"msg_en","content":[{"type":"tool_use","id":"toolu_en","name":"Bash","input":{}}]}}
 {"type":"assistant","message":{"id":"msg_en","content":[{"type":"tool_use","id":"toolu_en2","name":"Read","input":{}}]}}
+{"type":"assistant","message":{"id":"msg_reply","content":[{"type":"text","text":"Done."}]}}
 {"type":"assistant","message":{"id":"msg_one","content":[{"type":"text","text":"Checking the file."},{"type":"tool_use","id":"toolu_one","name":"Read","input":{}}]}}
 {"type":"assistant","message":{"id":"msg_ja","content":[{"type":"text","text":"次に版を上げます(`Cargo.toml`)。"}]}}
 {"type":"assistant","message":{"id":"msg_ja","content":[{"type":"tool_use","id":"toolu_ja","name":"Bash","input":{}}]}}
 {"type":"assistant","message":{"id":"msg_none","content":[{"type":"tool_use","id":"toolu_none","name":"Read","input":{}}]}}
 {"type":"assistant","message":{"id":"msg_sym","content":[{"type":"text","text":"1/2 ..."}]}}
 {"type":"assistant","message":{"id":"msg_sym","content":[{"type":"tool_use","id":"toolu_sym","name":"Read","input":{}}]}}
-{"type":"assistant","message":{"id":"msg_partial","content":[{"type":"text","text":"Writ
+{"type":"assistant","message":{"id":"msg_partial","content":
