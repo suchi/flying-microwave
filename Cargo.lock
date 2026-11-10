@@ -577,7 +577,7 @@ checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
 
 [[package]]
 name = "flying-microwave"
-version = "0.2.0"
+version = "0.3.0-alpha.1"
 dependencies = [
  "eframe",
  "embed-resource",
@@ -592,7 +592,7 @@ dependencies = [
 
 [[package]]
 name = "flying-microwave-core"
-version = "0.2.0"
+version = "0.3.0-alpha.1"
 dependencies = [
  "serde",
  "toml",
@@ -600,7 +600,7 @@ dependencies = [
 
 [[package]]
 name = "flying-microwave-smoke"
-version = "0.2.0"
+version = "0.3.0-alpha.1"
 dependencies = [
  "windows-sys 0.61.2",
 ]
