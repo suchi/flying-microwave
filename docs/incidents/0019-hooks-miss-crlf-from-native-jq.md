@@ -18,7 +18,7 @@
   - `require-japanese-reply.sh`: `stop_hook_active`の値が`true`と一致せず、続けて書き直しを求める回数の上限(2回)が効かなかった。4回続けて求めた(通常のjqでは3回目から通す)。
   - `block-dangerous-git.sh`と`require-japanese-description.sh`: CRがあっても、通常のjqと同じ判定だった。
   - `require-japanese-note.sh`(0018の対策): 取り出した値からCRを取り除くようにしてあり、同じ判定だった。
-- Windowsの実機では試していない。メンテナーの環境のjqがネイティブのjq.exeかどうか、出力が実際にCRLFになるかは、確かめていない。
+- 2026-11-10に、メンテナーのWindowsのMSYS2のシェル(UCRT64)で`jq -r .a <<< '{"a":"x"}' | od -c`を実行すると、出力は`x  \r  \n`だった。メンテナーの環境では、jqの出力がCRLFになる。Claude Codeがフックを起動するGit Bashも、MSYS2を土台にしているため、同じ結果になると考えられる(推測。Git Bashでは試していない)。フックそのものをWindowsの実機で起動しては、まだ確かめていない。
 - `scripts/check_hooks.py`は、Windowsでは範囲外として何もしない(0012)。CIのWindowsのジョブでも、フックの動作は確かめていない。
 
 ## なぜなぜ分析
@@ -39,9 +39,9 @@
 
 1. 現象への対応: すべてのフックで、`jq -r`で取り出した値からCRを取り除く(`tr -d '\r'`)。
 2. 仕組み: `scripts/check_hooks.py`で、各サンプルを、出力にCRを付ける仮のjqでも実行し、通常のjqと同じ判定になることを確かめる。Windowsの実機がなくても、LinuxのCIで同じ種類の欠けを見つけられる。
-3. 確認: メンテナーのWindowsで、Git Bashから`jq -r .a <<< '{"a":"x"}' | od -c`を実行し、出力に`\r`があるかを確かめる(任意。結果は本記録に書く)。
+3. 確認: メンテナーのWindowsで、jqの出力に`\r`があることを確かめた(2026-11-10。上の「確かめた事実」)。対策のあとに、メンテナーの環境で、`.claude/settings.json`の編集で確認を求めることを確かめる。
 
 ## 確かめ方
 
 - 2の検査が、対策の前のフックで失敗し、対策のあとのフックで通ること。
-- 3の結果が分かれば、Windowsでの前提を記録する。
+- 対策のあと、メンテナーのWindowsで、`protect-config.sh`が`.claude/settings.json`の編集で確認を求めること。
