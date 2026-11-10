@@ -51,3 +51,4 @@
 | [0019](0019-hooks-miss-crlf-from-native-jq.md) | Windowsのネイティブのjqでは、設定の保護のフックが確認を求めないおそれがある | 2026-11-10 |
 | [0020](0020-incident-status-not-updated.md) | incidentのステータスが、対策のマージのあとも古いままだった | 2026-11-10 |
 | [0021](0021-settings-init-timeout-missing.md) | 設定画面のGPUの初期化に、要件にある上限がないまま出した | 2026-11-10 |
+| [0022](0022-note-hook-reads-transcript-too-early.md) | 合間の文を確かめるフックが、記録の書き込みより先に動き、何も止めていなかった | 2026-11-10 |
