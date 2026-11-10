@@ -31,6 +31,11 @@ command -v jq >/dev/null 2>&1 || exit 0
 MAX_BLOCKS=2 # must be 1 to 9 (the count is read as one digit)
 
 active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null) || exit 0
+# Why tr: a native jq.exe started from Git Bash on Windows turns every LF
+# of its output into CRLF (jq manual, --binary), so every CR is removed: a
+# trailing CR made active never equal true, and an empty message look
+# non-empty (docs/incidents/0019).
+active=$(printf '%s' "$active" | tr -d '\r')
 key=$(printf '%s' "$input" | jq -r '[.session_id // "unknown", .agent_id // "main"] | join("-")' 2>/dev/null) || exit 0
 # Only safe characters in the file name.
 key=$(printf '%s' "$key" | tr -cd 'A-Za-z0-9_-')
@@ -47,6 +52,7 @@ if uid=$(id -u 2>/dev/null) && [ -n "$uid" ]; then
 fi
 
 message=$(printf '%s' "$input" | jq -r '.last_assistant_message // empty' 2>/dev/null) || exit 0
+message=$(printf '%s' "$message" | tr -d '\r')
 [ -n "$message" ] || exit 0
 
 # jq -e exits 1 only when the result is false. Any other failure (for

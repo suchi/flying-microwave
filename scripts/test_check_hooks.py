@@ -4,6 +4,8 @@ import contextlib
 import io
 import os
 import pathlib
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -158,6 +160,59 @@ class RunTest(unittest.TestCase):
             command = '"$CLAUDE_PROJECT_DIR/.claude/hooks/a.sh"'
             problems = ch.run_problems([command], {".claude/hooks/a.sh": [({}, None)]}, pathlib.Path(d))
             self.assertEqual(len(problems), 1)
+
+
+# docs/incidents/0019: a native jq.exe started from Git Bash ends its output
+# lines with CRLF. Every sample is also run with a jq that does the same.
+COMPARE_HOOK = """#!/bin/sh
+v=$(cat | jq -r '.v')
+[ "$v" = "x" ] && printf '{"decision": "block"}\\n'
+exit 0
+"""
+
+STRIP_HOOK = """#!/bin/sh
+v=$(cat | jq -r '.v' | tr -d '\\r')
+[ "$v" = "x" ] && printf '{"decision": "block"}\\n'
+exit 0
+"""
+
+
+@unittest.skipIf(ch.running_on_windows(), "the hook launch is checked on Linux and macOS only")
+@unittest.skipIf(shutil.which("jq") is None, "needs jq")
+class CrlfTest(unittest.TestCase):
+    def run_hook(self, text):
+        with tempfile.TemporaryDirectory() as d:
+            hook = pathlib.Path(d, ".claude", "hooks", "a.sh")
+            hook.parent.mkdir(parents=True)
+            hook.write_text(text, encoding="utf-8")
+            os.chmod(hook, 0o755)
+            command = '"$CLAUDE_PROJECT_DIR/.claude/hooks/a.sh"'
+            return ch.run_problems([command], {".claude/hooks/a.sh": [({"v": "x"}, "block")]}, pathlib.Path(d))
+
+    def test_a_hook_that_keeps_the_cr_fails_with_crlf_output(self):
+        problems = self.run_hook(COMPARE_HOOK)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("CRLF", problems[0])
+
+    def test_a_hook_that_removes_the_cr_passes(self):
+        self.assertEqual(self.run_hook(STRIP_HOOK), [])
+
+    def run_crlf_jq(self, args, stdin):
+        with tempfile.TemporaryDirectory() as d:
+            ch.write_crlf_jq(d, shutil.which("jq"))
+            return subprocess.run([str(pathlib.Path(d, "jq")), *args], input=stdin, capture_output=True)
+
+    def test_the_crlf_jq_ends_every_line_with_crlf(self):
+        result = self.run_crlf_jq(["-r", ".[]"], b'["a", "b"]')
+        self.assertEqual(result.stdout, b"a\r\nb\r\n")
+
+    def test_the_crlf_jq_keeps_the_exit_status(self):
+        # jq -e exits with 1 when the result is false; hooks rely on it.
+        self.assertEqual(self.run_crlf_jq(["-e", ".a"], b'{"a": false}').returncode, 1)
+        self.assertEqual(self.run_crlf_jq(["."], b"not json").returncode, 5)
+
+    def test_the_crlf_jq_adds_no_line_ending_to_output_without_one(self):
+        self.assertEqual(self.run_crlf_jq(["-j", ".a"], b'{"a": "x"}').stdout, b"x")
 
 
 if __name__ == "__main__":

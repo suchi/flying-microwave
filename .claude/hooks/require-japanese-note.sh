@@ -24,11 +24,15 @@ input=$(cat)
 
 command -v jq >/dev/null 2>&1 || exit 0
 
-# Why tr: a native jq.exe run from Git Bash on Windows ends its output with
-# CRLF (jq manual, --binary), and a stray CR would make the path or the id
-# never match.
-transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null | tr -d '\r') || exit 0
-id=$(printf '%s' "$input" | jq -r '.tool_use_id // empty' 2>/dev/null | tr -d '\r') || exit 0
+# Why tr: a native jq.exe started from Git Bash on Windows turns every LF
+# of its output into CRLF (jq manual, --binary), so every CR is removed: a
+# CR would make the path or the id never match. The text itself is only
+# searched with regular expressions, so it is left as it is
+# (docs/incidents/0019).
+transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null) || exit 0
+transcript=$(printf '%s' "$transcript" | tr -d '\r')
+id=$(printf '%s' "$input" | jq -r '.tool_use_id // empty' 2>/dev/null) || exit 0
+id=$(printf '%s' "$id" | tr -d '\r')
 [ -n "$transcript" ] && [ -n "$id" ] && [ -f "$transcript" ] || exit 0
 
 # Why tail: the transcript of a long session is tens of megabytes, and the

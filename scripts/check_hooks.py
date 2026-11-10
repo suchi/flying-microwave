@@ -35,6 +35,7 @@ import json
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -56,6 +57,8 @@ SAMPLES = {
     ".claude/hooks/require-japanese-description.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}}, "deny"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "ファイルを一覧表示する"}}, None),
+        # An empty value must pass with CRLF jq output too (docs/incidents/0019).
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": ""}}, None),
     ],
     # docs/incidents/0018: the text written before a tool call, read from a
     # sample transcript (scripts/hook_samples/transcript.jsonl). It has a line
@@ -76,6 +79,7 @@ SAMPLES = {
     ".claude/hooks/require-japanese-reply.sh": [
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "終わりました。"}, None),
+        ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": ""}, None),
         # docs/incidents/0015: checked also while another Stop hook keeps the
         # turn going, with a limit on the rewrites asked for in a row.
         ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
@@ -167,24 +171,70 @@ def unsupported_problems(settings):
     return problems
 
 
+CRLF_JQ = """#!/bin/sh
+# Imitates a native jq.exe started from Git Bash on Windows, which turns
+# every LF of its output into CRLF (jq manual, --binary; docs/incidents/0019).
+# The exit status of jq is kept, and output that does not end with a newline
+# (jq -j) gets no line ending added.
+out=$(mktemp) || exit 1
+{real} "$@" > "$out"
+status=$?
+if [ -s "$out" ] && [ -z "$(tail -c 1 "$out" | tr -d '\\n')" ]; then nl=1; else nl=0; fi
+awk -v nl="$nl" 'NR > 1 {{ printf "%s\\r\\n", prev }} {{ prev = $0 }} END {{ if (NR > 0) {{ if (nl) printf "%s\\r\\n", prev; else printf "%s", prev }} }}' "$out"
+rm -f "$out"
+exit $status
+"""
+
+
+def write_crlf_jq(directory, real_jq):
+    """Writes a jq into directory that ends every output line with CRLF."""
+    script = pathlib.Path(directory, "jq")
+    script.write_text(CRLF_JQ.format(real=shlex.quote(real_jq)), encoding="utf-8")
+    os.chmod(script, 0o755)
+
+
 def run_problems(commands, samples, root):
     problems = []
     # Why a temporary directory: hooks may keep state in it (docs/incidents/0015),
     # and runs at the same time must not share that state.
     with tempfile.TemporaryDirectory() as temp:
-        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(root), TMPDIR=temp, XDG_RUNTIME_DIR=temp)
-        for command in commands:
-            path = hook_path(command)
-            for sample, expected in samples[path]:
-                # Why sh -c: on Linux and macOS, Claude Code passes the command
-                # string to sh -c (Hooks reference), so this is how it starts.
-                result = subprocess.run(
-                    ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
-                )
-                got = decision(result.stdout)
-                if result.returncode != 0 or got != expected:
-                    detail = (result.stderr or result.stdout).strip()[:300]
-                    problems.append(f"{path}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}")
+        modes = [("", os.environ.get("PATH", ""))]
+        real_jq = shutil.which("jq")
+        # Why a second run: a native jq.exe from Git Bash turns every LF of its
+        # output into CRLF, and a stray CR made hooks miss what they guard
+        # (docs/incidents/0019). Windows itself is out of scope here.
+        if real_jq is not None:
+            crlf_dir = pathlib.Path(temp, "crlf-jq")
+            crlf_dir.mkdir()
+            write_crlf_jq(crlf_dir, real_jq)
+            modes.append(("(jqの出力がCRLFのとき)", str(crlf_dir) + os.pathsep + os.environ.get("PATH", "")))
+        # A sample that already failed with the real jq is reported once.
+        failed = set()
+        for number, (label, search_path) in enumerate(modes):
+            # Why a directory per mode: require-japanese-reply.sh keeps a count
+            # between samples, and each mode must start from no count.
+            state = pathlib.Path(temp, f"state-{number}")
+            state.mkdir()
+            env = dict(
+                os.environ, PATH=search_path, CLAUDE_PROJECT_DIR=str(root), TMPDIR=str(state), XDG_RUNTIME_DIR=str(state)
+            )
+            for command in commands:
+                path = hook_path(command)
+                for index, (sample, expected) in enumerate(samples[path]):
+                    if (path, index) in failed:
+                        continue
+                    # Why sh -c: on Linux and macOS, Claude Code passes the command
+                    # string to sh -c (Hooks reference), so this is how it starts.
+                    result = subprocess.run(
+                        ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
+                    )
+                    got = decision(result.stdout)
+                    if result.returncode != 0 or got != expected:
+                        failed.add((path, index))
+                        detail = (result.stderr or result.stdout).strip()[:300]
+                        problems.append(
+                            f"{path}{label}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}"
+                        )
     return problems
 
 

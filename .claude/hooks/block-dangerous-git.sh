@@ -26,6 +26,13 @@ fi
 
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null) ||
   emit ask "フックの入力をJSONとして解析できませんでした。先にユーザーに確認してください。"
+# Why tr: a native jq.exe started from Git Bash on Windows turns every LF
+# of its output into CRLF (jq manual, --binary), so every CR is removed: a
+# CR must not decide whether a pattern matches. bash does not split words
+# at a CR, so removing them only lets more patterns match. The one
+# exception is the .env.example exclusion below, which can be passed
+# without a CR as well (docs/incidents/0019).
+cmd=$(printf '%s' "$cmd" | tr -d '\r')
 
 [ -n "$cmd" ] || exit 0
 
