@@ -1,7 +1,7 @@
 # 0018: 0015の対策のあとも、合間の報告を英語で書いた
 
 - 日付: 2026-11-09
-- ステータス: 対策中(対策のフックはPR #62でマージしたが、記録の書き込みがフックの起動より遅れるため、Claude Codeから起動されたときに何も止めていなかった。[0022](0022-note-hook-reads-transcript-too-early.md)で対策する)
+- ステータス: 対策中(対策のフックはPR #62でマージしたが、記録の書き込みがフックの起動より遅れるため、Claude Codeから起動されたときに何も止めていなかった。[0022](0022-note-hook-reads-transcript-too-early.md)の対策(PR #67でマージした)で直した。0022と同じく、マージのあとで最初に始めるセッションで確かめてから「対策済み」にする)
 - 関連: [0001](0001-english-text-shown-to-maintainer.md)、[0005](0005-english-notes-between-tool-calls.md)、[0015](0015-english-reports-after-stop-hook.md)(同じ種類の異常の再発)
 
 ## 起きたこと

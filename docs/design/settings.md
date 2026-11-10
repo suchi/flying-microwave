@@ -89,5 +89,5 @@ flowchart LR
 - Aboutにはバージョン、ライセンス、依存ライブラリのライセンス表記、着想元についての説明([先行作品と知的財産上の配慮](../research/prior-art-and-ip.md)のIP-1の範囲)、プロジェクトのURLを表示する。
 - 保存に失敗した場合は、設定画面内にエラーメッセージを表示する(設定画面は利用者の操作中なので表示してよい)。
 - 選択肢のUIラベル: `display.max_fps`はMatch monitor・30 fps・60 fps・120 fps、`display.monitors`はAll monitors・Primary only、`input.exit_sensitivity`はLow・Medium・High。
-- 設定画面を開けないとき(GPUの初期化の失敗など)は、メッセージボックスで、開けなかったことと設定ファイルのパスを示し、終了コード7で終わる([ADR-0024](../adr/0024-settings-file-location-and-handling.md)のE-4)。
+- 設定画面を開けないとき(GPUの初期化の失敗など)は、メッセージボックスで、開けなかったことと設定ファイルのパスを示し、終了コード7で終わる([ADR-0024](../adr/0024-settings-file-location-and-handling.md)のE-4)。GPUの初期化が15秒で終わらないときも同じ扱いにする(`/s`・`/p`と同じ上限。[計画0004](../plans/0004-v0.2.0-settings.md)のD-17、[計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-1)。
 - Phase 1と`v0.1.x`の`/c`は、設定画面の代わりに「設定は今後のバージョンで追加する」旨のメッセージボックス(Win32の`MessageBoxW`)を表示していた。v0.2.0の試作版から、設定画面(eframe)を表示する。

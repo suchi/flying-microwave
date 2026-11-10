@@ -15,15 +15,20 @@ use windows_sys::Win32::System::Com::CoTaskMemFree;
 use windows_sys::Win32::System::LibraryLoader::{
     LOAD_LIBRARY_SEARCH_SYSTEM32, SetDefaultDllDirectories,
 };
+use windows_sys::Win32::System::Power::{
+    DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS, HPOWERNOTIFY, POWERBROADCAST_SETTING,
+    PowerSettingRegisterNotification, PowerSettingUnregisterNotification,
+};
+use windows_sys::Win32::System::SystemServices::GUID_SESSION_DISPLAY_STATUS;
 use windows_sys::Win32::System::Threading::{CreateMutexW, GetCurrentProcess, TerminateProcess};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled};
 use windows_sys::Win32::UI::Shell::{
     FOLDERID_Fonts, FOLDERID_RoamingAppData, KF_FLAG_DEFAULT, SHGetKnownFolderPath,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GWLP_HWNDPARENT, GetClientRect, GetCursorPos, GetForegroundWindow, IsWindow, MB_ICONERROR,
-    MB_ICONINFORMATION, MB_OK, MESSAGEBOX_STYLE, MessageBoxW, SetForegroundWindow,
-    SetWindowLongPtrW,
+    DEVICE_NOTIFY_CALLBACK, GWLP_HWNDPARENT, GetClientRect, GetCursorPos, GetForegroundWindow,
+    IsWindow, MB_ICONERROR, MB_ICONINFORMATION, MB_OK, MESSAGEBOX_STYLE, MessageBoxW,
+    PBT_POWERSETTINGCHANGE, SetForegroundWindow, SetWindowLongPtrW,
 };
 use windows_sys::core::{GUID, PWSTR};
 use winit::monitor::MonitorHandle;
@@ -270,6 +275,113 @@ pub fn roaming_app_data() -> Option<PathBuf> {
 /// The system fonts folder (`%WINDIR%\Fonts`).
 pub fn fonts_folder() -> Option<PathBuf> {
     known_folder(&FOLDERID_Fonts)
+}
+
+/// N-14: the registration for the display state of the session. Each report
+/// goes to [`crate::display_power::report`]; dropping this unregisters.
+pub struct DisplayWatch {
+    handle: HPOWERNOTIFY,
+    // Why kept: the parameters are passed by pointer at registration, so
+    // they live as long as the registration does.
+    _params: Box<DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS>,
+}
+
+/// Registers for `GUID_SESSION_DISPLAY_STATUS` with a callback, which needs
+/// no window ("PowerSettingRegisterNotification", Microsoft Learn). Windows
+/// calls it with the current state right after registering. Returns the
+/// Win32 error code on failure; drawing then goes on as before.
+pub fn watch_display() -> Result<DisplayWatch, u32> {
+    let params = Box::new(DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS {
+        Callback: Some(display_callback),
+        Context: std::ptr::null_mut(),
+    });
+    let mut handle: *mut c_void = std::ptr::null_mut();
+    // SAFETY: the GUID is a constant, `params` points to valid parameters
+    // that outlive the registration (kept in DisplayWatch), and `handle` is
+    // a writable pointer.
+    let error = unsafe {
+        PowerSettingRegisterNotification(
+            &GUID_SESSION_DISPLAY_STATUS,
+            DEVICE_NOTIFY_CALLBACK,
+            &*params as *const DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS as HANDLE,
+            &mut handle,
+        )
+    };
+    if error != 0 {
+        return Err(error);
+    }
+    Ok(DisplayWatch {
+        handle: handle as HPOWERNOTIFY,
+        _params: params,
+    })
+}
+
+impl Drop for DisplayWatch {
+    fn drop(&mut self) {
+        // SAFETY: the handle came from PowerSettingRegisterNotification and
+        // is unregistered once, before the parameters are freed.
+        unsafe { PowerSettingUnregisterNotification(self.handle) };
+    }
+}
+
+/// The callback of [`watch_display`]. The documentation does not say on
+/// which thread it runs, so it passes the state only through an atomic
+/// ([`crate::display_power`]). It also says only that `setting` depends on
+/// the type, so it is read as a `POWERBROADCAST_SETTING` only for a power
+/// setting change of the display state, and at most the four bytes of a
+/// DWORD. Other reports are logged the first few times, so that a hardware
+/// check can tell them from no report at all.
+unsafe extern "system" fn display_callback(
+    _context: *const c_void,
+    kind: u32,
+    setting: *const c_void,
+) -> u32 {
+    if kind != PBT_POWERSETTINGCHANGE || setting.is_null() {
+        log_unexpected(&format!(
+            "type {kind:#x}, setting null {}",
+            setting.is_null()
+        ));
+        return 0;
+    }
+    let setting = setting as *const POWERBROADCAST_SETTING;
+    // SAFETY: for a power setting change, `setting` points to a
+    // POWERBROADCAST_SETTING; its fields are read without making a reference,
+    // because the data follows the struct and may be longer than it.
+    let (guid, length) = unsafe {
+        (
+            std::ptr::read_unaligned(std::ptr::addr_of!((*setting).PowerSetting)),
+            std::ptr::read_unaligned(std::ptr::addr_of!((*setting).DataLength)),
+        )
+    };
+    if !same_guid(&guid, &GUID_SESSION_DISPLAY_STATUS) {
+        log_unexpected(&format!("power setting {:08x}", guid.data1));
+        return 0;
+    }
+    let length = (length as usize).min(4);
+    // SAFETY: the data has `DataLength` bytes after the GUID and the length;
+    // at most four of them are read.
+    let data = unsafe {
+        std::slice::from_raw_parts(std::ptr::addr_of!((*setting).Data) as *const u8, length)
+    };
+    crate::display_power::report(data);
+    crate::log::write(&format!(
+        "display state reported: {data:?} (on: {})",
+        crate::display_power::is_on()
+    ));
+    0
+}
+
+/// Logs a report the display callback does not use, the first few times.
+fn log_unexpected(what: &str) {
+    static COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let count = COUNT.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    if crate::diag::first_few(count) {
+        crate::log::write(&format!("display state: unexpected report ({what})"));
+    }
+}
+
+fn same_guid(a: &GUID, b: &GUID) -> bool {
+    a.data1 == b.data1 && a.data2 == b.data2 && a.data3 == b.data3 && a.data4 == b.data4
 }
 
 /// The path of a known folder, or `None` when Windows cannot give it.
