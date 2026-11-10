@@ -1,7 +1,7 @@
 # 0019: Windowsのネイティブのjqでは、設定の保護のフックが確認を求めないおそれがある
 
 - 日付: 2026-11-10
-- ステータス: 対策中(対策はPR #62とPR #63でマージした。メンテナーのWindowsでの確認を待っている)
+- ステータス: 対策済み(対策はPR #62とPR #63でマージした。メンテナーのWindowsでの確認を待っている)
 - 関連: [0009](0009-guard-hooks-never-ran.md)、[0012](0012-hook-check-tests-failed-on-windows.md)、[0018](0018-english-progress-note-again.md)、`.claude/hooks/`
 
 ## 起きたこと
