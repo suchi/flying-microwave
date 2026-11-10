@@ -162,14 +162,16 @@ mod tests {
 
     #[test]
     fn a_limit_disarmed_in_time_runs_no_effects() {
+        // Why 60 s: the test must not depend on how fast this thread runs; a
+        // short timer could fire first on a busy runner.
         let (sent, received) = mpsc::channel::<()>();
-        let limit =
-            Limit::start(Duration::from_millis(200), move || sent.send(()).unwrap()).unwrap();
+        let limit = Limit::start(Duration::from_secs(60), move || sent.send(()).unwrap()).unwrap();
         assert_eq!(limit.disarm(), Disarm::InTime);
-        // The sender is dropped without sending when the timer ends.
+        // The timer can no longer fire, so its effects cannot run.
+        assert!(!limit.fire());
         assert_eq!(
-            received.recv_timeout(Duration::from_secs(5)),
-            Err(mpsc::RecvTimeoutError::Disconnected)
+            received.recv_timeout(Duration::from_millis(100)),
+            Err(mpsc::RecvTimeoutError::Timeout)
         );
     }
 
