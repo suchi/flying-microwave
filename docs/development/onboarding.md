@@ -277,10 +277,12 @@ python3 -I scripts/check_hooks.py
   - `another screensaver instance is running; exiting`: `/s`の2つめの起動。終了コード0。
   - `preview: N is not a valid window; exiting`: `/p`の番号が有効なウィンドウでない。終了コード2。
   - `GPU initialization timed out; exiting`: GPUの初期化が15秒で終わらなかった。終了コード6。
+  - `GPU initialization timed out; the settings window could not be opened`、または`settings: waiting for the GPU initialization limit to end the process`: 設定画面のGPUの初期化が15秒で終わらなかった。開けなかったことと設定ファイルのパスをメッセージボックスで示し、閉じると終了コード7で終わる(初期化の失敗と同じ終了コード。ログの行で見分ける)。
   - `EventLoop::new failed:`、`event loop error:`、`preview: EventLoop::new failed:`、`preview: event loop returned an error:`: イベントループの失敗。終了コード1。
   - どれにも当たらずに行が途中で切れていれば、panicなどで異常終了している。
 - `/s`の終了コード: 0が正常、1がイベントループの失敗、5がウィンドウを1つも作れなかった(`no window could be created`)、6がGPUの初期化が15秒で終わらなかったことを表す。
 - プレビューの終了の理由: ログの`preview exit:`の行に出る。終了コードは、0が正常、1がイベントループの失敗、2が親のウィンドウが無効(引数の番号が不正か、すでに閉じられていた)、4が初期化の失敗、6がGPUの初期化が15秒で終わらなかったことを表す。
+- 設定画面の終了コード: 0が正常、7が開けなかった(初期化の失敗か、GPUの初期化が15秒で終わらなかった)ことを表す。
 - プレビューのプロセスが残る: スクリーンセーバーの設定画面を閉じたあとも、タスクマネージャーに`FlyingMicrowave.scr`が残っていれば、ログの最後の行を添えて報告する。通常は、親のウィンドウが閉じられてから500ミリ秒以内に終了する。
 
 ### 5.5 アイコンの作り直し
