@@ -26,6 +26,11 @@ fi
 
 path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null) ||
   ask "フックの入力をJSONとして解析できませんでした。先にユーザーに確認してください。"
+# Why tr: a native jq.exe started from Git Bash on Windows ends its output
+# with CRLF (jq manual, --binary), and the trailing CR made the patterns
+# below miss .claude/settings.json and .github/dependabot.yml
+# (docs/incidents/0019).
+path=$(printf '%s' "$path" | tr -d '\r')
 
 [ -n "$path" ] || exit 0
 

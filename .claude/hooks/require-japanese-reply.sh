@@ -31,6 +31,11 @@ command -v jq >/dev/null 2>&1 || exit 0
 MAX_BLOCKS=2 # must be 1 to 9 (the count is read as one digit)
 
 active=$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null) || exit 0
+# Why tr: a native jq.exe started from Git Bash on Windows ends its output
+# with CRLF (jq manual, --binary), and the trailing CR made active never equal
+# true, so the limit on rewrites did not work
+# (docs/incidents/0019).
+active=$(printf '%s' "$active" | tr -d '\r')
 key=$(printf '%s' "$input" | jq -r '[.session_id // "unknown", .agent_id // "main"] | join("-")' 2>/dev/null) || exit 0
 # Only safe characters in the file name.
 key=$(printf '%s' "$key" | tr -cd 'A-Za-z0-9_-')
