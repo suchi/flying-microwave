@@ -60,21 +60,23 @@ SAMPLES = {
         # An empty value must pass with CRLF jq output too (docs/incidents/0019).
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": ""}}, None),
     ],
-    # docs/incidents/0018: the text written before a tool call, read from a
-    # sample transcript (scripts/hook_samples/transcript.jsonl). It has a line
-    # whose message is not an object, and its last line is cut off without a
-    # newline, as when the transcript is still being written.
+    # docs/incidents/0018 and 0022: the text written before tool calls, read
+    # from sample transcripts (scripts/hook_samples/). transcript.jsonl has a
+    # line whose message is not an object, a message whose text and two
+    # parallel calls are on separate lines, one with text and call on one
+    # line, an English reply without a call (left to the Stop hook), and a
+    # last line cut off without a newline, as while it is being written. Each
+    # English-only message is reported once per session, oldest first, so the
+    # third call of the same session passes.
     ".claude/hooks/require-japanese-note.sh": [
-        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_en"}, "deny"),
-        # The second of two parallel calls, and text and call on one line.
-        ({"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_en2"}, "deny"),
-        ({"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_one"}, "deny"),
-        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_ja"}, None),
-        # No text in the message, only symbols, or the call not yet written.
-        ({"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_none"}, None),
-        ({"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_sym"}, None),
-        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_missing"}, None),
-        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/missing.jsonl", "tool_use_id": "toolu_en"}, None),
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_new"}, "deny"),
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_new2"}, "deny"),
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_new3"}, None),
+        # A subagent's call is not stopped by the main agent's text.
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note-sub", "agent_id": "a1", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_sub"}, None),
+        # Only Japanese text, or no transcript.
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note-ja", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript-ja.jsonl", "tool_use_id": "toolu_new"}, None),
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note-missing", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/missing.jsonl", "tool_use_id": "toolu_new"}, None),
     ],
     ".claude/hooks/require-japanese-reply.sh": [
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),

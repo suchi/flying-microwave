@@ -2,6 +2,7 @@
 
 import contextlib
 import io
+import json
 import os
 import pathlib
 import shutil
@@ -213,6 +214,53 @@ class CrlfTest(unittest.TestCase):
 
     def test_the_crlf_jq_adds_no_line_ending_to_output_without_one(self):
         self.assertEqual(self.run_crlf_jq(["-j", ".a"], b'{"a": "x"}').stdout, b"x")
+
+
+# docs/incidents/0022: require-japanese-note.sh reports each English note once,
+# using a state file. Without a usable state file it must stop nothing, or it
+# would deny every call for the same note, edits included.
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+NOTE_HOOK = '"$CLAUDE_PROJECT_DIR/.claude/hooks/require-japanese-note.sh"'
+NOTE_SAMPLE = {
+    "hook_event_name": "PreToolUse",
+    "session_id": "state-test",
+    "tool_name": "Bash",
+    "tool_input": {},
+    "transcript_path": str(ROOT / "scripts" / "hook_samples" / "transcript.jsonl"),
+}
+
+
+@unittest.skipIf(ch.running_on_windows(), "the hook launch is checked on Linux and macOS only")
+@unittest.skipIf(shutil.which("jq") is None, "needs jq")
+class NoteHookStateTest(unittest.TestCase):
+    def decisions(self, temp, calls=2):
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(ROOT), TMPDIR=str(temp), XDG_RUNTIME_DIR=str(temp))
+        result = []
+        for _ in range(calls):
+            run = subprocess.run(
+                ["sh", "-c", NOTE_HOOK], input=json.dumps(NOTE_SAMPLE), capture_output=True, text=True, cwd=ROOT, env=env
+            )
+            self.assertEqual(run.returncode, 0, run.stderr)
+            result.append(ch.decision(run.stdout))
+        return result
+
+    def test_a_usable_state_reports_each_note_once(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(self.decisions(d, calls=3), ["deny", "deny", None])
+
+    def test_a_linked_state_directory_stops_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            elsewhere = pathlib.Path(d, "elsewhere")
+            elsewhere.mkdir()
+            pathlib.Path(d, f"flying-microwave-{os.getuid()}").symlink_to(elsewhere)
+            self.assertEqual(self.decisions(d), [None, None])
+
+    def test_a_state_file_that_cannot_be_written_stops_nothing(self):
+        with tempfile.TemporaryDirectory() as d:
+            state = pathlib.Path(d, f"flying-microwave-{os.getuid()}")
+            state.mkdir(mode=0o700)
+            pathlib.Path(state, "japanese-note-state-test.ids").mkdir()
+            self.assertEqual(self.decisions(d), [None, None])
 
 
 if __name__ == "__main__":

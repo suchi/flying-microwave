@@ -30,6 +30,7 @@
 | [0002](plans/0002-phase1-tooling-proposal.md) | Phase 1のビルド・配布用ツールの提案 | 合意済み |
 | [0003](plans/0003-v0.1.1-smoke-test.md) | v0.1.1 スモークテストと実機での確認 | 完了(v0.1.1) |
 | [0004](plans/0004-v0.2.0-settings.md) | v0.2.0 設定画面(Phase 2) | 完了(v0.2.0) |
+| [0005](plans/0005-v0.3.0-visuals-and-clock.md) | v0.3.0 見た目と時計(Phase 3) | 合意済み |
 
 ## 調査
 
@@ -103,3 +104,4 @@
 | [0019](incidents/0019-hooks-miss-crlf-from-native-jq.md) | Windowsのネイティブのjqでは、設定の保護のフックが確認を求めないおそれがある |
 | [0020](incidents/0020-incident-status-not-updated.md) | incidentのステータスが、対策のマージのあとも古いままだった |
 | [0021](incidents/0021-settings-init-timeout-missing.md) | 設定画面のGPUの初期化に、要件にある上限がないまま出した |
+| [0022](incidents/0022-note-hook-reads-transcript-too-early.md) | 合間の文を確かめるフックが、記録の書き込みより先に動き、何も止めていなかった |

@@ -1,0 +1,4 @@
+{"type":"user","message":{"role":"user","content":"作業を始めてください。"}}
+{"type":"assistant","message":{"id":"msg_ja","content":[{"type":"text","text":"次に版を上げます。"}]}}
+{"type":"assistant","message":{"id":"msg_ja","content":[{"type":"tool_use","id":"toolu_ja","name":"Bash","input":{}}]}}
+{"type":"assistant","message":{"id":"msg_none","content":[{"type":"tool_use","id":"toolu_none","name":"Read","input":{}}]}}
