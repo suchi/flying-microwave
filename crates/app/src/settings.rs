@@ -18,7 +18,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use eframe::egui::{
     self, Align, Button, Color32, CornerRadius, FontFamily, FontId, Frame, Label, Layout, Margin,
@@ -31,6 +31,7 @@ use windows_sys::Win32::Foundation::HWND;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 use crate::cli::Owner;
+use crate::gpu_limit::{self, AfterRun, Disarm, Limit, SettingsTimeout};
 use crate::licenses;
 use crate::log::log;
 use crate::storage::{self, Location, Startup};
@@ -41,8 +42,12 @@ pub const TITLE: &str = "Flying Microwave Settings";
 const PROJECT_URL: &str = "https://github.com/suchi/flying-microwave";
 
 const EXIT_OK: i32 = 0;
-/// The window could not be opened (E-4).
+/// The window could not be opened (E-4), also when the GPU initialization
+/// limit is reached (plan 0004, D-17).
 const EXIT_WINDOW_FAILED: i32 = 7;
+/// The same limit as `/s` and `/p` (plan 0001, D-27; plan 0004, D-17),
+/// counted from before `eframe::run_native`.
+const GPU_INIT_TIMEOUT: Duration = Duration::from_secs(15);
 
 // Colors of the approved mockup (plan 0004, N-02).
 const BG: Color32 = Color32::from_rgb(0x0f, 0x12, 0x1a);
@@ -115,11 +120,31 @@ pub fn run(owner: Owner) -> i32 {
         ..Default::default()
     };
     log!("settings: starting the window");
+    let failure_text = open_failure_text(&location);
+    let limit = start_limit(failure_text.clone());
+    let creator_limit = limit.clone();
     let result = eframe::run_native(
         "flying-microwave-settings",
         options,
-        Box::new(move |cc| Ok(Box::new(SettingsApp::new(cc, startup, owner, notices)))),
+        Box::new(move |cc| {
+            // Plan 0005, D-1 (1): once the limit has fired, the owner must
+            // not be disabled any more; the timer thread ends the process.
+            if creator_limit.as_ref().map(Limit::disarm) == Some(Disarm::TooLate) {
+                return Err("the GPU initialization limit was reached".into());
+            }
+            Ok(Box::new(SettingsApp::new(cc, startup, owner, notices)))
+        }),
     );
+    if gpu_limit::after_run(limit.as_ref().map_or(Disarm::InTime, Limit::disarm))
+        == AfterRun::WaitForExit
+    {
+        // Plan 0005, D-1 (3): returning would end the process and take the
+        // message box of the timer thread with it.
+        log!("settings: waiting for the GPU initialization limit to end the process");
+        loop {
+            std::thread::park();
+        }
+    }
     release_owner("the window has closed");
     match result {
         Ok(()) => {
@@ -130,9 +155,48 @@ pub fn run(owner: Owner) -> i32 {
             log!("settings: the window could not be opened: {e}");
             // Why: decided in ADR-0024 (E-4). The settings
             // mode is interactive, so a message box is fine here.
-            win::error_box(&open_failure_text(&location), "Flying Microwave");
+            win::error_box(&failure_text, "Flying Microwave");
             EXIT_WINDOW_FAILED
         }
+    }
+}
+
+/// Starts the GPU initialization limit of the settings window. Without the
+/// timer thread the window still opens, as before the limit existed.
+fn start_limit(failure_text: String) -> Option<Limit> {
+    let started = Limit::start(GPU_INIT_TIMEOUT, move || {
+        gpu_limit::settings_timed_out(&mut TimeoutEffects { failure_text });
+    });
+    match started {
+        Ok(limit) => Some(limit),
+        Err(e) => {
+            log!("watchdog thread could not start: {e}");
+            None
+        }
+    }
+}
+
+/// The effects of a reached limit (plan 0004, D-17; plan 0005, D-1 (2)).
+struct TimeoutEffects {
+    failure_text: String,
+}
+
+impl SettingsTimeout for TimeoutEffects {
+    fn log(&mut self) {
+        // The smoke test reads this line (plan 0005, D-1 (4)).
+        log!("GPU initialization timed out; the settings window could not be opened");
+    }
+
+    fn release_owner(&mut self) {
+        release_owner("GPU initialization timed out");
+    }
+
+    fn show_message(&mut self) {
+        win::error_box(&self.failure_text, "Flying Microwave");
+    }
+
+    fn exit(&mut self) {
+        win::terminate_now(EXIT_WINDOW_FAILED as u32);
     }
 }
 
