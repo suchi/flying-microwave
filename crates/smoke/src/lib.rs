@@ -25,6 +25,9 @@ pub struct Progress {
     pub exit_reason: Option<String>,
     /// The summary line of each window, in log order.
     pub summaries: Vec<WindowSummary>,
+    /// Whether the limit on GPU initialization was reached (a line that
+    /// starts with `GPU initialization timed out`).
+    pub gpu_init_timed_out: bool,
 }
 
 /// The counts of one window from its summary line
@@ -94,6 +97,8 @@ impl Progress {
                 progress.summaries.push(summary);
             } else if let Some(adapter) = message.strip_prefix("adapter: ") {
                 progress.adapter.get_or_insert_with(|| adapter.to_owned());
+            } else if message.starts_with("GPU initialization timed out") {
+                progress.gpu_init_timed_out = true;
             } else if let Some(config) = message.strip_prefix("config: ") {
                 progress.config.get_or_insert_with(|| config.to_owned());
             } else if let Some(reason) = message
@@ -397,5 +402,22 @@ mod tests {
         let p = Progress::read(log, 1);
         assert!(p.summaries.is_empty());
         assert_eq!(p.first_frames_ms.len(), 1);
+    }
+
+    #[test]
+    fn the_gpu_initialization_limit_is_read_from_its_line() {
+        // Plan 0005, D-1 (4): the settings window shows a message box both
+        // when the limit is reached and when the setup fails, and ends with
+        // exit code 7 either way, so only the log line tells them apart.
+        let log = "\
++3330ms pid=1 adapter: Microsoft Basic Render Driver (Cpu, Dx12, driver 10.0.26100.33648)
++15138ms pid=1 GPU initialization timed out; exiting
++15002ms pid=2 GPU initialization timed out; the settings window could not be opened
++400ms pid=3 settings: the window could not be opened: app creation error
+";
+        assert!(Progress::read(log, 1).gpu_init_timed_out);
+        assert!(Progress::read(log, 2).gpu_init_timed_out);
+        assert!(!Progress::read(log, 3).gpu_init_timed_out);
+        assert!(!Progress::read(log, 4).gpu_init_timed_out);
     }
 }

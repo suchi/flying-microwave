@@ -35,10 +35,10 @@ const GONE_AFTER_INPUT: Duration = Duration::from_millis(200);
 const EXIT_AFTER_INPUT: Duration = Duration::from_secs(2);
 /// F-02 of plan 0003: the preview checks its parent periodically.
 const EXIT_AFTER_PARENT_GONE: Duration = Duration::from_secs(2);
-/// Limit for the settings window to show. It is drawn with wgpu too, with
-/// WARP on a runner without a GPU, and WARP setup once took over 15 seconds
-/// there (spike S6), so the limit leaves room (plan 0004, task 8).
-const SETTINGS_LIMIT: Duration = Duration::from_secs(60);
+/// Limit for the settings window to show. Its GPU setup gives up after 15
+/// seconds and shows a message box (plan 0004, D-17), so, as READY_LIMIT, a
+/// longer wait would only hide a hang (plan 0005, D-1).
+const SETTINGS_LIMIT: Duration = Duration::from_secs(30);
 const EXIT_AFTER_CLOSE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(2);
 
@@ -445,18 +445,21 @@ fn unknown_argument_shows_settings(env: &Env) -> Result<(), String> {
                 break settings.hwnd;
             }
             // The message box that tells the settings window could not open
-            // (plan 0004, E-4).
+            // (plan 0004, E-4 and D-17). Both cases end with exit code 7, so
+            // the log line tells a reached limit apart (plan 0005, D-1).
             if let Some(dialog) = windows.iter().find(|w| w.class == "#32770") {
                 // SAFETY: as for the settings window below.
                 unsafe { PostMessageW(dialog.hwnd, WM_CLOSE, 0, 0) };
                 return Err(format!(
-                    "a message box (\"{}\") was shown instead of the settings window",
-                    dialog.title
+                    "a message box (\"{}\") was shown instead of the settings window{}",
+                    dialog.title,
+                    timed_out(target)
                 ));
             }
             if let Some(code) = target.exited()? {
                 return Err(format!(
-                    "ended (exit code {code}) without a settings window"
+                    "ended (exit code {code}) without a settings window{}",
+                    timed_out(target)
                 ));
             }
             if start.elapsed() > SETTINGS_LIMIT {
@@ -482,6 +485,15 @@ fn unknown_argument_shows_settings(env: &Env) -> Result<(), String> {
         }
         Ok(())
     })
+}
+
+/// Says so when the GPU initialization limit was reached.
+fn timed_out(target: &Target) -> &'static str {
+    if target.progress().gpu_init_timed_out {
+        ": the GPU initialization limit was reached"
+    } else {
+        ""
+    }
 }
 
 /// The user input that F-01 sends.
