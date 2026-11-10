@@ -4,6 +4,7 @@ import contextlib
 import io
 import os
 import pathlib
+import shutil
 import sys
 import tempfile
 import unittest
@@ -158,6 +159,42 @@ class RunTest(unittest.TestCase):
             command = '"$CLAUDE_PROJECT_DIR/.claude/hooks/a.sh"'
             problems = ch.run_problems([command], {".claude/hooks/a.sh": [({}, None)]}, pathlib.Path(d))
             self.assertEqual(len(problems), 1)
+
+
+# docs/incidents/0019: a native jq.exe started from Git Bash ends its output
+# lines with CRLF. Every sample is also run with a jq that does the same.
+COMPARE_HOOK = """#!/bin/sh
+v=$(cat | jq -r '.v')
+[ "$v" = "x" ] && printf '{"decision": "block"}\\n'
+exit 0
+"""
+
+STRIP_HOOK = """#!/bin/sh
+v=$(cat | jq -r '.v' | tr -d '\\r')
+[ "$v" = "x" ] && printf '{"decision": "block"}\\n'
+exit 0
+"""
+
+
+@unittest.skipIf(ch.running_on_windows(), "the hook launch is checked on Linux and macOS only")
+@unittest.skipIf(shutil.which("jq") is None, "needs jq")
+class CrlfTest(unittest.TestCase):
+    def run_hook(self, text):
+        with tempfile.TemporaryDirectory() as d:
+            hook = pathlib.Path(d, ".claude", "hooks", "a.sh")
+            hook.parent.mkdir(parents=True)
+            hook.write_text(text, encoding="utf-8")
+            os.chmod(hook, 0o755)
+            command = '"$CLAUDE_PROJECT_DIR/.claude/hooks/a.sh"'
+            return ch.run_problems([command], {".claude/hooks/a.sh": [({"v": "x"}, "block")]}, pathlib.Path(d))
+
+    def test_a_hook_that_keeps_the_cr_fails_with_crlf_output(self):
+        problems = self.run_hook(COMPARE_HOOK)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("CRLF", problems[0])
+
+    def test_a_hook_that_removes_the_cr_passes(self):
+        self.assertEqual(self.run_hook(STRIP_HOOK), [])
 
 
 if __name__ == "__main__":

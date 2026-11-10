@@ -35,6 +35,7 @@ import json
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -167,24 +168,66 @@ def unsupported_problems(settings):
     return problems
 
 
+CRLF_JQ = """#!/bin/sh
+# Imitates a native jq.exe started from Git Bash on Windows, whose output
+# lines end with CRLF (jq manual, --binary; docs/incidents/0019). The exit
+# status of jq is kept.
+out=$(mktemp) || exit 1
+{real} "$@" > "$out"
+status=$?
+awk '{{ printf "%s\\r\\n", $0 }}' "$out"
+rm -f "$out"
+exit $status
+"""
+
+
+def write_crlf_jq(directory, real_jq):
+    """Writes a jq into directory that ends every output line with CRLF."""
+    script = pathlib.Path(directory, "jq")
+    script.write_text(CRLF_JQ.format(real=shlex.quote(real_jq)), encoding="utf-8")
+    os.chmod(script, 0o755)
+
+
 def run_problems(commands, samples, root):
     problems = []
     # Why a temporary directory: hooks may keep state in it (docs/incidents/0015),
     # and runs at the same time must not share that state.
     with tempfile.TemporaryDirectory() as temp:
-        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(root), TMPDIR=temp, XDG_RUNTIME_DIR=temp)
-        for command in commands:
-            path = hook_path(command)
-            for sample, expected in samples[path]:
-                # Why sh -c: on Linux and macOS, Claude Code passes the command
-                # string to sh -c (Hooks reference), so this is how it starts.
-                result = subprocess.run(
-                    ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
-                )
-                got = decision(result.stdout)
-                if result.returncode != 0 or got != expected:
-                    detail = (result.stderr or result.stdout).strip()[:300]
-                    problems.append(f"{path}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}")
+        modes = [("", os.environ.get("PATH", ""))]
+        real_jq = shutil.which("jq")
+        # Why a second run: a native jq.exe from Git Bash ends its output with
+        # CRLF, and a stray CR made hooks miss what they guard
+        # (docs/incidents/0019). Windows itself is out of scope here.
+        if real_jq is not None:
+            crlf_dir = pathlib.Path(temp, "crlf-jq")
+            crlf_dir.mkdir()
+            write_crlf_jq(crlf_dir, real_jq)
+            modes.append(("(jqの出力がCRLFのとき)", str(crlf_dir) + os.pathsep + os.environ.get("PATH", "")))
+        # A sample that already failed with the real jq is reported once.
+        failed = set()
+        for label, search_path in modes:
+            state = pathlib.Path(temp, f"state-{len(label)}")
+            state.mkdir()
+            env = dict(
+                os.environ, PATH=search_path, CLAUDE_PROJECT_DIR=str(root), TMPDIR=str(state), XDG_RUNTIME_DIR=str(state)
+            )
+            for command in commands:
+                path = hook_path(command)
+                for index, (sample, expected) in enumerate(samples[path]):
+                    if (path, index) in failed:
+                        continue
+                    # Why sh -c: on Linux and macOS, Claude Code passes the command
+                    # string to sh -c (Hooks reference), so this is how it starts.
+                    result = subprocess.run(
+                        ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
+                    )
+                    got = decision(result.stdout)
+                    if result.returncode != 0 or got != expected:
+                        failed.add((path, index))
+                        detail = (result.stderr or result.stdout).strip()[:300]
+                        problems.append(
+                            f"{path}{label}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}"
+                        )
     return problems
 
 
