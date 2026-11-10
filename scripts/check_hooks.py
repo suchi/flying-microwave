@@ -172,13 +172,15 @@ def unsupported_problems(settings):
 
 
 CRLF_JQ = """#!/bin/sh
-# Imitates a native jq.exe started from Git Bash on Windows, whose output
-# lines end with CRLF (jq manual, --binary; docs/incidents/0019). The exit
-# status of jq is kept.
+# Imitates a native jq.exe started from Git Bash on Windows, which turns
+# every LF of its output into CRLF (jq manual, --binary; docs/incidents/0019).
+# The exit status of jq is kept, and output that does not end with a newline
+# (jq -j) gets no line ending added.
 out=$(mktemp) || exit 1
 {real} "$@" > "$out"
 status=$?
-awk '{{ printf "%s\\r\\n", $0 }}' "$out"
+if [ -s "$out" ] && [ -z "$(tail -c 1 "$out" | tr -d '\\n')" ]; then nl=1; else nl=0; fi
+awk -v nl="$nl" 'NR > 1 {{ printf "%s\\r\\n", prev }} {{ prev = $0 }} END {{ if (NR > 0) {{ if (nl) printf "%s\\r\\n", prev; else printf "%s", prev }} }}' "$out"
 rm -f "$out"
 exit $status
 """
@@ -208,8 +210,10 @@ def run_problems(commands, samples, root):
             modes.append(("(jqの出力がCRLFのとき)", str(crlf_dir) + os.pathsep + os.environ.get("PATH", "")))
         # A sample that already failed with the real jq is reported once.
         failed = set()
-        for label, search_path in modes:
-            state = pathlib.Path(temp, f"state-{len(label)}")
+        for number, (label, search_path) in enumerate(modes):
+            # Why a directory per mode: require-japanese-reply.sh keeps a count
+            # between samples, and each mode must start from no count.
+            state = pathlib.Path(temp, f"state-{number}")
             state.mkdir()
             env = dict(
                 os.environ, PATH=search_path, CLAUDE_PROJECT_DIR=str(root), TMPDIR=str(state), XDG_RUNTIME_DIR=str(state)
