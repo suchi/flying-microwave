@@ -15,7 +15,13 @@ input=$(cat)
 
 command -v jq >/dev/null 2>&1 || exit 0
 
+# Why tr: a native jq.exe started from Git Bash on Windows turns every LF of
+# its output into CRLF (jq manual, --binary). Every CR is removed: otherwise an empty
+# description is a lone CR, which is checked and denied.
+# bash does not split words at a CR, so removing them hides nothing that
+# would run (docs/incidents/0019).
 description=$(printf '%s' "$input" | jq -r '.tool_input.description // empty' 2>/dev/null) || exit 0
+description=$(printf '%s' "$description" | tr -d '\r')
 [ -n "$description" ] || exit 0
 
 # jq -e exits 1 only when the result is false. Any other failure (for

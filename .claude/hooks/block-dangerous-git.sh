@@ -26,10 +26,11 @@ fi
 
 cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null) ||
   emit ask "フックの入力をJSONとして解析できませんでした。先にユーザーに確認してください。"
-# Why tr: a native jq.exe started from Git Bash on Windows ends its output
-# with CRLF (jq manual, --binary), and the trailing CR must not decide
-# whether a pattern matches
-# (docs/incidents/0019).
+# Why tr: a native jq.exe started from Git Bash on Windows turns every LF of
+# its output into CRLF (jq manual, --binary). Every CR is removed: a CR must not
+# decide whether a pattern matches.
+# bash does not split words at a CR, so removing them hides nothing that
+# would run (docs/incidents/0019).
 cmd=$(printf '%s' "$cmd" | tr -d '\r')
 
 [ -n "$cmd" ] || exit 0

@@ -57,6 +57,8 @@ SAMPLES = {
     ".claude/hooks/require-japanese-description.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}}, "deny"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "ファイルを一覧表示する"}}, None),
+        # An empty value must pass with CRLF jq output too (docs/incidents/0019).
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": ""}}, None),
     ],
     # docs/incidents/0018: the text written before a tool call, read from a
     # sample transcript (scripts/hook_samples/transcript.jsonl). It has a line
@@ -77,6 +79,7 @@ SAMPLES = {
     ".claude/hooks/require-japanese-reply.sh": [
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "終わりました。"}, None),
+        ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": ""}, None),
         # docs/incidents/0015: checked also while another Stop hook keeps the
         # turn going, with a limit on the rewrites asked for in a row.
         ({"hook_event_name": "Stop", "session_id": "check-hooks-limit", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
