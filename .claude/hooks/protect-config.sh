@@ -26,11 +26,10 @@ fi
 
 path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null) ||
   ask "フックの入力をJSONとして解析できませんでした。先にユーザーに確認してください。"
-# Why tr: a native jq.exe started from Git Bash on Windows turns every LF of
-# its output into CRLF (jq manual, --binary). Every CR is removed: a trailing CR
-# made the patterns below miss .claude/settings.json.
-# bash does not split words at a CR, so removing them hides nothing that
-# would run (docs/incidents/0019).
+# Why tr: a native jq.exe started from Git Bash on Windows turns every LF
+# of its output into CRLF (jq manual, --binary), so every CR is removed: a
+# trailing CR made the patterns below miss .claude/settings.json. Removing
+# CRs only lets more paths match (docs/incidents/0019).
 path=$(printf '%s' "$path" | tr -d '\r')
 
 [ -n "$path" ] || exit 0

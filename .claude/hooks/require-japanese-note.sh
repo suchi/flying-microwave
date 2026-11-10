@@ -24,11 +24,11 @@ input=$(cat)
 
 command -v jq >/dev/null 2>&1 || exit 0
 
-# Why tr: a native jq.exe started from Git Bash on Windows turns every LF of
-# its output into CRLF (jq manual, --binary). Every CR is removed: a CR would make
-# the path or the id never match.
-# bash does not split words at a CR, so removing them hides nothing that
-# would run (docs/incidents/0019).
+# Why tr: a native jq.exe started from Git Bash on Windows turns every LF
+# of its output into CRLF (jq manual, --binary), so every CR is removed: a
+# CR would make the path or the id never match. The text itself is only
+# searched with regular expressions, so it is left as it is
+# (docs/incidents/0019).
 transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null) || exit 0
 transcript=$(printf '%s' "$transcript" | tr -d '\r')
 id=$(printf '%s' "$input" | jq -r '.tool_use_id // empty' 2>/dev/null) || exit 0

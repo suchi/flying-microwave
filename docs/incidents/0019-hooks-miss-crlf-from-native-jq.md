@@ -37,7 +37,7 @@
 
 2026-11-10にメンテナーが承認した(`.claude/hooks/`と`scripts/check_hooks.py`の変更。前者はセキュリティ設定)。
 
-1. 現象への対応: `jq -r`で値を取り出すすべてのフックで、jqの終了コードを確かめたあと、別の行で値からCRを取り除いた(`tr -d '\r'`)。jq.exeはすべてのLFをCRLFにするため、すべてのCRを取り除く。bashはCRで語を区切らないため、取り除いても、実行される操作の見逃しは生まれない。`require-japanese-description.sh`と`require-japanese-reply.sh`では、値が空文字列のときに値がCRだけになり、誤って書き直しを求めていたことも、これで直した(レビューで見つかった)。`require-japanese-note.sh`は、0018の対策(PR #62)ですでにCRを取り除いていたが、ほかのフックと同じ形にそろえた。`protect-config.sh`の、jqがないときや入力を解析できないときに確認を求める動作は変えていない。
+1. 現象への対応: フックが`jq -r`で取り出して比べる値や、空かどうかを確かめる値から、jqの終了コードを確かめたあと、別の行でCRを取り除いた(`tr -d '\r'`)。jq.exeはすべてのLFをCRLFにするため、すべてのCRを取り除く。正規表現で調べるだけの値(`require-japanese-note.sh`の本文)は、CRに左右されないため変えていない。`require-japanese-reply.sh`のセッションのキーは、以前から使える文字だけを残している。CRを取り除くと、パターンへの一致は増える方向にだけ変わる(bashはCRで語を区切らないため)。例外は、`block-dangerous-git.sh`の`.env.example`などを含むときの除外で、これはCRがなくても同じ形で外れる。`require-japanese-description.sh`と`require-japanese-reply.sh`では、値が空文字列のときに値がCRだけになり、誤って書き直しを求めていたことも、これで直した(レビューで見つかった)。`require-japanese-note.sh`は、0018の対策(PR #62)ですでにCRを取り除いていたが、ほかのフックと同じ形にそろえた。`protect-config.sh`の、jqがないときや入力を解析できないときに確認を求める動作は変えていない。
 2. 仕組み: `scripts/check_hooks.py`で、各サンプルを、出力の行末をCRLFにする仮のjq(jqの終了コードは保つ)でも実行し、期待する判断になることを確かめるようにした。Windowsの実機がなくても、Linuxの検査とCIで、同じ種類の欠けを見つけられる。macOSでの動作は未確認(CIにmacOSのジョブはない)。1の前のフックでは、この検査が`protect-config.sh`と`require-japanese-reply.sh`で失敗し、1のあとは通ることを確かめた(2026-11-10)。
 3. 確認: メンテナーのWindowsで、jqの出力に`\r`があることを確かめた(2026-11-10。上の「確かめた事実」)。対策のあとに、メンテナーの環境で、`.claude/settings.json`の編集で確認を求めることを確かめる。
 

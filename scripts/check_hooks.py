@@ -200,8 +200,8 @@ def run_problems(commands, samples, root):
     with tempfile.TemporaryDirectory() as temp:
         modes = [("", os.environ.get("PATH", ""))]
         real_jq = shutil.which("jq")
-        # Why a second run: a native jq.exe from Git Bash ends its output with
-        # CRLF, and a stray CR made hooks miss what they guard
+        # Why a second run: a native jq.exe from Git Bash turns every LF of its
+        # output into CRLF, and a stray CR made hooks miss what they guard
         # (docs/incidents/0019). Windows itself is out of scope here.
         if real_jq is not None:
             crlf_dir = pathlib.Path(temp, "crlf-jq")
