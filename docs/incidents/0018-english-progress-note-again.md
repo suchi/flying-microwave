@@ -1,7 +1,7 @@
 # 0018: 0015の対策のあとも、合間の報告を英語で書いた
 
 - 日付: 2026-11-09
-- ステータス: 対策中(対策のPRがマージされていない)
+- ステータス: 対策済み(対策はPR #62でマージした)
 - 関連: [0001](0001-english-text-shown-to-maintainer.md)、[0005](0005-english-notes-between-tool-calls.md)、[0015](0015-english-reports-after-stop-hook.md)(同じ種類の異常の再発)
 
 ## 起きたこと
