@@ -1,7 +1,7 @@
 # 0019: Windowsのネイティブのjqでは、設定の保護のフックが確認を求めないおそれがある
 
 - 日付: 2026-11-10
-- ステータス: 対策済み(対策はPR #62とPR #63でマージした。メンテナーのWindowsでの確認を待っている)
+- ステータス: 対策済み(対策はPR #62とPR #63でマージした。2026-11-10に、メンテナーのWindowsで対策が効くことを確かめた)
 - 関連: [0009](0009-guard-hooks-never-ran.md)、[0012](0012-hook-check-tests-failed-on-windows.md)、[0018](0018-english-progress-note-again.md)、`.claude/hooks/`
 
 ## 起きたこと
@@ -18,7 +18,7 @@
   - `require-japanese-reply.sh`: `stop_hook_active`の値が`true`と一致せず、続けて書き直しを求める回数の上限(2回)が効かなかった。4回続けて求めた(通常のjqでは3回目から通す)。
   - `block-dangerous-git.sh`と`require-japanese-description.sh`: CRがあっても、サンプルでは通常のjqと同じ判定だった。ただし、`require-japanese-description.sh`は、説明文が空文字列のときに誤って拒否した(対策のレビューで見つかった)。
   - `require-japanese-note.sh`(0018の対策): 取り出した値からCRを取り除くようにしてあり、同じ判定だった。
-- 2026-11-10に、メンテナーのWindowsのMSYS2のシェル(UCRT64)で`jq -r .a <<< '{"a":"x"}' | od -c`を実行すると、出力は`x  \r  \n`だった。メンテナーの環境では、jqの出力がCRLFになる。Claude Codeがフックを起動するGit Bashも、MSYS2を土台にしているため、同じ結果になると考えられる(推測。Git Bashでは試していない)。フックそのものをWindowsの実機で起動しては、まだ確かめていない。
+- 2026-11-10に、メンテナーのWindowsのMSYS2のシェル(UCRT64)で`jq -r .a <<< '{"a":"x"}' | od -c`を実行すると、出力は`x  \r  \n`だった。メンテナーの環境では、jqの出力がCRLFになる。Claude Codeがフックを起動するGit Bashも、MSYS2を土台にしているため、同じ結果になると考えられる(推測。Git Bashでは試していない)。フックそのものをWindowsの実機で起動しては、まだ確かめていない(この記録を書いた時点。対策のあとの確認は、確かめ方の節)。
 - `scripts/check_hooks.py`は、Windowsでは範囲外として何もしない(0012)。CIのWindowsのジョブでも、フックの動作は確かめていない。
 
 ## なぜなぜ分析
@@ -39,9 +39,9 @@
 
 1. 現象への対応: フックが`jq -r`で取り出して比べる値や、空かどうかを確かめる値から、jqの終了コードを確かめたあと、別の行でCRを取り除いた(`tr -d '\r'`)。jq.exeはすべてのLFをCRLFにするため、すべてのCRを取り除く。正規表現で調べるだけの値(`require-japanese-note.sh`の本文)は、CRに左右されないため変えていない。`require-japanese-reply.sh`のセッションのキーは、以前から使える文字だけを残している。CRを取り除くと、パターンへの一致は増える方向にだけ変わる(bashはCRで語を区切らないため)。例外は、`block-dangerous-git.sh`の`.env.example`などを含むときの除外で、これはCRがなくても同じ形で外れる。`require-japanese-description.sh`と`require-japanese-reply.sh`では、値が空文字列のときに値がCRだけになり、誤って書き直しを求めていたことも、これで直した(レビューで見つかった)。`require-japanese-note.sh`は、0018の対策(PR #62)ですでにCRを取り除いていたが、ほかのフックと同じ形にそろえた。`protect-config.sh`の、jqがないときや入力を解析できないときに確認を求める動作は変えていない。
 2. 仕組み: `scripts/check_hooks.py`で、各サンプルを、出力の行末をCRLFにする仮のjq(jqの終了コードは保つ)でも実行し、期待する判断になることを確かめるようにした。Windowsの実機がなくても、Linuxの検査とCIで、同じ種類の欠けを見つけられる。macOSでの動作は未確認(CIにmacOSのジョブはない)。1の前のフックでは、この検査が`protect-config.sh`と`require-japanese-reply.sh`で失敗し、1のあとは通ることを確かめた(2026-11-10)。
-3. 確認: メンテナーのWindowsで、jqの出力に`\r`があることを確かめた(2026-11-10。上の「確かめた事実」)。対策のあとに、メンテナーの環境で、`.claude/settings.json`の編集で確認を求めることを確かめる。
+3. 確認: メンテナーのWindowsで、jqの出力に`\r`があることを確かめた(2026-11-10。上の「確かめた事実」)。対策のあとに、メンテナーの環境で、`.claude/settings.json`の編集で確認を求めることを確かめる。2026-11-10に確かめた(確かめ方の節)。
 
 ## 確かめ方
 
 - 2の検査が、対策の前のフックで失敗し、対策のあとのフックで通ること(2026-11-10に確かめた)。CIのLinuxのジョブで、毎回確かめる。
-- 対策のあと、メンテナーのWindowsで、`protect-config.sh`が`.claude/settings.json`の編集で確認を求めること。
+- 対策のあと、メンテナーのWindowsで、`protect-config.sh`が`.claude/settings.json`の編集で確認を求めること。2026-11-10に、PR #63のマージのあとの`main`で、メンテナーのWindowsのMSYS2のシェル(UCRT64。jqの出力がCRLFになることを確かめた環境)から、登録したとおりの起動(`sh -c`)でフックに`.claude/settings.json`の編集の入力を渡し、`"permissionDecision":"ask"`が出ることを確かめた。理由の文(`permissionDecisionReason`)は「セキュリティに関わる設定を変更しようとしています: …/.claude/settings.json。…」で、パターンに一致したときの文だった(jqがないときや、入力を解析できないときの文ではない)。Git Bashでは試していない(同じMSYS2を土台にしているため、同じ結果になると考えられる。推測)。
