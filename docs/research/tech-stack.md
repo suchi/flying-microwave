@@ -96,8 +96,8 @@ AGENTS.mdのプロジェクト概要と、[Windowsスクリーンセーバーの
 | embed-resource または winresource | 3.0.12 / 0.1.34 | MIT | アイコン・バージョン情報・String Tableの埋め込み(ビルド時のみ) | Phase 1 |
 | serde | 1.0.229 | MIT OR Apache-2.0 | 設定のシリアライズ | Phase 2 |
 | toml | 1.1.8 | MIT OR Apache-2.0 | 設定ファイル形式 | Phase 2 |
-| directories | 6.0.0 | MIT OR Apache-2.0 | OSごとの設定保存場所の解決 | Phase 2 |
-| resvg | 0.49.0 | Apache-2.0 OR MIT | SVG素材のラスタライズ | Phase 3 |
+| directories | 6.0.0 | MIT OR Apache-2.0 | OSごとの設定保存場所の解決 | Phase 2(2026-11-10の注記: 使わないことにした。ADR-0024、計画0004のD-1。Windowsでは`SHGetKnownFolderPath`を既存の`windows-sys`で呼ぶ) |
+| resvg | 0.49.0 | Apache-2.0 OR MIT | SVG素材のラスタライズ | Phase 3(2026-11-10の注記: v0.2.0の試作版から使っている。ADR-0023) |
 | jiff または chrono | 0.2.38 / 0.4.45 | Unlicense OR MIT / MIT OR Apache-2.0 | ローカル時刻(時計表示・季節テーマ) | Phase 3 |
 | rodio | 0.23.0 | MIT OR Apache-2.0 | 効果音(将来・任意) | 未定 |
 

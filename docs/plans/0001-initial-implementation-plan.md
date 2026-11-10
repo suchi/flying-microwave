@@ -1,7 +1,7 @@
 # 0001: 空飛ぶ電子レンジ スクリーンセーバー 初期実装計画(SOW)
 
 - 作成日: 2026-10-31
-- ステータス: 合意済み(2026-10-31)。決定事項は[12. 決定事項](#12-決定事項)と[ADR](../adr/README.md)に記録した。
+- ステータス: 合意済み(2026-10-31)。決定事項は[12. 決定事項](#12-決定事項)と[ADR](../adr/README.md)に記録した。進み具合: Phase 2を完了し、v0.2.0を公開した(2026-11-10)。次はPhase 3。
 - 対象: AGENTS.mdの「プロジェクト概要」に記載されたWindowsスクリーンセーバー
 - 改訂: 2026-10-31 敵対的レビューの指摘を反映([レビュー記録](../reviews/0001-plan-adversarial-review.md))。同日、決定事項を反映し、単独アプリとしての実行を想定した設計を追加した。2026-11-01 Phase 0をスパイクS1〜S4の確認で終え、Phase 1を「最初に動く版」から進める順番に改めた(D-20。[incidents 0006](../incidents/0006-plan-delayed-first-runnable-version.md))。
 
@@ -303,6 +303,7 @@ PRは、段階ごとのまとまりで作る。実機での確認も、段階ご
 5. ディスプレイの電源が切れている間の描画停止(N-14)。
 6. 本番の素材に合わせて、READMEのバナー(`docs/assets/banner.svg`)と実行ファイルのアイコン(`crates/app/res/icon.svg`)を作り直す。
 7. CIのWindowsのランナーで2台目のモニターを用意する方法(仮想のディスプレイなど。計画0004のE-7)を調べる。GitHubがホストするランナーで使えるかを、まだ確かめていない([incidents 0014](../incidents/0014-second-monitor-not-drawn.md))。使えれば、複数のモニターの確認をスモークテストに加えることを検討する。
+8. `/c:<HWND>`で開いた設定画面が、テスト用のオーナーを無効にし、閉じると有効に戻すことの自動の確認を作る(計画0004の作業8とD-10で、まだないとしたもの)。
 
 完了条件: 共通のリリース条件に加え、ガイドラインG-1〜G-6のセルフチェックを記録する。
 
@@ -479,7 +480,7 @@ flowchart LR
 | D-1 | 言語・エコシステム | Rust | [ADR-0001](../adr/0001-use-rust.md) |
 | D-2 | 描画方式 | GPU(wgpu) | [ADR-0002](../adr/0002-render-with-wgpu.md) |
 | D-3 | 設定画面の方式 | eframe/egui | [ADR-0003](../adr/0003-settings-ui-with-eframe.md) |
-| D-4 | 設定の保存形式 | 利用者ごとの設定ディレクトリのTOMLファイル(具体的な場所はPhase 2で決める) | [ADR-0004](../adr/0004-store-settings-as-toml.md) |
+| D-4 | 設定の保存形式 | 利用者ごとの設定ディレクトリのTOMLファイル(具体的な場所はPhase 2で決める。2026-11-04に[ADR-0024](../adr/0024-settings-file-location-and-handling.md)で決めた: `%APPDATA%\FlyingMicrowave\config.toml`。`SHGetKnownFolderPath`を既存の`windows-sys`で呼び、`directories`クレートは使わない) | [ADR-0004](../adr/0004-store-settings-as-toml.md) |
 | D-5 | 製品名とファイル名 | 「Flying Microwave」と`FlyingMicrowave.scr`。米国では同じ文字列のフレーズ検索で該当なし(結果はメンテナーが通常のブラウザで再確認する。空白なしの表記や類似の商標は未確認)。メンテナーによる残りの確認(日本を含む)で問題があれば見直す | 本計画、[先行作品と知的財産上の配慮](../research/prior-art-and-ip.md#名称の確認) |
 | D-6 | 本プロジェクトのライセンス | MIT(著作権者の表記は「Flying Microwave contributors」) | [ADR-0005](../adr/0005-license-mit.md)、`LICENSE` |
 | D-7 | 対象のWindowsとCPUアーキテクチャ | Windows 11のx64。arm64には当面対応しない(2026-11-03に変更。D-32)。2026-11-01の決定は、arm64版を動作を保証せずに配布し、CIではx64だけをビルドする、だった。当初の決定はWindows 11のx64とarm64 | [ADR-0006](../adr/0006-target-windows-11-x64-arm64.md)、[ADR-0016](../adr/0016-arm64-without-guarantee.md)、[ADR-0022](../adr/0022-ship-x64-only-for-now.md) |
@@ -521,7 +522,7 @@ flowchart LR
 
 ## 13. 次のアクション
 
-1. Phase 1の段階1(最初に動く版)に着手する(D-20。2026-11-01に変更。当初は「Phase 0に着手する」)。商標の残りの確認(D-5)はメンテナーが行う。
+1. Phase 3(見た目と時計、v0.3.0)に着手する。まず計画(`docs/plans/`)を作って合意してから実装する。Phase 2はv0.2.0を2026-11-10に公開して完了した。v0.2.0で確かめなかった項目はIssue #59で追う(計画0004のD-16)。商標の残りの確認(D-5)は、2026-11-09に済んだ。
 2. 調査環境(2026-10-31時点)から接続できなかったホストのうち、今後の作業で必要なものはネットワーク設定のAllowed domainsに追加する。
    - 実装で必要: `docs.rs`(crateのAPIドキュメント)、`doc.rust-lang.org`(Rustの公式ドキュメント)、`docs.github.com`(GitHub ActionsとRelease・アーティファクト証明の公式ドキュメント)
    - 確認に必要: `opensource.org`(OSIの承認ライセンスの一覧)、`www.w3.org`(WCAGの本文。ガイドラインG-3の根拠)
