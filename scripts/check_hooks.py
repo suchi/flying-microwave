@@ -57,6 +57,22 @@ SAMPLES = {
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}}, "deny"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "ファイルを一覧表示する"}}, None),
     ],
+    # docs/incidents/0018: the text written before a tool call, read from a
+    # sample transcript (scripts/hook_samples/transcript.jsonl). It has a line
+    # whose message is not an object, and its last line is cut off without a
+    # newline, as when the transcript is still being written.
+    ".claude/hooks/require-japanese-note.sh": [
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_en"}, "deny"),
+        # The second of two parallel calls, and text and call on one line.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_en2"}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_one"}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_ja"}, None),
+        # No text in the message, only symbols, or the call not yet written.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_none"}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_sym"}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript.jsonl", "tool_use_id": "toolu_missing"}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/missing.jsonl", "tool_use_id": "toolu_en"}, None),
+    ],
     ".claude/hooks/require-japanese-reply.sh": [
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "終わりました。"}, None),
