@@ -1,0 +1,21 @@
+# Throwaway technical spike for plan 0005, task 4 (D-2 to D-4, E-1, E-5):
+# draws textured box meshes with a depth buffer and a perspective camera,
+# offscreen, and writes PNG images for the maintainer to judge.
+[package]
+name = "render3d-spike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Why an empty table: the spike is its own workspace with its own Cargo.lock,
+# outside the product workspace (the root Cargo.toml excludes "spikes").
+[workspace]
+
+[dependencies]
+# Why vulkan: the agent's Linux environment renders with lavapipe (software
+# Vulkan). dx12 lets the same spike run on Windows.
+wgpu = { version = "=30.0.1", default-features = false, features = ["std", "parking_lot", "wgsl", "vulkan", "dx12"] }
+pollster = "=1.0.1"
+# Why: face textures are rasterized from SVG, and PNG files are written with
+# resvg::tiny_skia::Pixmap::save_png. Text and image loading are not used.
+resvg = { version = "=0.49.0", default-features = false }
