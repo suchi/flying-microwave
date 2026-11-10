@@ -13,6 +13,11 @@
 //! [`MONITOR_CHECK_INTERVAL`] and makes the windows follow it (plan 0004,
 //! F-07): a window for each added monitor, moved or resized windows for
 //! changed monitors, and no window for a removed monitor.
+//!
+//! While the display is off, nothing is drawn (plan 0001, N-14; plan 0005,
+//! F-09 and D-8). The state comes from [`crate::display_power`]; it is
+//! looked at on every pass of the event loop, which wakes at least at every
+//! monitor check, so drawing resumes within about a second.
 
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver};
@@ -32,6 +37,7 @@ use winit::monitor::MonitorHandle;
 use winit::window::{Window, WindowId, WindowLevel};
 
 use crate::diag;
+use crate::display_power;
 use crate::log::log;
 use crate::render::{self, Frame, Gpu, Target};
 use crate::storage::Startup;
@@ -117,6 +123,8 @@ struct SaverApp {
     epoch: Instant,
     /// Start of the grace period; `None` until the windows and the GPU are ready.
     grace_start: Option<Instant>,
+    /// Whether the display was on at the last pass (N-14).
+    display_on: bool,
     created: bool,
     exit_code: i32,
     exit_reason: Option<String>,
@@ -133,6 +141,14 @@ pub fn run() -> i32 {
         }
     };
     event_loop.set_control_flow(ControlFlow::Wait);
+    // N-14: without the registration the display counts as on, as before.
+    let _display = match win::watch_display() {
+        Ok(watch) => Some(watch),
+        Err(code) => {
+            log!("display state: registration failed: error {code}; drawing goes on");
+            None
+        }
+    };
     let mut app = SaverApp {
         windows: Vec::new(),
         gpu: None,
@@ -154,6 +170,7 @@ pub fn run() -> i32 {
         monitors_empty: false,
         epoch: Instant::now(),
         grace_start: None,
+        display_on: true,
         created: false,
         exit_code: EXIT_OK,
         exit_reason: None,
@@ -734,6 +751,26 @@ impl SaverApp {
 
     /// Tries to draw the window at `position` (ADR-0025). Returns whether a
     /// frame was presented. A window with no target is not drawn here.
+    /// N-14: notes a change of the display state. When the display comes
+    /// back on, the animation starts again from now instead of jumping over
+    /// the time it was off.
+    fn follow_display(&mut self) {
+        let on = display_power::is_on();
+        if on == self.display_on {
+            return;
+        }
+        self.display_on = on;
+        if on {
+            log!("display on; drawing resumed");
+            for w in &mut self.windows {
+                w.last_frame = None;
+                w.retry_at = None;
+            }
+        } else {
+            log!("display off; drawing paused");
+        }
+    }
+
     fn try_draw(&mut self, position: usize, now: Instant) -> bool {
         let w = &mut self.windows[position];
         let (Some(target), Some(gpu)) = (w.target.as_mut(), self.gpu.as_ref()) else {
@@ -882,13 +919,14 @@ impl ApplicationHandler for SaverApp {
             self.check_monitors(event_loop);
             self.next_monitor_check = Some(Instant::now() + MONITOR_CHECK_INTERVAL);
         }
+        self.follow_display();
         let exiting = self.exit_reason.is_some();
         let now = Instant::now();
         // Why here and not in `RedrawRequested`: every window that is due is
         // drawn on each pass, whichever window Windows sends WM_PAINT to
         // (Issue #50, ADR-0025). Nothing is drawn once the exit is decided.
         let mut presented = false;
-        if !exiting {
+        if !exiting && self.display_on {
             for position in 0..self.windows.len() {
                 presented |= self.try_draw(position, now);
             }
@@ -901,10 +939,15 @@ impl ApplicationHandler for SaverApp {
             .grace_start
             .map(|t| t + ExitPolicy::DEFAULT_GRACE)
             .filter(|&end| end > now);
-        let wake_times = grace_end
-            .into_iter()
-            .chain(self.next_monitor_check)
-            .chain(self.windows.iter().filter_map(|w| w.retry_at));
+        // Retries and paced frames wait while the display is off: their
+        // times are past, and waking for them would spin.
+        let display_on = self.display_on;
+        let wake_times = grace_end.into_iter().chain(self.next_monitor_check).chain(
+            self.windows
+                .iter()
+                .filter_map(|w| w.retry_at)
+                .filter(|_| display_on),
+        );
         // Why `Poll` when exiting: winit waits with this control flow before
         // it checks for the exit, so `Wait` would hang until a message arrives.
         event_loop.set_control_flow(match next_flow(exiting, presented, wake_times) {

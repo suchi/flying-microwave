@@ -49,6 +49,11 @@ windows-sys = { version = "=0.61.2", features = [
     # Win32_System_Com: CoTaskMemFree for the path from SHGetKnownFolderPath.
     "Win32_System_Com",
     "Win32_System_LibraryLoader",
+    # Win32_System_Power and Win32_System_SystemServices: the display state
+    # (PowerSettingRegisterNotification, GUID_SESSION_DISPLAY_STATUS) for N-14
+    # (plan 0005, D-8). powrprof.dll is in System32 (SEC-1).
+    "Win32_System_Power",
+    "Win32_System_SystemServices",
     "Win32_System_Threading",
     # Win32_UI_Input_KeyboardAndMouse: EnableWindow for the settings owner (F-03).
     "Win32_UI_Input_KeyboardAndMouse",

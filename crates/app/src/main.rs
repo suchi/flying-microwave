@@ -7,6 +7,9 @@ mod cli;
 // Used by the Windows saver; tested on every host.
 #[cfg_attr(not(windows), allow(dead_code))]
 mod diag;
+// Used by the Windows saver; tested on every host.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod display_power;
 // Used by the Windows modes; tested on every host.
 #[cfg_attr(not(windows), allow(dead_code))]
 mod gpu_limit;
