@@ -14,7 +14,6 @@
 //! - Power preference is LowPower (do not wake a discrete GPU needlessly).
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use flying_microwave_core::sim::SpriteInstance;
@@ -22,6 +21,7 @@ use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
 use crate::diag;
+use crate::gpu_limit;
 use crate::log::log;
 use crate::sprite::{self, AtlasLayout};
 
@@ -535,34 +535,33 @@ pub enum Frame {
 }
 
 /// Ends the process if GPU initialization hangs. Dropping it disarms it.
+/// `/s` and `/p` pass only the exit (plan 0005, D-1 (6)): they show nothing
+/// and end at once.
 pub struct Watchdog {
-    finished: Arc<AtomicBool>,
+    limit: Option<gpu_limit::Limit>,
 }
 
 impl Watchdog {
     /// Ends the process with `exit_code` unless dropped within `timeout`.
     pub fn start(timeout: Duration, exit_code: u32) -> Self {
-        let finished = Arc::new(AtomicBool::new(false));
-        let flag = Arc::clone(&finished);
-        // A thread, because a hung driver call also blocks the event loop.
-        let spawned = std::thread::Builder::new()
-            .name("gpu-init-watchdog".to_owned())
-            .spawn(move || {
-                std::thread::sleep(timeout);
-                if !flag.load(Ordering::SeqCst) {
-                    log!("GPU initialization timed out; exiting");
-                    crate::win::terminate_now(exit_code);
-                }
-            });
-        if let Err(e) = spawned {
-            log!("watchdog thread could not start: {e}");
+        let started = gpu_limit::Limit::start(timeout, move || {
+            log!("GPU initialization timed out; exiting");
+            crate::win::terminate_now(exit_code);
+        });
+        match started {
+            Ok(limit) => Self { limit: Some(limit) },
+            Err(e) => {
+                log!("watchdog thread could not start: {e}");
+                Self { limit: None }
+            }
         }
-        Self { finished }
     }
 }
 
 impl Drop for Watchdog {
     fn drop(&mut self) {
-        self.finished.store(true, Ordering::SeqCst);
+        if let Some(limit) = &self.limit {
+            limit.disarm();
+        }
     }
 }
