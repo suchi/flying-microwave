@@ -16,7 +16,7 @@
 - Linuxで、出力の各行にCRを付け、jqの終了コードは保つ仮のjqを`PATH`の先頭に置いて、各フックを登録したとおりの起動で試した(2026-11-10)。
   - `protect-config.sh`: `.claude/settings.json`と`.github/dependabot.yml`の編集で、確認(`ask`)を出さなかった。通常のjqでは出す。パターンが`*/.claude/settings.json`のように末尾で終わる形で、CRのある値に一致しないため。`.claude/hooks/`の下のファイルは、パターンの末尾の`*`がCRも含むため、確認を出した。
   - `require-japanese-reply.sh`: `stop_hook_active`の値が`true`と一致せず、続けて書き直しを求める回数の上限(2回)が効かなかった。4回続けて求めた(通常のjqでは3回目から通す)。
-  - `block-dangerous-git.sh`と`require-japanese-description.sh`: CRがあっても、通常のjqと同じ判定だった。
+  - `block-dangerous-git.sh`と`require-japanese-description.sh`: CRがあっても、サンプルでは通常のjqと同じ判定だった。ただし、`require-japanese-description.sh`は、説明文が空文字列のときに誤って拒否した(対策のレビューで見つかった)。
   - `require-japanese-note.sh`(0018の対策): 取り出した値からCRを取り除くようにしてあり、同じ判定だった。
 - 2026-11-10に、メンテナーのWindowsのMSYS2のシェル(UCRT64)で`jq -r .a <<< '{"a":"x"}' | od -c`を実行すると、出力は`x  \r  \n`だった。メンテナーの環境では、jqの出力がCRLFになる。Claude Codeがフックを起動するGit Bashも、MSYS2を土台にしているため、同じ結果になると考えられる(推測。Git Bashでは試していない)。フックそのものをWindowsの実機で起動しては、まだ確かめていない。
 - `scripts/check_hooks.py`は、Windowsでは範囲外として何もしない(0012)。CIのWindowsのジョブでも、フックの動作は確かめていない。
@@ -37,8 +37,8 @@
 
 2026-11-10にメンテナーが承認した(`.claude/hooks/`と`scripts/check_hooks.py`の変更。前者はセキュリティ設定)。
 
-1. 現象への対応: `jq -r`で取り出した値を比べるフック(`protect-config.sh`、`require-japanese-reply.sh`、`block-dangerous-git.sh`、`require-japanese-note.sh`)で、値からCRを取り除いた(`tr -d '\r'`)。`require-japanese-description.sh`は、値を正規表現で調べるだけで、CRに左右されないため変えていない。`protect-config.sh`の、入力を解析できないときに確認を求める動作は変えていない。
-2. 仕組み: `scripts/check_hooks.py`で、各サンプルを、出力の行末をCRLFにする仮のjq(jqの終了コードは保つ)でも実行し、期待する判断になることを確かめるようにした。Windowsの実機がなくても、LinuxとmacOSの検査とCIで、同じ種類の欠けを見つけられる。1の前のフックでは、この検査が`protect-config.sh`と`require-japanese-reply.sh`で失敗し、1のあとは通ることを確かめた(2026-11-10)。
+1. 現象への対応: `jq -r`で値を取り出すすべてのフックで、jqの終了コードを確かめたあと、別の行で値からCRを取り除いた(`tr -d '\r'`)。jq.exeはすべてのLFをCRLFにするため、すべてのCRを取り除く。bashはCRで語を区切らないため、取り除いても、実行される操作の見逃しは生まれない。`require-japanese-description.sh`と`require-japanese-reply.sh`では、値が空文字列のときに値がCRだけになり、誤って書き直しを求めていたことも、これで直した(レビューで見つかった)。`require-japanese-note.sh`は、0018の対策(PR #62)ですでにCRを取り除いていたが、ほかのフックと同じ形にそろえた。`protect-config.sh`の、jqがないときや入力を解析できないときに確認を求める動作は変えていない。
+2. 仕組み: `scripts/check_hooks.py`で、各サンプルを、出力の行末をCRLFにする仮のjq(jqの終了コードは保つ)でも実行し、期待する判断になることを確かめるようにした。Windowsの実機がなくても、Linuxの検査とCIで、同じ種類の欠けを見つけられる。macOSでの動作は未確認(CIにmacOSのジョブはない)。1の前のフックでは、この検査が`protect-config.sh`と`require-japanese-reply.sh`で失敗し、1のあとは通ることを確かめた(2026-11-10)。
 3. 確認: メンテナーのWindowsで、jqの出力に`\r`があることを確かめた(2026-11-10。上の「確かめた事実」)。対策のあとに、メンテナーの環境で、`.claude/settings.json`の編集で確認を求めることを確かめる。
 
 ## 確かめ方
