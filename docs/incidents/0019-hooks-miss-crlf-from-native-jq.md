@@ -1,7 +1,7 @@
 # 0019: Windowsのネイティブのjqでは、設定の保護のフックが確認を求めないおそれがある
 
 - 日付: 2026-11-10
-- ステータス: 対策済み(対策はPR #62とPR #63でマージした。メンテナーのWindowsでの確認を待っている)
+- ステータス: 対策済み(対策はPR #62とPR #63でマージした。2026-11-10に、メンテナーのWindowsで対策が効くことを確かめた)
 - 関連: [0009](0009-guard-hooks-never-ran.md)、[0012](0012-hook-check-tests-failed-on-windows.md)、[0018](0018-english-progress-note-again.md)、`.claude/hooks/`
 
 ## 起きたこと
@@ -44,4 +44,4 @@
 ## 確かめ方
 
 - 2の検査が、対策の前のフックで失敗し、対策のあとのフックで通ること(2026-11-10に確かめた)。CIのLinuxのジョブで、毎回確かめる。
-- 対策のあと、メンテナーのWindowsで、`protect-config.sh`が`.claude/settings.json`の編集で確認を求めること。
+- 対策のあと、メンテナーのWindowsで、`protect-config.sh`が`.claude/settings.json`の編集で確認を求めること。2026-11-10に、PR #63のマージのあとの`main`で、メンテナーのWindowsのMSYS2のシェル(UCRT64。jqの出力がCRLFになることを確かめた環境)から、登録したとおりの起動(`sh -c`)でフックに`.claude/settings.json`の編集の入力を渡し、`"permissionDecision":"ask"`が出ることを確かめた。Git Bashでは試していない(同じMSYS2を土台にしているため、同じ結果になると考えられる。推測)。

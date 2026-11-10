@@ -1,7 +1,7 @@
 # 0020: incidentのステータスが、対策のマージのあとも古いままだった
 
 - 日付: 2026-11-10
-- ステータス: 対策中(対策のPRがマージされていない。手順の変更は、2026-11-10にメンテナーが承認した)
+- ステータス: 対策済み(対策はPR #64とPR #65でマージした)
 - 関連: [README](README.md)の「記録の書き方」、`.claude/commands/merge-pr.md`、`.claude/commands/consistency-check.md`
 
 ## 起きたこと
