@@ -169,7 +169,8 @@ impl ExitSensitivity {
     }
 
     /// The cursor travel that ends the screensaver, in physical pixels
-    /// (provisional values of the settings specification).
+    /// (values of the settings specification, checked on hardware in plan
+    /// 0004, D-16).
     pub fn threshold_px(self) -> u32 {
         match self {
             ExitSensitivity::Low => 48,
@@ -320,7 +321,7 @@ impl Reader {
             None => None,
             Some(Value::Integer(v)) if *v > SCHEMA_VERSION => Some(*v),
             Some(Value::Integer(v)) if *v >= 1 => None,
-            // Why: provisional for v0.2.0-alpha (plan 0004, E-3): a
+            // Why: decided in ADR-0024 (E-3): a
             // non-integer or non-positive version is read as the current one.
             Some(_) => {
                 self.note("schema_version", "not a positive integer; read as 1");
@@ -440,7 +441,7 @@ struct InputV1 {
 
 /// The text of a settings file for `config`.
 ///
-/// Why: provisional for v0.2.0-alpha (plan 0004, E-3). Only the known items
+/// Why: decided in ADR-0024 (E-3). Only the known items
 /// are written, with [`SCHEMA_VERSION`]; unknown keys and comments of the
 /// file being replaced are lost.
 pub fn to_toml(config: &Config) -> String {
@@ -779,7 +780,7 @@ mod tests {
 
     #[test]
     fn an_invalid_schema_version_is_read_as_the_current_one() {
-        // Why: provisional for v0.2.0-alpha (plan 0004, E-3).
+        // Why: decided in ADR-0024 (E-3).
         for text in [
             "schema_version = 0",
             "schema_version = -1",

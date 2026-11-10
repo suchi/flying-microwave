@@ -21,7 +21,7 @@ fn main() {
 
 #[cfg(not(windows))]
 fn main() {
-    // The screensaver is Windows only (ADR-0016); this build exists so the
+    // The screensaver is Windows only (ADR-0022); this build exists so the
     // workspace can be checked and tested on Linux.
     eprintln!("the smoke test runs on Windows only");
     std::process::exit(2);

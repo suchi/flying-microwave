@@ -4,7 +4,7 @@
 //! flyer as two textured quads, the body and the door, in one instanced draw
 //! ([`crate::sprite`], `sprite.wgsl`). The textures are the SVG assets,
 //! rasterized into one atlas when the surface is configured and again only
-//! when the sprite side in pixels changes, never per frame (ADR-0008).
+//! when the sprite side in pixels changes, never per frame (ADR-0023).
 //!
 //! Hardening (docs/design/architecture.md):
 //! - SEC-2: the DX12 shader compiler is set to `Fxc` explicitly, and the
