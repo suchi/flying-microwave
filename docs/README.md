@@ -105,3 +105,4 @@
 | [0020](incidents/0020-incident-status-not-updated.md) | incidentのステータスが、対策のマージのあとも古いままだった |
 | [0021](incidents/0021-settings-init-timeout-missing.md) | 設定画面のGPUの初期化に、要件にある上限がないまま出した |
 | [0022](incidents/0022-note-hook-reads-transcript-too-early.md) | 合間の文を確かめるフックが、記録の書き込みより先に動き、何も止めていなかった |
+| [0023](incidents/0023-tag-check-command-failed-in-cmd.md) | タグの前に件名を確かめるコマンドが、Windowsのコマンドプロンプトで動かなかった |
