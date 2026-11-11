@@ -83,6 +83,10 @@ flowchart TB
 | `crates/app/src/licenses.rs` | 設定画面のAboutに表示する、依存ライブラリのライセンス表記(`THIRD-PARTY-LICENSES.txt`)の読み込み。Windowsに依存しない |
 | `crates/core/src/monitors.rs` | `/s`の実行中のモニタの一覧の比較(増えた・位置や大きさが変わった・なくなったを求める)と、それに基づくウィンドウの決め方(既知のモニタとウィンドウの対応、描くウィンドウ、閉じるウィンドウ、前面にするウィンドウ)。Windowsに依存しない純粋な関数 |
 | `crates/core/src/frame_loop.rs` | `/s`のイベントループが1回の処理のあとどう待つか(待たない・時刻まで待つ・イベントまで待つ)を決める。終了が決まっていれば待たない(winitがWindowsで、終了を確かめる前にこの待ち方で待つため)。Windowsに依存しない純粋な関数([ADR-0025](../adr/0025-draw-every-window-from-one-place.md)) |
+| `crates/core/src/space.rs` | 3Dの数学(ベクトル、四元数、4x4行列、透視投影)。数学のcrateは使わない([ADR-0026](../adr/0026-render-microwaves-as-3d-meshes.md)) |
+| `crates/core/src/flight.rs` | 3Dの飛行の計算(奥行きのある位置、回転して飛ぶ表現と同じ向きで飛ぶ表現、ドアの角度、ターンテーブルの位相、入れ直し)。固定の時間刻みと補間は`sim.rs`と同じ。製品の描画は、計画0005の作業6で3Dに移すまで`sim.rs`を使う |
+| `crates/app/src/gpu_limit.rs` | GPUの初期化の上限の状態(発火か解除のどちらかへ一度だけ移る)と、設定画面で上限に達したときの処理の順番。Windowsに依存しない部分([計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-1) |
+| `crates/app/src/display_power.rs` | ディスプレイの電源の状態の受け渡し(通知の値の読み取り)。Windowsに依存しない部分。登録は`win.rs`(計画0005のD-8) |
 | `crates/app/build.rs` | Windowsリソース(アイコン、バージョン情報、String Tableの序数1)の埋め込み。バージョン情報は`Cargo.toml`のバージョンから生成する |
 | `crates/smoke/` | `flying-microwave-smoke`。ビルドした実行ファイルを各モードで起動し、起動と終了を確かめるスモークテスト(Windows専用。[計画0003](../plans/0003-v0.1.1-smoke-test.md))。製品には含めない |
 | `crates/app/res/` | リソース定義ファイル(`app.rc`)と、アイコン(`icon.svg`と、そこから作る`flying-microwave.ico`) |
