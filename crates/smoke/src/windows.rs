@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
-use flying_microwave_smoke::{Progress, lines_of, sprites_drawn};
+use flying_microwave_smoke::{Progress, lines_of, meshes_drawn};
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -216,11 +216,11 @@ impl Drop for Target {
     }
 }
 
-/// Fails unless the sprites are drawn (not only the background), and prints
-/// the atlas line.
-fn expect_sprites(target: &Target) -> Result<(), String> {
+/// Fails unless the microwaves are drawn (not only the background), and
+/// prints the atlas line (its time is part of the startup, plan 0001 N-01).
+fn expect_meshes(target: &Target) -> Result<(), String> {
     let text = target.log_text();
-    let atlas = sprites_drawn(&lines_of(&text, target.pid()))?;
+    let atlas = meshes_drawn(&lines_of(&text, target.pid()))?;
     println!("  {atlas}");
     Ok(())
 }
@@ -302,7 +302,7 @@ fn screensaver_ends_on_input_with(
     with_target(env, &["/s"], settings, |target| {
         let progress = target.wait_ready(Progress::screensaver_ready)?;
         report(&progress);
-        expect_sprites(target)?;
+        expect_meshes(target)?;
         expect_config(&progress, read_as)?;
         // Whether the key press can reach the window depends on this.
         for line in lines_of(&target.log_text(), target.pid()) {
@@ -421,7 +421,7 @@ fn preview_ends_with_parent(env: &Env) -> Result<(), String> {
     with_target(env, &["/p", &hwnd_arg], None, |target| {
         let progress = target.wait_ready(Progress::preview_ready)?;
         report(&progress);
-        expect_sprites(target)?;
+        expect_meshes(target)?;
         drop(parent.take());
         let (code, elapsed) = target.wait_exit(EXIT_AFTER_PARENT_GONE)?;
         println!("  parent destroyed to exit: {} ms", elapsed.as_millis());

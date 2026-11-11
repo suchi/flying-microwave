@@ -1,11 +1,17 @@
-// Textured meshes with a depth buffer, a perspective camera and simple
-// lighting: one directional light plus ambient, in half-Lambert form so the
-// brightness changes smoothly and within a narrow range as a body turns
-// (guideline G-3). Emissive vertices (the lit cavity, the LED) ignore it.
+// Draws the microwave meshes (crates/app/src/model.rs; ADR-0026) with a
+// depth buffer, the perspective camera and simple lighting: one directional
+// light plus ambient, in half-Lambert form, so the brightness changes
+// smoothly and stays within 0.55..1.00 as a body turns (guideline G-3).
+// Emissive vertices (the lit cavity, the turntable, the LED) ignore it.
 //
-// The atlas holds premultiplied alpha. The opaque pass keeps only fully
-// opaque texels and writes depth; the glass pass keeps only translucent
-// texels (the door window), blends them and does not write depth.
+// The atlas holds premultiplied alpha. Three passes, all on the same depth
+// buffer:
+// - solid (body, cavity, turntable, LED): their images are opaque to the
+//   edges, so the texel alpha is not tested; nothing is discarded, which
+//   keeps edges whole and lets the early depth test work.
+// - cutout (door): keeps only fully opaque texels and writes depth.
+// - glass (door): keeps only translucent texels (the window), blends them
+//   and does not write depth.
 
 struct Globals {
     view_proj: mat4x4<f32>,
@@ -16,8 +22,8 @@ struct Globals {
 }
 
 @group(0) @binding(0) var<uniform> globals: Globals;
-@group(0) @binding(1) var atlas: texture_2d<f32>;
-@group(0) @binding(2) var atlas_sampler: sampler;
+@group(1) @binding(0) var atlas: texture_2d<f32>;
+@group(1) @binding(1) var atlas_sampler: sampler;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
@@ -41,6 +47,7 @@ struct VertexOutput {
 fn vs_main(in: VertexInput) -> VertexOutput {
     let model = mat4x4<f32>(in.model0, in.model1, in.model2, in.model3);
     var out: VertexOutput;
+    // The flyers are placed in view space, so the camera is the projection.
     out.clip = globals.view_proj * model * vec4<f32>(in.position, 1.0);
     // Model matrices are rotations, translations and uniform scales, so the
     // normal transforms like a direction.
@@ -62,7 +69,12 @@ fn shade(in: VertexOutput) -> vec4<f32> {
 }
 
 @fragment
-fn fs_opaque(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_solid(in: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(shade(in).rgb, 1.0);
+}
+
+@fragment
+fn fs_cutout(in: VertexOutput) -> @location(0) vec4<f32> {
     let color = shade(in);
     if (color.a < 0.999) {
         discard;

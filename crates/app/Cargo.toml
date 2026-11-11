@@ -20,12 +20,12 @@ flying-microwave-core = { path = "../core" }
 winit = { version = "=0.30.13", default-features = false, features = ["rwh_06"] }
 # Why: DX12 only (ADR-0002). wgpu-core always builds its WGSL front end on
 # native targets; the "wgsl" feature only lets the app hand it the WGSL source
-# of the sprite shader (it adds no crate to Cargo.lock).
+# of the mesh shader (it adds no crate to Cargo.lock).
 wgpu = { version = "=30.0.1", default-features = false, features = ["std", "parking_lot", "dx12", "wgsl"] }
 pollster = "=1.0.1"
-# Why: the sprites are SVG files rasterized at startup (ADR-0023). Default
-# features are off: the sprites use no text and no embedded images, so the
-# font database and the image decoders are left out.
+# Why: the face images of the microwave are SVG files rasterized at startup
+# (ADR-0026). Default features are off: the images use no text and no
+# embedded images, so the font database and the image decoders are left out.
 resvg = { version = "=0.49.0", default-features = false }
 # Why: wgpu reports the reason of a failed swap chain call (the HRESULT) only
 # through the log crate (wgpu-hal dx12 `configure`), so warnings and errors

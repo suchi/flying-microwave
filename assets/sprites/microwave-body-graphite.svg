@@ -1,90 +1,86 @@
-<!-- Flying Microwave contributors. MIT License. See assets/sprites/README.md. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">
+<svg xmlns="http://www.w3.org/2000/svg" width="710" height="210" viewBox="0 0 710 210">
+  <!-- Microwave body faces (graphite). Face positions are fixed by crates/app/src/model.rs. -->
   <defs>
-    <linearGradient id="top" x1="0" y1="1" x2="0.3" y2="0">
-      <stop offset="0" stop-color="#6a7180"/>
-      <stop offset="1" stop-color="#3e4350"/>
-    </linearGradient>
-    <linearGradient id="side" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#30343e"/>
-      <stop offset="1" stop-color="#1b1e25"/>
-    </linearGradient>
-    <linearGradient id="front" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#555c6b"/>
-      <stop offset="1" stop-color="#2f333d"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.35" r="0.75">
-      <stop offset="0" stop-color="#ffd27a"/>
-      <stop offset="0.55" stop-color="#ff9a3c"/>
-      <stop offset="1" stop-color="#7a3410"/>
-    </radialGradient>
-    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2a303b"/>
-      <stop offset="1" stop-color="#1a1e26"/>
-    </linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#555c6b"/><stop offset="1" stop-color="#2f333d"/></linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a303b"/><stop offset="1" stop-color="#1a1e26"/></linearGradient>
   </defs>
-  <polygon points="254,90 306,54 306,214 254,250" fill="url(#side)"/>
-  <line x1="264" y1="120" x2="264" y2="150" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
-  <line x1="270" y1="115.8" x2="270" y2="145.8" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
-  <line x1="276" y1="111.6" x2="276" y2="141.6" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
-  <line x1="282" y1="107.4" x2="282" y2="137.4" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
-  <line x1="288" y1="103.2" x2="288" y2="133.2" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
-  <line x1="294" y1="99" x2="294" y2="129" stroke="#2a2e38" stroke-width="2" stroke-linecap="round"/>
-  <polygon points="14,90 254,90 306,54 66,54" fill="url(#top)"/>
-  <rect x="14" y="90" width="240" height="160" rx="4" fill="url(#front)"/>
-  <rect x="14" y="90" width="240" height="3" fill="#e4e7ee" opacity="0.7"/>
-  <rect x="186" y="100" width="60" height="140" rx="5" fill="url(#panel)"/>
-  <rect x="192" y="108" width="48" height="22" rx="3" fill="#06110f"/>
-  <rect x="196" y="112" width="6" height="2" fill="#5ee7df" opacity="0.08"/>
-  <rect x="196" y="118" width="6" height="2" fill="#5ee7df" opacity="0.08"/>
-  <rect x="196" y="124" width="6" height="2" fill="#5ee7df" opacity="0.08"/>
-  <rect x="195" y="114" width="2" height="5" fill="#5ee7df" opacity="0.08"/>
-  <rect x="195" y="119" width="2" height="5" fill="#5ee7df" opacity="0.08"/>
-  <rect x="201" y="114" width="2" height="5" fill="#5ee7df"/>
-  <rect x="201" y="119" width="2" height="5" fill="#5ee7df"/>
-  <rect x="206" y="112" width="6" height="2" fill="#5ee7df"/>
-  <rect x="206" y="118" width="6" height="2" fill="#5ee7df"/>
-  <rect x="206" y="124" width="6" height="2" fill="#5ee7df"/>
-  <rect x="205" y="114" width="2" height="5" fill="#5ee7df" opacity="0.08"/>
-  <rect x="205" y="119" width="2" height="5" fill="#5ee7df"/>
-  <rect x="211" y="114" width="2" height="5" fill="#5ee7df"/>
-  <rect x="211" y="119" width="2" height="5" fill="#5ee7df" opacity="0.08"/>
-  <rect x="215" y="115.5" width="2" height="2" fill="#5ee7df"/>
-  <rect x="215" y="120.5" width="2" height="2" fill="#5ee7df"/>
-  <rect x="220" y="112" width="6" height="2" fill="#5ee7df"/>
-  <rect x="220" y="118" width="6" height="2" fill="#5ee7df"/>
-  <rect x="220" y="124" width="6" height="2" fill="#5ee7df"/>
-  <rect x="219" y="114" width="2" height="5" fill="#5ee7df" opacity="0.08"/>
-  <rect x="219" y="119" width="2" height="5" fill="#5ee7df" opacity="0.08"/>
-  <rect x="225" y="114" width="2" height="5" fill="#5ee7df"/>
-  <rect x="225" y="119" width="2" height="5" fill="#5ee7df"/>
-  <rect x="230" y="112" width="6" height="2" fill="#5ee7df" opacity="0.08"/>
-  <rect x="230" y="118" width="6" height="2" fill="#5ee7df"/>
-  <rect x="230" y="124" width="6" height="2" fill="#5ee7df" opacity="0.08"/>
-  <rect x="229" y="114" width="2" height="5" fill="#5ee7df"/>
-  <rect x="229" y="119" width="2" height="5" fill="#5ee7df" opacity="0.08"/>
-  <rect x="235" y="114" width="2" height="5" fill="#5ee7df"/>
-  <rect x="235" y="119" width="2" height="5" fill="#5ee7df"/>
-  <rect x="194" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
-  <rect x="209.5" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
-  <rect x="225" y="140" width="12" height="10" rx="2" fill="#4a5262"/>
-  <rect x="194" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
-  <rect x="209.5" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
-  <rect x="225" y="155" width="12" height="10" rx="2" fill="#4a5262"/>
-  <rect x="194" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
-  <rect x="209.5" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
-  <rect x="225" y="170" width="12" height="10" rx="2" fill="#4a5262"/>
-  <circle cx="216" cy="210" r="14" fill="#9aa1ae" stroke="#5a6170" stroke-width="2"/>
-  <rect x="214.5" y="198" width="3" height="10" rx="1.5" fill="#2a303b"/>
-  <circle cx="238" cy="232" r="2.5" fill="#ff9a3c"/>
-  <rect x="24" y="100" width="156" height="140" rx="6" fill="#1a1f28"/>
-  <rect x="38" y="114" width="128" height="112" rx="8" fill="url(#glow)"/>
-  <polygon points="38,114 60,128 60,206 38,226" fill="#000000" opacity="0.18"/>
-  <ellipse cx="110" cy="204" rx="46" ry="11" fill="#fff4dc" opacity="0.85"/>
-  <ellipse cx="110" cy="204" rx="46" ry="11" fill="none" stroke="#c46a26" stroke-width="2" opacity="0.6"/>
-  <path d="M 92 196 q 18 -26 36 0 z" fill="#f2f2ee"/>
-  <rect x="96" y="174" width="28" height="24" rx="4" fill="#5ee7df"/>
-  <path d="M 124 180 q 10 6 0 14" fill="none" stroke="#5ee7df" stroke-width="4"/>
-  <rect x="32" y="250" width="14" height="6" rx="2" fill="#20242c"/>
-  <rect x="222" y="250" width="14" height="6" rx="2" fill="#20242c"/>
+  <!-- front: 240 x 160 at (0, 0) -->
+  <g transform="translate(0 0)">
+    <rect width="240" height="160" fill="url(#body)"/>
+    <rect width="240" height="2" fill="#ffffff" opacity="0.25"/>
+    <rect x="10" y="10" width="156" height="140" rx="6" fill="#1a1f28"/>
+    <rect x="172" y="10" width="60" height="140" rx="5" fill="url(#panel)"/>
+    <rect x="177" y="17" width="50" height="24" rx="3" fill="#06110f"/>
+    <rect x="180" y="50" width="12" height="10" rx="2" fill="#4a5262"/>
+    <rect x="195.5" y="50" width="12" height="10" rx="2" fill="#4a5262"/>
+    <rect x="211" y="50" width="12" height="10" rx="2" fill="#4a5262"/>
+    <rect x="180" y="65" width="12" height="10" rx="2" fill="#4a5262"/>
+    <rect x="195.5" y="65" width="12" height="10" rx="2" fill="#4a5262"/>
+    <rect x="211" y="65" width="12" height="10" rx="2" fill="#4a5262"/>
+    <rect x="180" y="80" width="12" height="10" rx="2" fill="#4a5262"/>
+    <rect x="195.5" y="80" width="12" height="10" rx="2" fill="#4a5262"/>
+    <rect x="211" y="80" width="12" height="10" rx="2" fill="#4a5262"/>
+    <circle cx="202" cy="120" r="14" fill="#9aa1ae" stroke="#5a6170" stroke-width="2"/>
+    <rect x="200.5" y="108" width="3" height="10" rx="1.5" fill="#2a303b"/>
+    <circle cx="224" cy="142" r="2.5" fill="#ff9a3c"/>
+  </g>
+  <!-- back, seen from behind: 240 x 160 at (250, 0) -->
+  <g transform="translate(250 0)">
+    <rect width="240" height="160" fill="url(#body)"/>
+    <rect x="20" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="29" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="38" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="47" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="56" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="65" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="74" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="83" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="92" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="101" y="22" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="20" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="29" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="38" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="47" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="56" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="65" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="74" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="83" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="92" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="101" y="31" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="20" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="29" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="38" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="47" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="56" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="65" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="74" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="83" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="92" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="101" y="40" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="20" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="29" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="38" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="47" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="56" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="65" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="74" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="83" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="92" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="101" y="49" width="5" height="5" rx="1" fill="#2a2e38" opacity="0.7"/>
+    <rect x="150" y="110" width="60" height="28" rx="3" fill="#2a2e38" opacity="0.55"/>
+  </g>
+  <!-- right side, seen from the right (its left edge meets the front): 210 x 160 at (500, 0) -->
+  <g transform="translate(500 0)">
+    <rect width="210" height="160" fill="url(#body)"/>
+    <line x1="12" y1="36" x2="12" y2="66" stroke="#2a2e38" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+    <line x1="18" y1="36" x2="18" y2="66" stroke="#2a2e38" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+    <line x1="24" y1="36" x2="24" y2="66" stroke="#2a2e38" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+    <line x1="30" y1="36" x2="30" y2="66" stroke="#2a2e38" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+    <line x1="36" y1="36" x2="36" y2="66" stroke="#2a2e38" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+    <line x1="42" y1="36" x2="42" y2="66" stroke="#2a2e38" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  </g>
+  <!-- left side, top and bottom: 40 x 40 at (0, 170) -->
+  <g transform="translate(0 170)">
+    <rect width="40" height="40" fill="url(#body)"/>
+  </g>
 </svg>
