@@ -1,6 +1,6 @@
 # 技術スパイク
 
-- ステータス: 作業中(計画0005の作業4)。ADRで3Dの描画の方式を決め、製品に移したあとで削除する
+- ステータス: 計画0005の作業4のスパイク(2026-11-11に、方式を[ADR-0026](../docs/adr/0026-render-microwaves-as-3d-meshes.md)に記録した)。製品に移す計画0005の作業6を終えたら削除する
 - 関連: [計画0005](../docs/plans/0005-v0.3.0-visuals-and-clock.md)のD-2〜D-4、E-1、E-5と作業4、[ビジュアルデザイン方針](../docs/design/visual-design.md)、[ADR-0023](../docs/adr/0023-svg-sprites-from-v0.2.0.md)
 
 ## このディレクトリについて
@@ -15,7 +15,7 @@
 
 ## render3d
 
-- 依存: `wgpu =30.0.1`(既定の機能を切り、`std`、`parking_lot`、`wgsl`、`vulkan`、`dx12`)、`pollster =1.0.1`、`resvg =0.49.0`(既定の機能を切る。面の絵のラスタライズとPNGの書き出し)。`vulkan`の機能は、このスパイクのためだけに使う(2026-11-10にメンテナーが承認した。計画0005の作業4の案A)。
+- 依存: `wgpu =30.0.1`(既定の機能を切り、`std`、`parking_lot`、`wgsl`、`vulkan`、`dx12`)、`pollster =1.0.1`、`resvg =0.49.0`(既定の機能を切る。面の絵のラスタライズとPNGの書き出し)。`vulkan`の機能は、このスパイクのためだけに使う(2026-11-10にメンテナーが承認した。計画0005のD-11)。
 - 面の絵: `src/art.rs`の中で自作したSVGで、外部の素材を使わない。
 - 画像の作り方(Linux): ソフトウェアのVulkanの実装(lavapipe。Ubuntuでは`mesa-vulkan-drivers`)を入れ、`spikes/render3d/`で次を実行する。画像は`out/`にでき、コミットしない。
 

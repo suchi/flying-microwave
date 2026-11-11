@@ -8,8 +8,9 @@ _work
 # Cargo build output
 /target
 
-# Kept although spikes/ was removed (plan 0001, D-28): building an older
-# commit recreates this build output, which must not be committed by mistake.
+# Build output of the spikes. spikes/ was removed after Phase 0 (plan 0001,
+# D-28) and is used again for the 3D rendering spike (plan 0005, task 4).
+# Keep this entry when spikes/ is removed again (docs/incidents/0017).
 /spikes/*/target
 
 # Temporary worktrees of Claude Code subagents (docs/development/review-process.md)
