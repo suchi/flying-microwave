@@ -95,7 +95,7 @@ In Screen Saver Settings, the screen saver is listed as "FlyingMicrowave" (the n
 
 Open Screen Saver Settings, select FlyingMicrowave, and click Settings to open the settings dialog.
 
-- Flight: the number of microwaves, their speed, and their size.
+- Flight: the number of microwaves, their speed, their size, and the flight style (with "Tumbling", each one tumbles in its own way; with "Level", all of them face the same way).
 - Display: the frame rate limit, the monitors to use (with "Primary only", the other monitors are covered in black), and the mouse sensitivity (how far the mouse must move to end the screen saver).
 - About: the version, the license, the project URL, and the license notices of the libraries it depends on.
 

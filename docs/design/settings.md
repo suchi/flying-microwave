@@ -34,7 +34,7 @@ UIラベルはAGENTS.mdの言語ルールに従い英語とする。
 
 ## 設定ファイル
 
-TOML形式とする([ADR-0004](../adr/0004-store-settings-as-toml.md))。場所は`%APPDATA%\FlyingMicrowave\config.toml`([計画0004](../plans/0004-v0.2.0-settings.md)のD-1)。テストのために、環境変数`FLYING_MICROWAVE_CONFIG_DIR`(ドライブ文字で始まる絶対パス。空の値は指定なしとし、それ以外の値はエラーにして本当の設定ファイルを使わない)でフォルダを上書きできる([ADR-0024](../adr/0024-settings-file-location-and-handling.md)のE-1。計画0004のD-12)。
+TOML形式とする([ADR-0004](../adr/0004-store-settings-as-toml.md))。場所は`%APPDATA%\FlyingMicrowave\config.toml`([計画0004](../plans/0004-v0.2.0-settings.md)のD-1)。テストのために、環境変数`FLYING_MICROWAVE_CONFIG_DIR`(ドライブ文字で始まる絶対パス。空の値は指定なしとし、それ以外の値はエラーにして本当の設定ファイルを使わない)でフォルダを上書きできる([ADR-0027](../adr/0027-settings-file-handling-from-v0.3.0.md)のE-1。計画0004のD-12)。`schema_version`は、設定項目を加えた版で1つ上げる(v0.2.0は1、v0.3.0は2。古い版のファイルも読み、ないキーは既定値にする。[ADR-0027](../adr/0027-settings-file-handling-from-v0.3.0.md)のE-3)。
 
 ```toml
 schema_version = 2
@@ -66,8 +66,8 @@ exit_sensitivity = "medium"
 | 整数の項目に小数が書かれている | その項目だけ既定値 |
 | 選択肢にない値(`max_fps = 45`など)・その他の型の違い | その項目だけ既定値 |
 | 未知のキー | 無視する(新しいバージョンの設定を古いバージョンで読んでも動く) |
-| `schema_version`が新しい | 読める項目だけ使い、書き込み時に利用者へ確認する(最初のOKで確認の文を画面の中に示し、ボタンがReplaceに変わる。それを押すと書き込む。未知のキーとコメントは消える。[ADR-0024](../adr/0024-settings-file-location-and-handling.md)のE-3) |
-| `schema_version`がない・整数でない・0以下 | 1として読む([ADR-0024](../adr/0024-settings-file-location-and-handling.md)のE-3) |
+| `schema_version`が新しい | 読める項目だけ使い、書き込み時に利用者へ確認する(最初のOKで確認の文を画面の中に示し、ボタンがReplaceに変わる。それを押すと書き込む。未知のキーとコメントは消える。[ADR-0027](../adr/0027-settings-file-handling-from-v0.3.0.md)のE-3) |
+| `schema_version`がない・整数でない・0以下 | 1として読む([ADR-0027](../adr/0027-settings-file-handling-from-v0.3.0.md)のE-3) |
 
 設定画面は、ファイルを読めなかったとき(ファイルが大きすぎる、TOMLとして解析できない、読み込みに失敗した)は既定値を示す。そのままOKで保存すると、もとのファイルを置き換えることになるため、新しい`schema_version`のときと同じく、最初のOKで警告を示し、Replaceに変わったボタンで保存する。ダブルクリックで読まずに保存しないよう、警告を出してから0.7秒は確認として数えない(計画0004のD-10)。
 
@@ -91,5 +91,5 @@ flowchart LR
 - Aboutにはバージョン、ライセンス、依存ライブラリのライセンス表記、着想元についての説明([先行作品と知的財産上の配慮](../research/prior-art-and-ip.md)のIP-1の範囲)、プロジェクトのURLを表示する。
 - 保存に失敗した場合は、設定画面内にエラーメッセージを表示する(設定画面は利用者の操作中なので表示してよい)。
 - 選択肢のUIラベル: `flight.style`はTumbling・Level、`display.max_fps`はMatch monitor・30 fps・60 fps・120 fps、`display.monitors`はAll monitors・Primary only、`input.exit_sensitivity`はLow・Medium・High。
-- 設定画面を開けないとき(GPUの初期化の失敗など)は、メッセージボックスで、開けなかったことと設定ファイルのパスを示し、終了コード7で終わる([ADR-0024](../adr/0024-settings-file-location-and-handling.md)のE-4)。GPUの初期化が15秒で終わらないときも同じ扱いにする(`/s`・`/p`と同じ上限。[計画0004](../plans/0004-v0.2.0-settings.md)のD-17、[計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-1)。
+- 設定画面を開けないとき(GPUの初期化の失敗など)は、メッセージボックスで、開けなかったことと設定ファイルのパスを示し、終了コード7で終わる([ADR-0027](../adr/0027-settings-file-handling-from-v0.3.0.md)のE-4)。GPUの初期化が15秒で終わらないときも同じ扱いにする(`/s`・`/p`と同じ上限。[計画0004](../plans/0004-v0.2.0-settings.md)のD-17、[計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-1)。
 - Phase 1と`v0.1.x`の`/c`は、設定画面の代わりに「設定は今後のバージョンで追加する」旨のメッセージボックス(Win32の`MessageBoxW`)を表示していた。v0.2.0の試作版から、設定画面(eframe)を表示する。
