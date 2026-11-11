@@ -3,6 +3,9 @@
 // A screensaver must not open a console window.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
+// Used by the Windows renderer; tested on every host.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod atlas;
 mod cli;
 // Used by the Windows saver; tested on every host.
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -18,6 +21,9 @@ mod gpu_limit;
 mod licenses;
 #[cfg(windows)]
 mod log;
+// Used by the Windows renderer; tested on every host.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod model;
 #[cfg(windows)]
 mod preview;
 #[cfg(windows)]
@@ -26,9 +32,6 @@ mod render;
 mod saver;
 #[cfg(windows)]
 mod settings;
-// Used by the Windows renderer; tested on every host.
-#[cfg_attr(not(windows), allow(dead_code))]
-mod sprite;
 // Used by the Windows modes; tested on every host.
 #[cfg_attr(not(windows), allow(dead_code))]
 mod storage;

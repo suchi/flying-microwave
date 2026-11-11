@@ -17,8 +17,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use flying_microwave_core::exit_policy::{Decision, Event, ExitPolicy, Mode};
+use flying_microwave_core::flight::World;
 use flying_microwave_core::pacing::{FramePacer, Pace};
-use flying_microwave_core::sim::{SimParams, World};
+use flying_microwave_core::sim::SimParams;
 use windows_sys::Win32::Foundation::HWND;
 use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
@@ -28,6 +29,7 @@ use winit::raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use winit::window::{Window, WindowId};
 
 use crate::log::log;
+use crate::model::STYLE;
 use crate::render::{self, Frame, Gpu, Target};
 use crate::saver::{aspect_of, seed};
 use crate::storage::Startup;
@@ -175,20 +177,19 @@ impl PreviewApp {
         log!("preview window: parent client {width}x{height}, window {inner:?}");
 
         let aspect = aspect_of(inner);
-        let world = World::new(seed(0), aspect, self.params);
+        let world = World::new(seed(0), aspect, self.params, STYLE);
         let refresh = window
             .current_monitor()
             .and_then(|m| m.refresh_rate_millihertz());
         let pacer = FramePacer::new(self.max_fps, refresh);
         log!("preview: frame rate limited {}", pacer.limits());
         self.pacer = Some(pacer);
-        let sprite_size = world.instances().first().map_or(0.12, |s| s.size);
         let _watchdog = render::Watchdog::start(GPU_INIT_TIMEOUT, EXIT_GPU_INIT_TIMEOUT);
         let (gpu, target) = render::guarded("GPU initialization", || {
             let instance = render::create_instance();
             let surface = render::create_surface(&instance, &window)?;
             let gpu = render::request_gpu(&instance, &surface)?;
-            let target = Target::new(&gpu, surface, inner, sprite_size)?;
+            let target = Target::new(&gpu, surface, inner)?;
             Ok((gpu, target))
         })?;
         self.window = Some(window);
@@ -286,7 +287,7 @@ impl ApplicationHandler for PreviewApp {
                 // Same rule as `/s`: a new world when the aspect changes.
                 let aspect = aspect_of(size);
                 if size.height > 0 && (aspect - self.aspect).abs() > 1e-3 {
-                    self.world = Some(World::new(seed(0), aspect, self.params));
+                    self.world = Some(World::new(seed(0), aspect, self.params, STYLE));
                     self.aspect = aspect;
                     self.last_frame = None;
                 }

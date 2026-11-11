@@ -1,21 +1,25 @@
-<!-- Flying Microwave contributors. MIT License. See assets/sprites/README.md. -->
-<svg xmlns="http://www.w3.org/2000/svg" width="156" height="140" viewBox="0 0 156 140">
+<svg xmlns="http://www.w3.org/2000/svg" width="330" height="140" viewBox="0 0 330 140">
+  <!-- Microwave door faces. Face positions are fixed by crates/app/src/model.rs. -->
   <defs>
-    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1b2433"/>
-      <stop offset="1" stop-color="#0b0f17"/>
-    </linearGradient>
-    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
-      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    <mask id="frame">
-      <rect width="156" height="140" fill="#ffffff"/>
-      <rect x="14" y="14" width="128" height="112" rx="8" fill="#000000"/>
-    </mask>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b2433"/><stop offset="1" stop-color="#0b0f17"/></linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/><stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
   </defs>
-  <rect x="0.5" y="0.5" width="155" height="139" rx="6" fill="#262c37" stroke="#111111" stroke-width="1" mask="url(#frame)"/>
-  <rect x="14" y="14" width="128" height="112" rx="8" fill="url(#glass)" opacity="0.55"/>
-  <rect x="14" y="14" width="128" height="112" rx="8" fill="url(#shine)"/>
-  <rect x="144" y="40" width="5" height="60" rx="2.5" fill="#d8dce4"/>
+  <!-- outside: 156 x 140 at (0, 0); the window glass is translucent -->
+  <g transform="translate(0 0)">
+    <path fill-rule="evenodd" fill="#262c37" d="M0 0H156V140H0Z M22 14H134A8 8 0 0 1 142 22V118A8 8 0 0 1 134 126H22A8 8 0 0 1 14 118V22A8 8 0 0 1 22 14Z"/>
+    <rect x="0.5" y="0.5" width="155" height="139" rx="1" fill="none" stroke="#111111" stroke-width="1"/>
+    <rect x="14" y="14" width="128" height="112" rx="8" fill="url(#glass)" opacity="0.5"/>
+    <rect x="14" y="14" width="128" height="112" rx="8" fill="url(#shine)"/>
+    <rect x="144" y="40" width="5" height="60" rx="2.5" fill="#d8dce4"/>
+  </g>
+  <!-- inside, seen from the cavity: 156 x 140 at (160, 0) -->
+  <g transform="translate(160 0)">
+    <path fill-rule="evenodd" fill="#1d222b" d="M0 0H156V140H0Z M22 14H134A8 8 0 0 1 142 22V118A8 8 0 0 1 134 126H22A8 8 0 0 1 14 118V22A8 8 0 0 1 22 14Z"/>
+    <rect x="5" y="5" width="146" height="130" rx="4" fill="none" stroke="#3a404c" stroke-width="2"/>
+    <rect x="14" y="14" width="128" height="112" rx="8" fill="#121821" opacity="0.45"/>
+  </g>
+  <!-- edges: 10 x 10 at (320, 0) -->
+  <g transform="translate(320 0)">
+    <rect width="10" height="10" fill="#1d222b"/>
+  </g>
 </svg>

@@ -149,14 +149,16 @@ pub fn lines_of(log: &str, pid: u32) -> Vec<&str> {
         .collect()
 }
 
-/// Whether the sprites, not just the background, are drawn: the log of one
-/// process (from [`lines_of`]) has the `sprite atlas:` line and neither a
+/// Whether the microwaves, not just the background, are drawn: the log of
+/// one process (from [`lines_of`]) has the `face atlas:` line, one
+/// `mesh pipelines ready:` line for every configured surface, and neither a
 /// fallback to the background nor a wgpu error. Returns the atlas line.
 ///
-/// Why: the app keeps running on the background alone when the sprite
-/// pipeline or the atlas cannot be made, so the other checks would pass
-/// (plan 0004, D-6: the pre-release exists to show the sprites).
-pub fn sprites_drawn(lines: &[&str]) -> Result<String, String> {
+/// Why: the app keeps running on the background alone when the atlas or the
+/// pipelines cannot be made, so the other checks would pass (plan 0004,
+/// D-6: the pre-release exists to show the microwaves). The atlas is made
+/// once and shared by every window (plan 0005, D-13).
+pub fn meshes_drawn(lines: &[&str]) -> Result<String, String> {
     let messages: Vec<&str> = lines
         .iter()
         .filter_map(|line| split_line(line))
@@ -166,28 +168,24 @@ pub fn sprites_drawn(lines: &[&str]) -> Result<String, String> {
         .iter()
         .find(|m| m.contains("drawing the background only") || m.starts_with("wgpu error"))
     {
-        return Err(format!("the sprites are not drawn: {bad}"));
+        return Err(format!("the microwaves are not drawn: {bad}"));
     }
+    let atlas = messages
+        .iter()
+        .find(|m| m.starts_with("face atlas:"))
+        .ok_or("the face atlas was not logged")?;
     // Why: a wgpu error spans several lines, so a fallback message may sit
     // on a continuation line that lines_of drops. Every surface (one per
-    // `surface configured:` line) must have made its atlas.
-    let surfaces = messages
-        .iter()
-        .filter(|m| m.starts_with("surface configured:"))
-        .count();
-    let atlases: Vec<&str> = messages
-        .iter()
-        .copied()
-        .filter(|m| m.starts_with("sprite atlas:"))
-        .collect();
-    match atlases.first() {
-        Some(first) if atlases.len() >= surfaces => Ok((*first).to_owned()),
-        Some(_) => Err(format!(
-            "the sprites are not drawn: {} sprite atlases for {surfaces} surfaces",
-            atlases.len()
-        )),
-        None => Err("the sprite atlas was not logged".to_owned()),
+    // `surface configured:` line) must have made its pipelines.
+    let count = |prefix: &str| messages.iter().filter(|m| m.starts_with(prefix)).count();
+    let surfaces = count("surface configured:");
+    let ready = count("mesh pipelines ready:");
+    if ready < surfaces.max(1) {
+        return Err(format!(
+            "the microwaves are not drawn: mesh pipelines for {ready} of {surfaces} surfaces"
+        ));
     }
+    Ok((*atlas).to_owned())
 }
 
 /// Splits `+123ms rest` into `(123, "rest")`.
@@ -201,17 +199,19 @@ fn split_line(line: &str) -> Option<(u64, &str)> {
 mod tests {
     use super::*;
 
+    const ATLAS: &str =
+        "face atlas: 4096x1632, 5 levels, anisotropy 8, rasterized in 50 ms, ready in 90 ms";
+
     #[test]
-    fn sprites_are_drawn_when_the_atlas_was_made_without_errors() {
+    fn meshes_are_drawn_when_the_atlas_and_pipelines_were_made_without_errors() {
+        let atlas = format!("+120ms pid=7 {ATLAS}");
         let lines = [
             "+90ms pid=7 surface configured: 1024x768 Bgra8Unorm Fifo",
-            "+120ms pid=7 sprite atlas: 512x128 in 3 ms",
+            atlas.as_str(),
+            "+125ms pid=7 mesh pipelines ready: 1024x768",
             "+200ms pid=7 window 0: first frame presented",
         ];
-        assert_eq!(
-            sprites_drawn(&lines),
-            Ok("sprite atlas: 512x128 in 3 ms".to_owned())
-        );
+        assert_eq!(meshes_drawn(&lines), Ok(ATLAS.to_owned()));
     }
 
     #[test]
@@ -219,37 +219,45 @@ mod tests {
         // The screensaver keeps running on the background alone, so the
         // other checks pass; this one must not.
         let fallback = [
-            "+120ms pid=7 sprite pipeline: shader failed: drawing the background only",
+            "+120ms pid=7 creating the face atlas and the meshes failed: out of memory: drawing the background only",
             "+200ms pid=7 window 0: first frame presented",
         ];
-        assert!(sprites_drawn(&fallback).is_err());
+        assert!(meshes_drawn(&fallback).is_err());
+        let atlas = format!("+120ms pid=7 {ATLAS}");
         let gpu_error = [
-            "+120ms pid=7 sprite atlas: 512x128 in 3 ms",
+            atlas.as_str(),
+            "+125ms pid=7 mesh pipelines ready: 1024x768",
             "+130ms pid=7 wgpu error: Validation Error",
         ];
-        assert!(sprites_drawn(&gpu_error).is_err());
-        assert!(sprites_drawn(&["+1ms pid=7 window 0: first frame presented"]).is_err());
+        assert!(meshes_drawn(&gpu_error).is_err());
+        assert!(meshes_drawn(&["+1ms pid=7 window 0: first frame presented"]).is_err());
+        // An atlas without any pipeline draws nothing.
+        assert!(meshes_drawn(&[atlas.as_str()]).is_err());
     }
 
     #[test]
-    fn one_window_without_its_atlas_is_a_failure() {
+    fn one_window_without_its_pipelines_is_a_failure() {
         // Review: a wgpu error spans several lines, so the fallback message
         // of a second window may sit on a line without the `+Nms pid=` prefix,
-        // which lines_of drops. The count of atlases still tells.
+        // which lines_of drops. The count of pipelines still tells.
+        let atlas = format!("+95ms pid=7 {ATLAS}");
         let lines = [
             "+90ms pid=7 surface configured: 1920x1080 Bgra8Unorm Fifo",
-            "+95ms pid=7 sprite atlas: 512x128 in 3 ms",
+            atlas.as_str(),
+            "+96ms pid=7 mesh pipelines ready: 1920x1080",
             "+100ms pid=7 surface configured: 3840x2160 Bgra8Unorm Fifo",
             "+130ms pid=7 window 0: first frame presented",
         ];
-        assert!(sprites_drawn(&lines).is_err());
+        assert!(meshes_drawn(&lines).is_err());
+        // One shared atlas serves both windows.
         let both = [
             "+90ms pid=7 surface configured: 1920x1080 Bgra8Unorm Fifo",
-            "+95ms pid=7 sprite atlas: 512x128 in 3 ms",
+            atlas.as_str(),
+            "+96ms pid=7 mesh pipelines ready: 1920x1080",
             "+100ms pid=7 surface configured: 3840x2160 Bgra8Unorm Fifo",
-            "+105ms pid=7 sprite atlas: 1024x256 in 6 ms",
+            "+105ms pid=7 mesh pipelines ready: 3840x2160",
         ];
-        assert!(sprites_drawn(&both).is_ok());
+        assert_eq!(meshes_drawn(&both), Ok(ATLAS.to_owned()));
     }
 
     const LOG: &str = "\

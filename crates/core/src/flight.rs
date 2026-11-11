@@ -7,9 +7,10 @@
 //! left (left 2, down 1, as in v0.2.0), at the same speed whatever its depth,
 //! so farther flyers look smaller and slower (F-08).
 //!
-//! As in [`crate::sim`], the world advances in fixed steps of
-//! [`TIME_STEP`], at most [`MAX_ELAPSED`] per call, and rendering
-//! interpolates between the previous and the current step.
+//! The world advances in fixed steps of [`TIME_STEP`] (from [`crate::sim`]),
+//! at most [`MAX_ELAPSED`] per call, and rendering interpolates between the
+//! previous and the current step, so motion stays smooth at any display
+//! refresh rate.
 //!
 //! The look values below are the starting values set with the spike
 //! (ADR-0026, "見た目の値"). They are not decided yet: the maintainer judges
@@ -30,12 +31,12 @@ pub const BODY_SIZE: Vec3 = Vec3::new(1.5, 1.0, 1.3125);
 /// microwave at `scale` 1.0, the open door included.
 ///
 /// Why 1.75: the corners of the body box are 1.115 from the center, and the
-/// free edge of the door opened 70 degrees reaches about 1.69 (its thickness
-/// included) with the door of the spike's mesh
-/// (`spikes/render3d/src/mesh.rs`). A flyer only leaves
-/// the frustum once this sphere is fully outside, so the mesh of the
-/// renderer must stay within it; the renderer is to check that in its
-/// tests (plan 0005, task 6; not done yet).
+/// free edge of the door opened 70 degrees reaches about 1.70 (its thickness
+/// included) with the door of the renderer's mesh
+/// (`crates/app/src/model.rs`). A flyer only leaves the frustum once this
+/// sphere is fully outside, so the mesh must stay within it; the renderer
+/// checks that in its tests
+/// (`model::tests::whole_microwave_stays_within_the_bounding_radius`).
 pub const BOUNDING_RADIUS: f32 = 1.75;
 
 // Why: the values from here to `LEVEL_ROLL_DEG` are the starting values of
@@ -112,8 +113,8 @@ pub fn projection(aspect: f32) -> Mat4 {
 /// Door opening angle in radians for a flap phase in `[0, 1)`.
 ///
 /// The door is closed at phase 0, opens smoothly to 70 degrees at phase 0.5
-/// and closes again: the same shape as the v0.2.0 sprite
-/// (`crates/app/src/sprite.rs`).
+/// and closes again: the same shape as the door of the v0.2.0 sprite
+/// (ADR-0023).
 pub fn door_angle(flap: f32) -> f32 {
     let open = (1.0 - (TAU * flap).cos()) / 2.0;
     MAX_DOOR_DEG.to_radians() * open
@@ -293,7 +294,8 @@ impl World {
 
     /// A new flyer that enters the view at the top or the right.
     ///
-    /// Within one depth this is the respawn of `core::sim`: the entry line
+    /// Within one depth this is the respawn of the 2D simulation of v0.2.0
+    /// (ADR-0023): the entry line
     /// runs along the top of the area of [`World::half_extents`] from the
     /// top-left to the top-right corner, then down its right side. The
     /// flyer crosses the top at rate 1 (down) and the right side at rate 2

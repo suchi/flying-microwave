@@ -25,10 +25,11 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use flying_microwave_core::config::{Config, Monitors};
 use flying_microwave_core::exit_policy::{self, Decision, Event, ExitPolicy};
+use flying_microwave_core::flight::World;
 use flying_microwave_core::frame_loop::{Flow, next_flow, wake_times};
 use flying_microwave_core::monitors::{self, Area, Change};
 use flying_microwave_core::pacing::{FramePacer, Pace};
-use flying_microwave_core::sim::{SimParams, World};
+use flying_microwave_core::sim::SimParams;
 use winit::application::ApplicationHandler;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::{ElementState, WindowEvent};
@@ -39,6 +40,7 @@ use winit::window::{Window, WindowId, WindowLevel};
 use crate::diag;
 use crate::display_power;
 use crate::log::log;
+use crate::model::STYLE;
 use crate::render::{self, Frame, Gpu, Target};
 use crate::storage::Startup;
 use crate::win;
@@ -412,7 +414,7 @@ impl SaverApp {
         );
         let size = window.inner_size();
         SaverWindow {
-            world: World::new(seed(index), aspect_of(size), self.params),
+            world: World::new(seed(index), aspect_of(size), self.params, STYLE),
             aspect: aspect_of(size),
             window,
             index,
@@ -440,11 +442,10 @@ impl SaverApp {
         // Why the watchdog: as at start, a hung driver call must not leave
         // the black windows on the screen for good.
         let _watchdog = render::Watchdog::start(GPU_INIT_TIMEOUT, EXIT_GPU_INIT_TIMEOUT);
-        let sprite_size = w.world.instances().first().map_or(0.12, |s| s.size);
         log!("window {index}: setting up the surface");
         let result = render::guarded("surface setup", || {
             let surface = render::create_surface(instance, &w.window)?;
-            Target::new(gpu, surface, w.window.inner_size(), sprite_size)
+            Target::new(gpu, surface, w.window.inner_size())
         });
         match result {
             Ok(target) => self.windows[position].target = Some(target),
@@ -672,7 +673,7 @@ impl SaverApp {
         // changes almost only right after start, so a new world is fine.
         let aspect = aspect_of(size);
         if size.height > 0 && (aspect - w.aspect).abs() > 1e-3 {
-            w.world = World::new(seed(w.index), aspect, self.params);
+            w.world = World::new(seed(w.index), aspect, self.params, STYLE);
             w.aspect = aspect;
             w.last_frame = None;
         }
@@ -711,12 +712,11 @@ impl SaverApp {
             Ok((instance, gpu, surfaces)) => {
                 for (w, surface) in self.windows.iter_mut().zip(surfaces) {
                     let Some(surface) = surface else { continue };
-                    let sprite_size = w.world.instances().first().map_or(0.12, |s| s.size);
                     // Why: the lines that Target::new writes do not name the
                     // window, and with several monitors the log must tell
                     // which window they belong to (Issue #50).
                     log!("window {}: setting up the surface", w.index);
-                    match Target::new(&gpu, surface, w.window.inner_size(), sprite_size) {
+                    match Target::new(&gpu, surface, w.window.inner_size()) {
                         Ok(target) => w.target = Some(target),
                         Err(e) => log!("window {}: surface setup failed: {e}", w.index),
                     }
