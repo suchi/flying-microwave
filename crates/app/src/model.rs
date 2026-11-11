@@ -329,13 +329,20 @@ impl Builder {
     /// A quad from its bottom-left corner and its right and up edges, with
     /// the image `uv` upright on it. The normal is `right x up`.
     fn quad(&mut self, bl: Vec3, right: Vec3, up: Vec3, uv: UvRect, emissive: f32) {
-        let normal = right.cross(up).normalized();
+        self.corners([bl, bl + right, bl + right + up, bl + up], uv, emissive);
+    }
+
+    /// A quad from its corners: bottom left, bottom right, top right and top
+    /// left, with the image `uv` upright on it. Neighboring quads pass the
+    /// same corner values, so that their shared edges match exactly.
+    fn corners(&mut self, [bl, br, tr, tl]: [Vec3; 4], uv: UvRect, emissive: f32) {
+        let normal = (br - bl).cross(tl - bl).normalized();
         let base = self.vertices.len() as u32;
         let corners = [
             (bl, [uv.u0, uv.v1]),
-            (bl + right, [uv.u1, uv.v1]),
-            (bl + right + up, [uv.u1, uv.v0]),
-            (bl + up, [uv.u0, uv.v0]),
+            (br, [uv.u1, uv.v1]),
+            (tr, [uv.u1, uv.v0]),
+            (tl, [uv.u0, uv.v0]),
         ];
         for (p, uv) in corners {
             self.vertices.push(Vertex {
@@ -347,6 +354,35 @@ impl Builder {
         }
         self.indices
             .extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+    }
+
+    /// A face split into a grid of quads: `us` are the cuts from the left to
+    /// the right of its image, `vs` from the bottom to the top, and `at(u, v)`
+    /// is the point. The image `uv` spans the whole face. The quad at `skip`
+    /// is left out (the opening in the front).
+    fn grid(
+        &mut self,
+        us: &[f32],
+        vs: &[f32],
+        at: impl Fn(f32, f32) -> Vec3,
+        uv: UvRect,
+        skip: Option<(usize, usize)>,
+    ) {
+        let (u_first, u_last) = (us[0], us[us.len() - 1]);
+        let (v_first, v_last) = (vs[0], vs[vs.len() - 1]);
+        let fx = |u: f32| (u - u_first) / (u_last - u_first);
+        // Image fractions grow downward, the cuts upward.
+        let fy = |v: f32| (v_last - v) / (v_last - v_first);
+        for i in 0..us.len() - 1 {
+            for j in 0..vs.len() - 1 {
+                if skip == Some((i, j)) {
+                    continue;
+                }
+                let (u0, u1, v0, v1) = (us[i], us[i + 1], vs[j], vs[j + 1]);
+                let part = uv.sub(fx(u0), fy(v1), fx(u1), fy(v0));
+                self.corners([at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)], part, 0.0);
+            }
+        }
     }
 
     fn mark(&self) -> u32 {
@@ -387,119 +423,70 @@ const Z: Vec3 = Vec3::new(0.0, 0.0, 1.0);
 fn body(b: &mut Builder, uvs: &[UvRect], color: u8) {
     let uv = |face: Face| uvs[face.index()];
     let e = half_extents();
-    let (w, h, d) = (2.0 * e.x, 2.0 * e.y, 2.0 * e.z);
     let plain = uv(Face::Plain(color));
-    // Back, right, left, top, bottom.
-    b.quad(
-        Vec3::new(e.x, -e.y, -e.z),
-        X.scale(-w),
-        Y.scale(h),
-        uv(Face::Back(color)),
-        0.0,
-    );
-    b.quad(
-        Vec3::new(e.x, -e.y, e.z),
-        Z.scale(-d),
-        Y.scale(h),
-        uv(Face::Side(color)),
-        0.0,
-    );
-    b.quad(
-        Vec3::new(-e.x, -e.y, -e.z),
-        Z.scale(d),
-        Y.scale(h),
-        plain,
-        0.0,
-    );
-    b.quad(
-        Vec3::new(-e.x, e.y, e.z),
-        X.scale(w),
-        Z.scale(-d),
-        plain,
-        0.0,
-    );
-    b.quad(
-        Vec3::new(-e.x, -e.y, -e.z),
-        X.scale(w),
-        Z.scale(d),
-        plain,
-        0.0,
-    );
-
-    // The front, as four strips around the opening of the cavity.
+    // Every face of the box is cut where the opening of the front is, so
+    // that neighboring faces share all their edge vertices (no T-junctions,
+    // which can leave one-pixel cracks).
+    let (x0, y0, x1, y1, zf, zb) = cavity_box();
+    let xs = [-e.x, x0, x1, e.x];
+    let ys = [-e.y, y0, y1, e.y];
+    let back_xs = [e.x, x1, x0, -e.x];
+    let (front_zs, back_zs) = ([e.z, -e.z], [-e.z, e.z]);
+    // The front, without its middle quad (the opening).
     let front = uv(Face::Front(color));
-    let [fw, fh, _] = BODY_SVG;
-    let [ox, oy, ow, oh] = OPENING_RECT;
-    let strips = [
-        (0.0, 0.0, fw, oy),
-        (0.0, oy + oh, fw, fh),
-        (0.0, oy, ox, oy + oh),
-        (ox + ow, oy, fw, oy + oh),
-    ];
-    for (sx0, sy0, sx1, sy1) in strips {
-        let (x0, y1) = front_point(sx0, sy0);
-        let (x1, y0) = front_point(sx1, sy1);
-        let part = front.sub(sx0 / fw, sy0 / fh, sx1 / fw, sy1 / fh);
-        b.quad(
-            Vec3::new(x0, y0, e.z),
-            X.scale(x1 - x0),
-            Y.scale(y1 - y0),
-            part,
-            0.0,
-        );
-    }
+    b.grid(&xs, &ys, |x, y| Vec3::new(x, y, e.z), front, Some((1, 1)));
+    // The back, seen from behind; the right side, its left edge at the front.
+    let back = uv(Face::Back(color));
+    b.grid(&back_xs, &ys, |x, y| Vec3::new(x, y, -e.z), back, None);
+    let side = uv(Face::Side(color));
+    b.grid(&front_zs, &ys, |z, y| Vec3::new(e.x, y, z), side, None);
+    // Left, top and bottom.
+    b.grid(&back_zs, &ys, |z, y| Vec3::new(-e.x, y, z), plain, None);
+    b.grid(&xs, &front_zs, |x, z| Vec3::new(x, e.y, z), plain, None);
+    b.grid(&xs, &back_zs, |x, z| Vec3::new(x, -e.y, z), plain, None);
 
     // The LED window, unlit, just in front of the panel.
     let [lx, ly, lw, lh] = LED_RECT;
-    let (x0, y1) = front_point(lx, ly);
-    let (x1, y0) = front_point(lx + lw, ly + lh);
+    let (lx0, ly1) = front_point(lx, ly);
+    let (lx1, ly0) = front_point(lx + lw, ly + lh);
     b.quad(
-        Vec3::new(x0, y0, e.z + LED_OFFSET),
-        X.scale(x1 - x0),
-        Y.scale(y1 - y0),
+        Vec3::new(lx0, ly0, e.z + LED_OFFSET),
+        X.scale(lx1 - lx0),
+        Y.scale(ly1 - ly0),
         uv(Face::Led),
         EMIT_LED,
     );
 
-    // The cavity, with its faces turned inward.
-    let (x0, y0, x1, y1, zf, zb) = cavity_box();
-    let (cw, ch, cd) = (x1 - x0, y1 - y0, zf - zb);
+    // The cavity, with its faces turned inward. Its front edges are the
+    // edges of the opening.
     let glow = uv(Face::Cavity);
-    b.quad(
-        Vec3::new(x0, y0, zb),
-        X.scale(cw),
-        Y.scale(ch),
-        glow,
-        EMIT_BACK,
-    );
-    b.quad(
-        Vec3::new(x0, y0, zf),
-        X.scale(cw),
-        Z.scale(-cd),
-        glow,
-        EMIT_FLOOR,
-    );
-    b.quad(
-        Vec3::new(x0, y1, zb),
-        X.scale(cw),
-        Z.scale(cd),
-        glow,
-        EMIT_CEILING,
-    );
-    b.quad(
-        Vec3::new(x0, y0, zf),
-        Z.scale(-cd),
-        Y.scale(ch),
-        glow,
-        EMIT_SIDES,
-    );
-    b.quad(
-        Vec3::new(x1, y0, zb),
-        Z.scale(cd),
-        Y.scale(ch),
-        glow,
-        EMIT_SIDES,
-    );
+    let p = Vec3::new;
+    let walls = [
+        // Back, floor, ceiling, left and right.
+        (
+            [p(x0, y0, zb), p(x1, y0, zb), p(x1, y1, zb), p(x0, y1, zb)],
+            EMIT_BACK,
+        ),
+        (
+            [p(x0, y0, zf), p(x1, y0, zf), p(x1, y0, zb), p(x0, y0, zb)],
+            EMIT_FLOOR,
+        ),
+        (
+            [p(x0, y1, zb), p(x1, y1, zb), p(x1, y1, zf), p(x0, y1, zf)],
+            EMIT_CEILING,
+        ),
+        (
+            [p(x0, y0, zf), p(x0, y0, zb), p(x0, y1, zb), p(x0, y1, zf)],
+            EMIT_SIDES,
+        ),
+        (
+            [p(x1, y0, zb), p(x1, y0, zf), p(x1, y1, zf), p(x1, y1, zb)],
+            EMIT_SIDES,
+        ),
+    ];
+    for (corners, emissive) in walls {
+        b.corners(corners, glow, emissive);
+    }
 }
 
 /// The door in hinge coordinates: the hinge axis is the y axis, the closed
@@ -722,6 +709,48 @@ mod tests {
                 face.dot(Vec3::new(n[0], n[1], n[2])) > 0.0,
                 "triangle {tri:?}"
             );
+        }
+    }
+
+    #[test]
+    fn body_mesh_has_no_t_junctions() {
+        // Review of plan 0005, task 6: a vertex in the middle of another
+        // triangle's edge can leave one-pixel cracks when rasterized, which
+        // show the background through the body without multisampling.
+        let m = build(&unit_uvs());
+        let range = &m.body[0];
+        let tris: Vec<[Vec3; 3]> = m.indices[range.start as usize..range.end as usize]
+            .chunks(3)
+            .map(|t| {
+                t.iter()
+                    .map(|&i| {
+                        let p = m.vertices[i as usize].pos;
+                        Vec3::new(p[0], p[1], p[2])
+                    })
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .expect("three corners")
+            })
+            .collect();
+        let points: Vec<Vec3> = tris.iter().flatten().copied().collect();
+        // Corners that meet are the same values, bit for bit.
+        for (i, &a) in points.iter().enumerate() {
+            for &c in &points[i + 1..] {
+                if (a - c).length() < 1e-5 {
+                    assert_eq!(a, c, "corners that nearly meet");
+                }
+            }
+        }
+        for t in &tris {
+            for (a, b) in [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])] {
+                let ab = b - a;
+                for &p in &points {
+                    let s = (p - a).dot(ab) / ab.dot(ab);
+                    let off = (a + ab.scale(s) - p).length();
+                    let inside = s > 1e-4 && s < 1.0 - 1e-4;
+                    assert!(!(inside && off < 1e-5), "{p:?} on the edge {a:?}-{b:?}");
+                }
+            }
         }
     }
 
