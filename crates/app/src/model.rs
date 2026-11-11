@@ -580,7 +580,7 @@ pub fn glass_order(flyers: &[FlyerInstance]) -> Vec<usize> {
 
 #[cfg(test)]
 mod tests {
-    use flying_microwave_core::flight::{BODY_SIZE, BOUNDING_RADIUS};
+    use flying_microwave_core::flight::{BODY_SIZE, BOUNDING_RADIUS, door_angle};
 
     use super::*;
 
@@ -811,8 +811,12 @@ mod tests {
         // and the LED quad included.
         let m = build(&unit_uvs());
         let mut farthest = 0.0f32;
+        // The widest opening is where core::flight puts it (flap phase 0.5),
+        // so the test follows a change of that angle.
+        let widest = door_angle(0.5);
+        assert!(widest >= door_angle(0.25) && widest > 1.0, "{widest}");
         for step in 0..=70 {
-            let f = flyer((step as f32).to_radians());
+            let f = flyer(widest * step as f32 / 70.0);
             let [body, door, turntable] = matrices(&f);
             let parts = m
                 .body
@@ -833,7 +837,7 @@ mod tests {
     #[test]
     fn bounding_radius_scales_with_the_flyer() {
         let m = build(&unit_uvs());
-        let mut f = flyer(70f32.to_radians());
+        let mut f = flyer(door_angle(0.5));
         f.scale = 2.5;
         f.orientation = Quat::from_axis_angle(Vec3::new(1.0, 2.0, 3.0).normalized(), 1.0);
         f.position = Vec3::new(3.0, -1.0, -15.0);
