@@ -15,11 +15,16 @@ use crate::model::UvRect;
 
 /// Atlas width in pixels.
 pub const ATLAS_WIDTH: u32 = 4096;
-/// Pixels of repeated edge around each cell.
+/// Least pixels of repeated edge around each cell.
 const GUTTER: u32 = 16;
-/// Mip levels, including level 0. The gutter of 16 pixels keeps cells apart
-/// down to level 4 (1 pixel); the level count stops there.
+/// Mip levels, including level 0. The level count stops where one texel is
+/// as wide as the gutter.
 pub const MIP_LEVELS: u32 = 5;
+/// Every outer box (a cell and its gutter) starts and ends on a multiple of
+/// this, the pixels of one texel of the smallest level. So no texel of any
+/// level covers two boxes, and the gutter keeps the bilinear filter at the
+/// edge of a cell on the cell's own colors at every level.
+const ALIGN: u32 = 1 << (MIP_LEVELS - 1);
 
 /// A premultiplied RGBA image, 8 bits per channel, rows of `width` pixels.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,6 +41,15 @@ struct Cell {
     y: u32,
     w: u32,
     h: u32,
+}
+
+impl Cell {
+    /// Width and height of the box of the cell and its gutter: at least
+    /// [`GUTTER`] on each side, rounded up to [`ALIGN`].
+    fn outer(w: u32, h: u32) -> (u32, u32) {
+        let up = |v: u32| (v + 2 * GUTTER).div_ceil(ALIGN) * ALIGN;
+        (up(w), up(h))
+    }
 }
 
 /// The atlas: every mip level and where each image is.
@@ -55,7 +69,7 @@ fn pack(sizes: &[(u32, u32)]) -> Result<(Vec<Cell>, u32), String> {
     let mut cells = Vec::with_capacity(sizes.len());
     let (mut x, mut y, mut row_h) = (0u32, 0u32, 0u32);
     for &(w, h) in sizes {
-        let (outer_w, outer_h) = (w + 2 * GUTTER, h + 2 * GUTTER);
+        let (outer_w, outer_h) = Cell::outer(w, h);
         if w == 0 || h == 0 || outer_w > ATLAS_WIDTH {
             return Err(format!("an image of {w}x{h} pixels does not fit the atlas"));
         }
@@ -73,19 +87,20 @@ fn pack(sizes: &[(u32, u32)]) -> Result<(Vec<Cell>, u32), String> {
         x += outer_w;
         row_h = row_h.max(outer_h);
     }
-    // Why a multiple of 2^(levels - 1): every mip level halves exactly.
-    let height = (y + row_h).div_ceil(1 << (MIP_LEVELS - 1)) * (1 << (MIP_LEVELS - 1));
+    // A multiple of ALIGN, as every box is: every mip level halves exactly.
+    let height = y + row_h;
     Ok((cells, height))
 }
 
-/// Copies `image` into `atlas` at `cell` and fills the gutter around it by
-/// repeating the nearest edge pixel.
+/// Copies `image` into `atlas` at `cell` and fills the rest of its box (the
+/// gutter) by repeating the nearest edge pixel.
 fn blit(atlas: &mut [u8], atlas_w: u32, cell: Cell, image: &Image) {
     let g = i64::from(GUTTER);
-    for dy in -g..(i64::from(cell.h) + g) {
+    let (outer_w, outer_h) = Cell::outer(cell.w, cell.h);
+    for dy in -g..(i64::from(outer_h) - g) {
         let sy = dy.clamp(0, i64::from(cell.h) - 1) as u32;
         let ty = (i64::from(cell.y) + dy) as u32;
-        for dx in -g..(i64::from(cell.w) + g) {
+        for dx in -g..(i64::from(outer_w) - g) {
             let sx = dx.clamp(0, i64::from(cell.w) - 1) as u32;
             let tx = (i64::from(cell.x) + dx) as u32;
             let s = ((sy * cell.w + sx) * 4) as usize;
@@ -244,21 +259,63 @@ mod tests {
         let (cells, height) = pack(&sizes).expect("fits");
         assert_eq!(height % (1 << (MIP_LEVELS - 1)), 0);
         let outer = |c: &Cell| {
-            (
-                c.x - GUTTER,
-                c.y - GUTTER,
-                c.w + 2 * GUTTER,
-                c.h + 2 * GUTTER,
-            )
+            let (w, h) = Cell::outer(c.w, c.h);
+            (c.x - GUTTER, c.y - GUTTER, w, h)
         };
         for (i, a) in cells.iter().enumerate() {
             let (ax, ay, aw, ah) = outer(a);
             assert!(ax + aw <= ATLAS_WIDTH && ay + ah <= height, "{a:?}");
+            for v in [ax, ay, aw, ah] {
+                assert_eq!(v % ALIGN, 0, "{a:?} is not aligned");
+            }
+            assert!(aw >= a.w + 2 * GUTTER && ah >= a.h + 2 * GUTTER, "{a:?}");
             assert_eq!((a.w, a.h), sizes[i]);
             for b in &cells[i + 1..] {
                 let (bx, by, bw, bh) = outer(b);
                 let apart = ax + aw <= bx || bx + bw <= ax || ay + ah <= by || by + bh <= ay;
                 assert!(apart, "{a:?} and {b:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn mip_texels_around_a_cell_hold_only_that_cell() {
+        // Review of plan 0005, task 6: bilinear filtering at the edge of a
+        // cell reads the texels next to it at every mip level, so the texels
+        // that cover a cell and its gutter must not mix in a neighbor or the
+        // empty (transparent) area.
+        let faces = Face::all();
+        let images: Vec<Image> = faces
+            .iter()
+            .enumerate()
+            .map(|(i, f)| {
+                let img = f.image();
+                solid(img.width, img.height, [i as u8 * 10, 255 - i as u8, 7, 255])
+            })
+            .collect();
+        let atlas = build(&images).expect("atlas");
+        let (w, h) = (atlas.width as f32, atlas.height as f32);
+        for (i, uv) in atlas.uvs.iter().enumerate() {
+            let want = [i as u8 * 10, 255 - i as u8, 7, 255];
+            let x0 = (uv.u0 * w).round() as u32;
+            let x1 = (uv.u1 * w).round() as u32;
+            let y0 = (uv.v0 * h).round() as u32;
+            let y1 = (uv.v1 * h).round() as u32;
+            for level in 0..MIP_LEVELS as usize {
+                // Texels from the one before the cell edge to the one after.
+                let texel = |p: u32| p >> level;
+                let xs = texel(x0) - 1..=texel(x1 - 1) + 1;
+                let ys = texel(y0) - 1..=texel(y1 - 1) + 1;
+                for y in ys.clone() {
+                    for x in xs.clone() {
+                        assert_eq!(
+                            pixel(&atlas, level, x, y),
+                            want,
+                            "{:?} at level {level}, texel ({x}, {y})",
+                            faces[i]
+                        );
+                    }
+                }
             }
         }
     }
@@ -289,8 +346,10 @@ mod tests {
             pixel(&atlas, 0, x + 3 + GUTTER, y + 2 + GUTTER),
             [10, 20, 30, 255]
         );
-        // Outside the gutter stays empty.
-        assert_eq!(pixel(&atlas, 0, x + 4 + GUTTER, y), [0, 0, 0, 0]);
+        // The gutter fills the box up to the next multiple of ALIGN (48 for
+        // a 4-pixel cell), and the atlas stays empty beyond it.
+        assert_eq!(pixel(&atlas, 0, 47, y), [10, 20, 30, 255]);
+        assert_eq!(pixel(&atlas, 0, 48, y), [0, 0, 0, 0]);
     }
 
     #[test]
