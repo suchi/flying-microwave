@@ -1,23 +1,27 @@
 # スプライトの素材
 
-画面を飛ぶ電子レンジの素材。SVGで描き、起動時にresvgでラスタライズしてテクスチャにする([ADR-0023](../../docs/adr/0023-svg-sprites-from-v0.2.0.md)、[ビジュアルデザイン方針](../../docs/design/visual-design.md#素材の作り方))。素材は実行ファイルに埋め込む(`crates/app/src/sprite.rs`の`include_str!`)。
+画面を飛ぶ電子レンジの面の絵。SVGで描き、起動時にresvgでラスタライズして、3Dの箱のメッシュに貼るテクスチャにする([ADR-0026](../../docs/adr/0026-render-microwaves-as-3d-meshes.md)、[ビジュアルデザイン方針](../../docs/design/visual-design.md#素材の作り方))。素材は実行ファイルに埋め込む(`crates/app/src/model.rs`の`include_str!`)。v0.2.0の2Dのスプライト([ADR-0023](../../docs/adr/0023-svg-sprites-from-v0.2.0.md))は、v0.3.0で、この面の絵に置き換えた。
 
 ## 一覧
 
 | ファイル | 内容 | 作者 | ライセンス | 出典 |
 | --- | --- | --- | --- | --- |
-| `microwave-body-silver.svg` | 本体(シルバー)。天面・側面・前面、通気口、操作パネルとLEDの時計、ドアの開口部と灯りのついた庫内 | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
+| `microwave-body-silver.svg` | 本体(シルバー)の面の絵のシート。正面(操作パネル、ドアの下のくぼみ)、背面(通気口と銘板)、右の側面(通気口)、無地の面(左の側面、上面、底面) | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
 | `microwave-body-graphite.svg` | 本体(グラファイト)。色のほかは上と同じ | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
 | `microwave-body-white.svg` | 本体(ホワイト)。色のほかは上と同じ | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
 | `microwave-body-mint.svg` | 本体(ミント)。色のほかは上と同じ | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
-| `microwave-door.svg` | ドア。半透明の窓と取っ手 | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
+| `microwave-door.svg` | ドアの面の絵のシート。外側(半透明の窓と取っ手)、内側、縁 | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
+| `microwave-interior.svg` | 灯りのついた庫内の壁と、ターンテーブル | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
+| `microwave-led.svg` | LEDの表示(決まった時刻を7セグメント風に描く) | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
 
-外部の素材(画像・フォント・クリップアート)は使っていない。
+外部の素材(画像・フォント・クリップアート)は使っていない。絵は、計画0005の作業4のスパイクで作ったもの(メンテナーが画像を見て、この方向で進めると判断した)を、ファイルに移した。
 
 ## 描き方の決まり
 
-- 座標: 本体は320×320の正方形で、絵をその中央に置く。描画では、この正方形をシミュレーションの飛行物体の正方形(`SpriteInstance::size`)に合わせ、-8°傾ける。傾けても正方形からはみ出さないよう、余白を残している。
-- ドア: 本体の座標で左上が(24, 100)、大きさが156×140の長方形に収まる。描画のとき、左の縦の辺(ヒンジ)を固定した平行四辺形に変形して開閉させる(`crates/app/src/sprite.rs`)。ドアの座標を変えたときは、そのファイルの定数も合わせる。
+- シート: 1つのファイルに、いくつかの面の絵を並べる。各面の位置と大きさ(SVGの単位)は、ファイルの中のコメントと、`crates/app/src/model.rs`の`Face::image`で決める。面の位置を変えたときは、両方を合わせる(`model.rs`のテストが、面がシートの中にあり、互いに離れていることを確かめる)。面どうしの間は空け、ラスタライズのときに隣の面の色が混ざらないようにする。
+- 大きさ: 本体のシートは、正面が240×160(本体の高さ1.0が160)、奥行きが210で、v0.2.0の絵と同じ比率である。ドアの外側と内側は156×140。面の絵は、決まった大きさ(本体とドアは1単位あたり3.2ピクセル)でラスタライズし、ミップマップ付きのアトラスにまとめる(`crates/app/src/atlas.rs`)。
+- 本体の色: 4色のファイルは、色(グラデーションの`stop-color`)のほかは同じにする(`model.rs`のテストで確かめる)。
+- 不透明と半透明: 本体の面、ドアの縁、庫内、ターンテーブル、LEDは、端まで不透明に塗る(不透明な部分の描画は、不透明な画素だけを描くため)。半透明にするのは、ドアの窓のガラスだけである。
 - 文字: `<text>`は使わない。resvgの文字の機能を切っているため(LEDの時計は四角で描いた7セグメント風の表示)。
 - 外部の参照: `<image>`や外部ファイルへの参照は使わない(読み込みは無効にしている)。
-- ガイドライン: 庫内のマグカップのように、安全な使い方だけを描く(G-2)。
+- ガイドライン: 安全な使い方だけを描く(G-2)。

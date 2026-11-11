@@ -19,27 +19,28 @@
 
 ## 構成要素
 
-次の図は、目標とする構成である。v0.2.0の時点の実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`sprite.rs`、`settings.rs`、`storage.rs`、`licenses.rs`、`win.rs`、`log.rs`、`diag.rs`と、coreの`config.rs`、`exit_policy.rs`、`frame_loop.rs`、`pacing.rs`、`monitors.rs`、`rng.rs`、`sim.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
+次の図は、目標とする構成である。いまの実際の構成(`cli.rs`、`saver.rs`、`preview.rs`、`render.rs`、`model.rs`、`atlas.rs`、`settings.rs`、`storage.rs`、`licenses.rs`、`win.rs`、`log.rs`、`diag.rs`、`gpu_limit.rs`、`display_power.rs`と、coreの`config.rs`、`exit_policy.rs`、`frame_loop.rs`、`pacing.rs`、`monitors.rs`、`rng.rs`、`sim.rs`、`space.rs`、`flight.rs`)との違いは、上のA-2とA-8と、計画のD-27を参照。
 
 ```mermaid
 flowchart TB
-    subgraph app["flying-microwave (binary crate)"]
-        cli["cli: argument parsing"]
-        saver["mode::screensaver"]
-        preview["mode::preview"]
-        settingsui["mode::settings (eframe)"]
-        standalone["mode::standalone (planned)"]
-        policy["presentation: per-mode policy"]
-        render["render: wgpu sprite renderer"]
-        storage["storage: config file I/O"]
-        platform["platform::windows (windows-sys)"]
+    subgraph app["flying-microwave(実行ファイルのcrate)"]
+        cli["cli: 引数の解析"]
+        saver["mode::screensaver(全画面)"]
+        preview["mode::preview(プレビュー枠)"]
+        settingsui["mode::settings(設定画面。eframe)"]
+        standalone["mode::standalone(予定)"]
+        policy["presentation: モードごとの表示ポリシー"]
+        render["render: wgpuの3D描画(メッシュ、面の絵のアトラス)"]
+        storage["storage: 設定ファイルの入出力"]
+        platform["platform::windows(windows-sys)"]
     end
-    subgraph core["flying-microwave-core (library crate, no platform deps)"]
-        config["config: model, defaults, validation"]
-        sim["sim: world, flyers, spawn, step"]
-        theme["theme: time and date based selection"]
-        exitpolicy["exit_policy: input to exit decision"]
-        rng["rng: small deterministic PRNG"]
+    subgraph core["flying-microwave-core(ライブラリのcrate。プラットフォームに依存しない)"]
+        config["config: 設定のモデル、既定値、検証"]
+        flight["flight: 3Dの飛行(世界、飛行物体、入れ直し、時間の刻み)"]
+        space["space: 3Dの数学"]
+        theme["theme: 時刻と日付による選択"]
+        exitpolicy["exit_policy: 入力から終了の判定"]
+        rng["rng: 小さな決定的な乱数生成器"]
     end
     cli --> saver
     cli --> preview
@@ -48,24 +49,26 @@ flowchart TB
     saver --> policy
     preview --> policy
     standalone --> policy
-    standalone --> sim
+    standalone --> flight
     standalone --> render
     standalone --> exitpolicy
     standalone --> storage
-    saver --> sim
+    saver --> flight
     saver --> exitpolicy
     saver --> render
     saver --> platform
-    preview --> sim
+    preview --> flight
     preview --> render
     preview --> platform
+    render --> space
     settingsui --> config
     settingsui --> storage
     saver --> storage
     preview --> storage
     storage --> config
-    sim --> theme
-    sim --> rng
+    flight --> space
+    flight --> theme
+    flight --> rng
 ```
 
 ## crate・ディレクトリ構成
@@ -84,13 +87,16 @@ flowchart TB
 | `crates/core/src/monitors.rs` | `/s`の実行中のモニタの一覧の比較(増えた・位置や大きさが変わった・なくなったを求める)と、それに基づくウィンドウの決め方(既知のモニタとウィンドウの対応、描くウィンドウ、閉じるウィンドウ、前面にするウィンドウ)。Windowsに依存しない純粋な関数 |
 | `crates/core/src/frame_loop.rs` | `/s`のイベントループが1回の処理のあとどう待つか(待たない・時刻まで待つ・イベントまで待つ)を決める。終了が決まっていれば待たない(winitがWindowsで、終了を確かめる前にこの待ち方で待つため)。Windowsに依存しない純粋な関数([ADR-0025](../adr/0025-draw-every-window-from-one-place.md)) |
 | `crates/core/src/space.rs` | 3Dの数学(ベクトル、四元数、4x4行列、透視投影)。数学のcrateは使わない([ADR-0026](../adr/0026-render-microwaves-as-3d-meshes.md)) |
-| `crates/core/src/flight.rs` | 3Dの飛行の計算(奥行きのある位置、回転して飛ぶ表現と同じ向きで飛ぶ表現、ドアの角度、ターンテーブルの位相、入れ直し)。固定の時間刻みと補間は`sim.rs`と同じ。製品の描画は、計画0005の作業6で3Dに移すまで`sim.rs`を使う |
+| `crates/core/src/flight.rs` | 3Dの飛行の計算(奥行きのある位置、回転して飛ぶ表現と同じ向きで飛ぶ表現、ドアの角度、ターンテーブルの位相、入れ直し、固定の時間刻みと補間) |
+| `crates/core/src/sim.rs` | 飛行の計算とほかの部分が共有する定数と型(時間の刻み、1回に進める時間の上限、設定の倍率`SimParams`、本体の色の数)。v0.2.0の2Dのシミュレーションは、計画0005の作業6で3Dに移したときに削除した |
+| `crates/app/src/model.rs` | 3Dの電子レンジ: 面の絵のシートの中の位置、手で書いたメッシュ(本体の箱、ドア、ターンテーブル)、機体ごとの行列、光、ドアのガラスを描く順番。Windowsに依存しない([ADR-0026](../adr/0026-render-microwaves-as-3d-meshes.md)) |
+| `crates/app/src/atlas.rs` | 面の絵のテクスチャアトラス(詰め方、縁の繰り返し、ミップマップ)。ラスタライズ(resvg)のほかはWindowsに依存しない |
 | `crates/app/src/gpu_limit.rs` | GPUの初期化の上限の状態(発火か解除のどちらかへ一度だけ移る)と、設定画面で上限に達したときの処理の順番。Windowsに依存しない部分([計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-1) |
 | `crates/app/src/display_power.rs` | ディスプレイの電源の状態の受け渡し(通知の値の読み取り)。Windowsに依存しない部分。登録は`win.rs`(計画0005のD-8) |
 | `crates/app/build.rs` | Windowsリソース(アイコン、バージョン情報、String Tableの序数1)の埋め込み。バージョン情報は`Cargo.toml`のバージョンから生成する |
 | `crates/smoke/` | `flying-microwave-smoke`。ビルドした実行ファイルを各モードで起動し、起動と終了を確かめるスモークテスト(Windows専用。[計画0003](../plans/0003-v0.1.1-smoke-test.md))。製品には含めない |
 | `crates/app/res/` | リソース定義ファイル(`app.rc`)と、アイコン(`icon.svg`と、そこから作る`flying-microwave.ico`) |
-| `assets/sprites/` | SVG素材と、作者・ライセンスを記録する`README.md`(v0.2.0の試作版から。[ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md)) |
+| `assets/sprites/` | SVG素材(面の絵のシート)と、作者・ライセンスを記録する`README.md`(v0.2.0の試作版から。v0.3.0から3Dの面の絵。[ADR-0026](../adr/0026-render-microwaves-as-3d-meshes.md)) |
 
 crate名は製品名(実装計画のD-5)に合わせて`flying-microwave-core`・`flying-microwave`とする。
 
@@ -142,7 +148,7 @@ sequenceDiagram
     participant OS as Windows
     participant App as FlyingMicrowave.scr
     participant Cfg as 設定の読み込み(別のスレッド)
-    participant Core as core World
+    participant Core as core::flightの世界
     participant GPU as wgpu
     OS->>App: /sで起動
     App->>Cfg: 設定ファイルの読み込みを始める
@@ -151,8 +157,8 @@ sequenceDiagram
     App->>GPU: 初期化(失敗したら黒いウィンドウのまま入力を待つ)
     loop フレームごと
         App->>Core: step(経過時間)
-        Core-->>App: スプライトインスタンス
-        App->>GPU: スプライトインスタンスを描く(補間する)
+        Core-->>App: 飛行物体のインスタンス(補間した位置と向き、ドアの角度など)
+        App->>GPU: メッシュを描く
     end
     OS-->>App: 入力のイベント(キー、ボタン、マウスの移動、アプリの非アクティブ化)
     App->>Core: exit_policyがイベントを判定する
@@ -162,35 +168,24 @@ sequenceDiagram
 
 ## シミュレーション(core)
 
-- 座標系: 画面の高さを1.0とする論理座標を使う。幅は縦横比に応じて変わる。大きさと速度を高さ基準で表すため、小さなプレビュー枠でも4K全画面でも同じ見た目になる。
-- 時間の進め方: 固定タイムステップ(例: 1/120秒)で状態を更新し、実時間の経過分を積算して必要な回数だけ進める。スリープ復帰などで大きな経過時間が来た場合は上限で切り詰める。
-- 補間: 描画時は直前と現在の状態を経過時間の端数で補間する。固定タイムステップとモニタのリフレッシュレート(144Hz、165Hzなど)が合わないときに、動きがぎこちなく見えるのを防ぐため。
-- 飛行物体(flyer): 電子レンジと食べ物を同じ構造で表す(種類、位置、速度、奥行き、アニメーションの位相)。画面の上辺・右辺の外側から出現し、左下方向へ飛び、画面外に完全に出たら再出現させて数を保つ。
-- 乱数: `core`内の小さな乱数生成器(SplitMix64など)を使う。外部crateの出力列の変化でテストが壊れないようにするため。テストでは固定シード、実行時は起動時刻などから生成する。
+3Dの飛行の計算は`core::flight`にある([ADR-0026](../adr/0026-render-microwaves-as-3d-meshes.md)、[計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-12)。v0.2.0の2Dのシミュレーション([ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md))は、計画0005の作業6で描画を3Dに移したときに削除した。
+
+- 座標系: カメラの空間(カメラが原点にあり、-zの向きを見る。yが上)を使う。単位は本体の高さで、本体は幅1.5、高さ1.0、奥行き1.3125である。画面の大きさによらず、縦の視野角で見え方が決まるため、小さなプレビュー枠でも4K全画面でも同じ見た目になる。
+- 時間の進め方: 固定タイムステップ(1/120秒)で状態を更新し、実時間の経過分を積算して必要な回数だけ進める。スリープ復帰などで大きな経過時間が来た場合は、0.25秒で切り詰める。
+- 補間: 描画時は直前と現在の状態を経過時間の端数で補間する(位置は線形に、回転、ドアの羽ばたき、ターンテーブルは位相を補間する)。固定タイムステップとモニタのリフレッシュレート(144Hz、165Hzなど)が合わないときに、動きがぎこちなく見えるのを防ぐため。
+- 飛行物体(flyer): 奥行き(カメラからの距離)を保ったまま、右上から左下へ(左に2、下に1の割合で)飛ぶ。速さは奥行きによらず同じなので、遠いものほど小さく遅く見える(F-08)。回転して飛ぶ表現では、機体ごとに違う軸と速さで回る。同じ向きで飛ぶ表現では、全機を同じ向きにし、カメラから機体への向きに合わせて補正する(計画0005のD-10)。機体を囲む球(半径1.75×大きさの倍率)が視野の外に出たら、上辺か右辺から入れ直して数を保つ。描画のメッシュは、この球の中に収める(`crates/app/src/model.rs`のテストで確かめる)。
+- 乱数: `core`内の小さな乱数生成器(SplitMix64)を使う。外部crateの出力列の変化でテストが壊れないようにするため。テストでは固定シード、実行時は起動時刻などから生成する。
 - 時刻: 現在時刻はインターフェースとして注入し、テストでは任意の日時を与える(時計表示・季節テーマのテストのため)。
-- 出力: 描画に必要な情報だけを持つスプライトインスタンス(素材ID、アニメーションフレーム、位置、拡大率、奥行き)の列を返す。coreは画素やGPUを知らない。
+- 出力: 描画に必要な情報だけを持つ飛行物体のインスタンス(位置、向き、大きさの倍率、ドアの角度、ターンテーブルの位相、本体の色の番号)の列を返す。coreは画素やGPUを知らない。
 
-Phase 1の暫定値(設定画面がまだないため既定値で実行する。実機で見た目を確かめて調整する):
-
-| 項目 | 値 | 理由 |
-| --- | --- | --- |
-| 固定タイムステップ | 1/120秒 | 120Hz以下のモニタでは1フレームに1回以上進み、補間で高いリフレッシュレートにも合わせられる |
-| 1回の更新で進める経過時間の上限 | 0.25秒 | スリープ復帰などで大きな経過時間が来ても、数十回の更新で済ませるため |
-| 座標の向き | 原点は画面の左上、xは右、yは下が正 | ウィンドウの座標と同じ向きにして、描画側での変換を減らす |
-| 数 | 12 | 設定項目`flight.count`の既定値 |
-| 大きさ | 画面の高さの0.12倍の正方形(位置は中心) | 1080pで約130ピクセル |
-| 速さ | 画面の高さの0.15倍/秒を基準に、1つずつ0.8〜1.2倍のばらつき | 横方向の成分は約0.134倍/秒で、16:9の画面を左右に横切るのに約13秒かかる |
-| 向き | 左に2、下に1の割合 | 左下へ流れる見た目にする。向きのばらつきは付けない |
-| 出現 | 画面の上辺と右辺のすぐ外側に出現させる。出現位置の線は、上辺の外側をx=-大きさの半分から右上の角の外側(幅+大きさの半分、-大きさの半分)まで進み、そこから右辺の外側をy=1+大きさの半分まで下る。2つの部分を角でつなぎ、両端も画面の角まで延ばして、スプライトが画面にかかりうるどの軌跡にも飛行物体が来るようにする。どちらの部分に出すかは、部分の長さと、それに垂直な速度の成分の積に比例した確率で決める(上の部分は長さ×1、右の部分は長さ×2) | 辺を通り抜ける流れの量に合わせ、画面の中の密度を均一にする。角でつながないと、右上の角から斜めに、飛行物体の通らない帯ができる |
-| 起動時の配置 | 画面の内側と出現位置の範囲に一様に置く | 起動直後に画面が空にならないようにする |
-
-スプライトインスタンスは、位置と大きさ、ドアの羽ばたきの位相(0以上1未満。飛行物体ごとに1秒に1.2〜1.8回)、本体の色の番号(4種類)を持つ(v0.2.0の試作版から。素材ID、奥行きは、使うフェーズで加える)。位相と色は、出現と再出現のときに乱数で決め、シミュレーションは決定的のままにする。再出現した飛行物体は、補間の始点も再出現の位置にする(画面を横切る残像を出さないため)。
+見た目の値(視野角、奥行きの範囲、回転と飛ぶ速さ)は、スパイクで置いた出発点の値で、`v0.3.0-alpha.2`で動きを見てメンテナーが決める(計画0005のE-1。値は`crates/core/src/flight.rs`と[ADR-0026](../adr/0026-render-microwaves-as-3d-meshes.md)の「見た目の値」)。ドアの羽ばたきの位相(1秒に1.2〜1.8回)、本体の色、回転は、出現と再出現のときに乱数で決め、シミュレーションは決定的のままにする。再出現した飛行物体は、補間の始点も再出現の位置にする(画面を横切る残像を出さないため)。
 
 ## 描画
 
-- v0.2.0の試作版から、SVG素材を、サーフェスの設定時とスプライトの画素の大きさが変わったときに、表示の大きさに合った解像度でラスタライズし、1枚のテクスチャアトラスにまとめる([ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md)。`crates/app/src/sprite.rs`)。Phase 1と`v0.1.x`は、仮素材の四角を、バッファからテクスチャへのコピーで描いていた(計画のD-27)。v0.3.0では、電子レンジを箱のメッシュにし、面の絵を決まった大きさのアトラス(ミップマップ付き)にラスタライズして、深度バッファと透視投影で描く方式に移る([ADR-0026](../adr/0026-render-microwaves-as-3d-meshes.md)。計画0005の作業5・6で実装する。それまでは上の方式)。
-- スプライトはインスタンス描画で一括して描く(四角形1種類 + インスタンスごとのアフィン変換とUV。WGSLのシェーダー`crates/app/src/sprite.wgsl`、乗算済みのアルファで合成)。飛行物体ごとに、本体、ドアの順に描く。ドアは、左のヒンジを固定した平行四辺形に変形して開閉させる(0°〜70°)。本体は-8°傾ける。描画の準備に失敗したときは、ログに書いて背景だけを描き続ける。
-- 奥行き(depth)の順に並べて描き、奥のものほど小さく遅くすることで立体感を出す(Phase 3)。
+- v0.3.0から、電子レンジを箱のメッシュで3Dに描く([ADR-0026](../adr/0026-render-microwaves-as-3d-meshes.md)。`crates/app/src/model.rs`、`render.rs`、WGSLのシェーダー`mesh.wgsl`)。面の絵は、`assets/sprites/`のSVGのシートから、最初のサーフェスを用意するときに決まった大きさでラスタライズし、ミップマップ付きの1枚のテクスチャアトラス(4096×1632、5段、約35MB)にまとめる(`atlas.rs`)。アトラスとメッシュは全ウィンドウで共有し、毎フレームのラスタライズはしない(計画0005のD-13)。v0.2.0は、2Dのスプライトを、表示の大きさに合った解像度でラスタライズして描いていた([ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md))。Phase 1と`v0.1.x`は、仮素材の四角を、バッファからテクスチャへのコピーで描いていた(計画のD-27)。
+- 1フレームの描き方: 背景の色と深度バッファ(Depth32Float)を消し、全機の不透明な部分(本体、ドア、ターンテーブル)を、深度を書いて描く。次に、ドアの窓のガラスを、奥のものから順に、深度を書かずに乗算済みのアルファで重ねる。機体ごとに本体、ドア、ターンテーブルの3つの行列をインスタンスのデータとして渡す。光は、カメラの空間の平行光源とアンビエントで、明るさを0.55〜1.00に収める(ガイドラインG-3)。庫内、ターンテーブル、LEDは光の影響を受けない。ドアは、正面の左の縦の辺(ヒンジ)の軸の回りに0°〜70°回して開閉させる。
+- 縁: MSAAは使わない。縁の見た目は`v0.3.0-alpha.2`でメンテナーが判断する。異方性フィルタは、アダプターが対応していれば8倍で使う(計画0005のD-13)。
+- 描画の準備(アトラス、メッシュ、パイプライン、深度バッファ)に失敗したときは、ログに書いて背景だけを描き続ける。
 - フレームレートは垂直同期を基本とし、設定の上限値で間引く。
 - GPUアダプタは省電力を優先して選ぶ(ハイブリッドGPU環境で外部GPUを省電力の状態から復帰させないため)。GPUが使えない場合は、wgpuがDX12のWARP(ソフトウェアの描画)を選ぶ想定である。CIのGPUのないランナーでは、製品がWARPを自動で選んで描画できた(スパイクS6の結果は[spike-results.md](../research/spike-results.md)。実機のWindows Sandboxでの確認は、v0.2.0では行わず、Issue #59で追う。計画0004のD-16)。
 - ディスプレイの電源が切れている間は描画を止める(電源設定の通知でディスプレイの状態を受け取る。Phase 3まで)。v0.3.0の`/s`では、`PowerSettingRegisterNotification`(powrprof.dll。System32にあるためSEC-1を満たす)で、セッションのディスプレイの状態(`GUID_SESSION_DISPLAY_STATUS`)をコールバックで受け取る。ウィンドウを使わず、登録の直後に今の状態も届く。オフ(0)の間だけ描画を止め、減光(2)では描く。登録に失敗したときは描き続ける。再開は、モニターの確認と同じ1秒ごとの起床で判定する([計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-8)。`/p`は対象にしていない。
