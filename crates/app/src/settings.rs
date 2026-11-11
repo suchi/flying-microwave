@@ -27,6 +27,7 @@ use eframe::egui::{
 use flying_microwave_core::config::{
     self, COUNT_RANGE, Config, ExitSensitivity, MaxFps, Monitors, SCALE_RANGE, SPEED_RANGE,
 };
+use flying_microwave_core::flight::Style;
 use windows_sys::Win32::Foundation::HWND;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
@@ -566,6 +567,16 @@ impl SettingsApp {
         row(ui, "Size", None, |ui| {
             ui.add(multiplier(&mut flight.scale, SCALE_RANGE));
         });
+        row(
+            ui,
+            "Flight style",
+            Some("With \"Level\", all microwaves face the same way."),
+            |ui| {
+                ui.spacing_mut().item_spacing.x = 18.0;
+                ui.radio_value(&mut flight.style, Style::Tumbling, "Tumbling");
+                ui.radio_value(&mut flight.style, Style::Level, "Level");
+            },
+        );
         // Two decimals, so that the file shows 1.15 rather than 1.1500000000000001.
         flight.speed = (flight.speed * 100.0).round() / 100.0;
         flight.scale = (flight.scale * 100.0).round() / 100.0;

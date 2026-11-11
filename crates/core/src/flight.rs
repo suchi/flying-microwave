@@ -75,15 +75,34 @@ const LEVEL_ROLL_DEG: f32 = 8.0;
 /// Flight direction (left 2, down 1) normalized: (-2, -1, 0) / sqrt(5).
 const DIRECTION: Vec3 = Vec3::new(-0.894_427_2, -0.447_213_6, 0.0);
 
-/// How the flyers are oriented (plan 0005, D-4 and D-10).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// How the flyers are oriented (plan 0005, D-4 and D-10): the setting
+/// `flight.style` (D-15).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Style {
     /// Each flyer tumbles about its own random axis at its own speed (the
     /// default of the product, F-02).
+    #[default]
     Tumbling,
     /// Every flyer shows the same sides, as in v0.2.0: one orientation for
     /// all, turned toward the line of sight of each flyer.
     Level,
+}
+
+impl Style {
+    /// The value in the settings file.
+    pub fn name(self) -> &'static str {
+        match self {
+            Style::Tumbling => "tumbling",
+            Style::Level => "level",
+        }
+    }
+
+    /// The style of a value in the settings file; values are exact.
+    pub fn from_name(name: &str) -> Option<Self> {
+        [Style::Tumbling, Style::Level]
+            .into_iter()
+            .find(|s| s.name() == name)
+    }
 }
 
 /// Where and how to draw one flyer, interpolated for the current frame.

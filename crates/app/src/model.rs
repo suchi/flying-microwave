@@ -12,13 +12,9 @@
 use std::f32::consts::TAU;
 use std::ops::Range;
 
-use flying_microwave_core::flight::{FlyerInstance, Style};
+use flying_microwave_core::flight::FlyerInstance;
 use flying_microwave_core::sim::BODY_COLORS;
 use flying_microwave_core::space::{Mat4, Quat, Vec3};
-
-/// How the flyers fly: tumbling, the default of F-02, until the setting
-/// `flight.style` lets the user choose (plan 0005, task 7).
-pub const STYLE: Style = Style::Tumbling;
 
 /// Background color (8-bit RGB). Dark, as guideline G-5 asks.
 pub const BACKGROUND_RGB: [u8; 3] = [6, 8, 18];
