@@ -22,8 +22,11 @@ const GUTTER: u32 = 16;
 pub const MIP_LEVELS: u32 = 5;
 /// Every outer box (a cell and its gutter) starts and ends on a multiple of
 /// this, the pixels of one texel of the smallest level. So no texel of any
-/// level covers two boxes, and the gutter keeps the bilinear filter at the
-/// edge of a cell on the cell's own colors at every level.
+/// level covers two boxes, and the gutter keeps the bilinear and trilinear
+/// filter at the edge of a cell on the cell's own colors at every level.
+/// Anisotropic filtering can reach further along a steep face; how far is
+/// up to the GPU, so the edges of far, steep doors are checked by eye with
+/// `v0.3.0-alpha.2` (plan 0005, task 8).
 const ALIGN: u32 = 1 << (MIP_LEVELS - 1);
 
 /// A premultiplied RGBA image, 8 bits per channel, rows of `width` pixels.
@@ -403,27 +406,28 @@ mod tests {
             let y = ((img.height as f32 * fy) as u32).min(img.height - 1);
             img.rgba[((y * img.width + x) * 4 + 3) as usize]
         };
-        for color in 0..4 {
-            for face in [
-                Face::Front(color),
-                Face::Back(color),
-                Face::Side(color),
-                Face::Plain(color),
-            ] {
-                // Body faces are opaque to their edges (the opaque pass
-                // keeps only opaque texels).
-                for (fx, fy) in [(0.0, 0.0), (0.5, 0.5), (0.999, 0.999)] {
-                    assert_eq!(alpha(face, fx, fy), 255, "{face:?} at {fx}, {fy}");
-                }
-            }
+        // The body, cavity, turntable and LED are drawn as opaque without
+        // looking at the texel alpha (fs_solid in mesh.wgsl), and the door
+        // edges are kept only where opaque (fs_cutout): every pixel of their
+        // images must be opaque, or the edges would come out darker or holed.
+        let solid = (0..4)
+            .flat_map(|c| [Face::Front(c), Face::Back(c), Face::Side(c), Face::Plain(c)])
+            .chain([Face::Cavity, Face::Turntable, Face::Led, Face::DoorEdge]);
+        for face in solid {
+            let img = &images[face.index()];
+            let clear = img
+                .rgba
+                .iter()
+                .skip(3)
+                .step_by(4)
+                .filter(|&&a| a != 255)
+                .count();
+            assert_eq!(clear, 0, "{face:?} has pixels that are not opaque");
         }
         // The door frame is opaque and its window lets the cavity show through.
         assert_eq!(alpha(Face::DoorOuter, 0.02, 0.5), 255);
         let window = alpha(Face::DoorOuter, 0.5, 0.75);
         assert!((10..250).contains(&window), "window alpha {window}");
-        for face in [Face::Cavity, Face::Turntable, Face::Led, Face::DoorEdge] {
-            assert_eq!(alpha(face, 0.5, 0.5), 255, "{face:?}");
-        }
         // The body colors differ.
         let rgb = |color: u8| {
             let img = &images[Face::Plain(color).index()];
