@@ -55,3 +55,4 @@
 | [0024](0024-settings-file-location-and-handling.md) | 設定ファイルの場所と扱いを決める | 採用 | 2026-11-04 |
 | [0025](0025-draw-every-window-from-one-place.md) | 全画面のウィンドウを、イベントループの1か所から順に描く | 採用 | 2026-11-08 |
 | [0026](0026-render-microwaves-as-3d-meshes.md) | 電子レンジを箱のメッシュで3Dに描き、面の絵をSVGからテクスチャにする | 採用 | 2026-11-11 |
+| [0027](0027-bump-settings-schema-when-adding-items.md) | 設定ファイルに項目を加えた版では、schema_versionを上げる | 採用 | 2026-11-11 |
