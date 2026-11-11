@@ -25,7 +25,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use flying_microwave_core::config::{Config, Monitors};
 use flying_microwave_core::exit_policy::{self, Decision, Event, ExitPolicy};
-use flying_microwave_core::flight::World;
+use flying_microwave_core::flight::{Style, World};
 use flying_microwave_core::frame_loop::{Flow, next_flow, wake_times};
 use flying_microwave_core::monitors::{self, Area, Change};
 use flying_microwave_core::pacing::{FramePacer, Pace};
@@ -40,7 +40,6 @@ use winit::window::{Window, WindowId, WindowLevel};
 use crate::diag;
 use crate::display_power;
 use crate::log::log;
-use crate::model::STYLE;
 use crate::render::{self, Frame, Gpu, Target};
 use crate::storage::Startup;
 use crate::win;
@@ -104,6 +103,8 @@ struct SaverApp {
     /// The settings, until they are taken once the windows exist.
     config_rx: Option<Receiver<Startup>>,
     params: SimParams,
+    /// `flight.style` of the settings.
+    style: Style,
     /// `display.max_fps`.
     max_fps: u32,
     /// `display.monitors = "primary"`.
@@ -160,6 +161,7 @@ pub fn run() -> i32 {
         ),
         config_rx: Some(config_rx),
         params: SimParams::default(),
+        style: Style::default(),
         max_fps: 0,
         only_primary: false,
         known_monitors: Vec::new(),
@@ -368,6 +370,7 @@ impl SaverApp {
         let config = receive_config(self.config_rx.take());
         log!("settings: {config:?}");
         self.params = config.sim_params();
+        self.style = config.flight.style;
         self.max_fps = config.display.max_fps.value();
         self.only_primary = config.display.monitors == Monitors::Primary;
         self.policy = ExitPolicy::new(
@@ -414,7 +417,7 @@ impl SaverApp {
         );
         let size = window.inner_size();
         SaverWindow {
-            world: World::new(seed(index), aspect_of(size), self.params, STYLE),
+            world: World::new(seed(index), aspect_of(size), self.params, self.style),
             aspect: aspect_of(size),
             window,
             index,
@@ -673,7 +676,7 @@ impl SaverApp {
         // changes almost only right after start, so a new world is fine.
         let aspect = aspect_of(size);
         if size.height > 0 && (aspect - w.aspect).abs() > 1e-3 {
-            w.world = World::new(seed(w.index), aspect, self.params, STYLE);
+            w.world = World::new(seed(w.index), aspect, self.params, self.style);
             w.aspect = aspect;
             w.last_frame = None;
         }

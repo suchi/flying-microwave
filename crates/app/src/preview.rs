@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use flying_microwave_core::exit_policy::{Decision, Event, ExitPolicy, Mode};
-use flying_microwave_core::flight::World;
+use flying_microwave_core::flight::{Style, World};
 use flying_microwave_core::pacing::{FramePacer, Pace};
 use flying_microwave_core::sim::SimParams;
 use windows_sys::Win32::Foundation::HWND;
@@ -29,7 +29,6 @@ use winit::raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use winit::window::{Window, WindowId};
 
 use crate::log::log;
-use crate::model::STYLE;
 use crate::render::{self, Frame, Gpu, Target};
 use crate::saver::{aspect_of, seed};
 use crate::storage::Startup;
@@ -57,6 +56,8 @@ struct PreviewApp {
     world: Option<World>,
     aspect: f32,
     params: SimParams,
+    /// `flight.style` of the settings.
+    style: Style,
     /// `display.max_fps`, until the window's monitor is known.
     max_fps: u32,
     pacer: Option<FramePacer>,
@@ -106,6 +107,7 @@ pub fn run(parent: u64) -> i32 {
         world: None,
         aspect: 1.0,
         params: config.sim_params(),
+        style: config.flight.style,
         max_fps: config.display.max_fps.value(),
         pacer: None,
         gpu: None,
@@ -177,7 +179,7 @@ impl PreviewApp {
         log!("preview window: parent client {width}x{height}, window {inner:?}");
 
         let aspect = aspect_of(inner);
-        let world = World::new(seed(0), aspect, self.params, STYLE);
+        let world = World::new(seed(0), aspect, self.params, self.style);
         let refresh = window
             .current_monitor()
             .and_then(|m| m.refresh_rate_millihertz());
@@ -287,7 +289,7 @@ impl ApplicationHandler for PreviewApp {
                 // Same rule as `/s`: a new world when the aspect changes.
                 let aspect = aspect_of(size);
                 if size.height > 0 && (aspect - self.aspect).abs() > 1e-3 {
-                    self.world = Some(World::new(seed(0), aspect, self.params, STYLE));
+                    self.world = Some(World::new(seed(0), aspect, self.params, self.style));
                     self.aspect = aspect;
                     self.last_frame = None;
                 }

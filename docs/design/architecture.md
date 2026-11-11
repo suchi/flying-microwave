@@ -253,7 +253,7 @@ Phase 1の暫定の扱い(スパイクS4と実機の結果で見直す):
 
 ## 設定の保存
 
-- 設定はTOMLファイルとして利用者ごとの設定ディレクトリに保存する([ADR-0004](../adr/0004-store-settings-as-toml.md))。場所は`%APPDATA%\FlyingMicrowave\config.toml`で、`SHGetKnownFolderPath(FOLDERID_RoamingAppData)`で求める([計画0004](../plans/0004-v0.2.0-settings.md)のD-1、[ADR-0024](../adr/0024-settings-file-location-and-handling.md))。環境変数`FLYING_MICROWAVE_CONFIG_DIR`(ドライブ文字で始まる絶対パス。それ以外の値はエラーにし、本当の設定ファイルを使わない)でフォルダを上書きできる(テスト用。ADR-0024のE-1)。
+- 設定はTOMLファイルとして利用者ごとの設定ディレクトリに保存する([ADR-0004](../adr/0004-store-settings-as-toml.md))。場所は`%APPDATA%\FlyingMicrowave\config.toml`で、`SHGetKnownFolderPath(FOLDERID_RoamingAppData)`で求める([計画0004](../plans/0004-v0.2.0-settings.md)のD-1、[ADR-0027](../adr/0027-settings-file-handling-from-v0.3.0.md))。環境変数`FLYING_MICROWAVE_CONFIG_DIR`(ドライブ文字で始まる絶対パス。それ以外の値はエラーにし、本当の設定ファイルを使わない)でフォルダを上書きできる(テスト用。ADR-0027のE-1)。
 - 読み込み: `/s`は、黒いウィンドウで画面を覆うのを設定の読み込みで遅らせないよう、別のスレッドで読み始め、覆ったあとで最大0.5秒待つ。間に合わないか失敗したときは既定値で動く(計画0004のD-9)。`/p`は、起動時に読んでから始める。読み込みの結果とかかった時間をログに書く。ファイルのパスと、ファイルに書かれた値は書かず、検証したあとの設定(数と選択肢)は書く。モデル・既定値・検証は`core::config`、ファイルの読み書きは`crates/app/src/storage.rs`、設定画面は`crates/app/src/settings.rs`(eframe)にある。
 - 設定画面のAbout: 依存ライブラリのライセンス表記は、実行ファイルの隣の`THIRD-PARTY-LICENSES.txt`(リリースのzipに入る。[ADR-0011](../adr/0011-license-notices-with-cargo-about.md))を、設定画面を開くときに1回だけ読み、スクロールできる領域に表示する(計画0004のD-12)。読むのは`licenses.rs`で、パスは`current_exe`のフォルダとファイル名だけから作る(環境変数や引数は使わない)。`current_exe`が絶対パスでないとき、2MiBより大きいとき、UTF-8でないときは読まず、見つからないときなどとあわせて、そのファイル名を示す文を表示する。
 - 書き込みは一時ファイル(`config.toml.<pid>.tmp`)に書いてから置き換える。`/s`が書きかけのファイルを読まないようにするため。

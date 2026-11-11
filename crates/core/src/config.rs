@@ -11,10 +11,11 @@ use std::ops::RangeInclusive;
 use serde::Serialize;
 use toml::{Table, Value};
 
+use crate::flight::Style;
 use crate::sim::SimParams;
 
 /// The `schema_version` this version writes.
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 /// Files larger than this are not read at all (SEC-4).
 pub const MAX_FILE_BYTES: usize = 64 * 1024;
 
@@ -25,7 +26,7 @@ pub const SPEED_RANGE: RangeInclusive<f64> = 0.25..=3.0;
 /// `flight.scale`.
 pub const SCALE_RANGE: RangeInclusive<f64> = 0.5..=2.0;
 
-/// Every setting of v0.2.0.
+/// Every setting read from the settings file.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Config {
     /// The `[flight]` table.
@@ -45,6 +46,8 @@ pub struct Flight {
     pub speed: f64,
     /// `flight.scale`: size multiplier, finite and in [`SCALE_RANGE`].
     pub scale: f64,
+    /// `flight.style`: how the microwaves are oriented (from v0.3.0).
+    pub style: Style,
 }
 
 impl Default for Flight {
@@ -53,6 +56,7 @@ impl Default for Flight {
             count: 12,
             speed: 1.0,
             scale: 1.0,
+            style: Style::Tumbling,
         }
     }
 }
@@ -267,6 +271,12 @@ impl Loaded {
                 count: reader.integer(flight, "flight.count", COUNT_RANGE, defaults.flight.count),
                 speed: reader.float(flight, "flight.speed", SPEED_RANGE, defaults.flight.speed),
                 scale: reader.float(flight, "flight.scale", SCALE_RANGE, defaults.flight.scale),
+                style: reader.choice(
+                    flight,
+                    "flight.style",
+                    |v| v.as_str().and_then(Style::from_name),
+                    defaults.flight.style,
+                ),
             },
             display: Display {
                 max_fps: reader.choice(
@@ -426,6 +436,7 @@ struct FlightV1 {
     count: u32,
     speed: f64,
     scale: f64,
+    style: &'static str,
 }
 
 #[derive(Serialize)]
@@ -451,6 +462,7 @@ pub fn to_toml(config: &Config) -> String {
             count: config.flight.count,
             speed: config.flight.speed,
             scale: config.flight.scale,
+            style: config.flight.style.name(),
         },
         display: DisplayV1 {
             max_fps: config.display.max_fps.value(),
@@ -489,6 +501,7 @@ mod tests {
         assert_eq!(c.flight.count, 12);
         assert_eq!(c.flight.speed, 1.0);
         assert_eq!(c.flight.scale, 1.0);
+        assert_eq!(c.flight.style, Style::Tumbling);
         assert_eq!(c.display.max_fps.value(), 60);
         assert_eq!(c.display.monitors, Monitors::All);
         assert_eq!(c.input.exit_sensitivity, ExitSensitivity::Medium);
@@ -568,8 +581,8 @@ mod tests {
     #[test]
     fn valid_values_are_used() {
         let c = config(
-            "schema_version = 1\n\
-             [flight]\ncount = 30\nspeed = 2.5\nscale = 0.75\n\
+            "schema_version = 2\n\
+             [flight]\ncount = 30\nspeed = 2.5\nscale = 0.75\nstyle = \"level\"\n\
              [display]\nmax_fps = 0\nmonitors = \"primary\"\n\
              [input]\nexit_sensitivity = \"high\"\n",
         );
@@ -579,7 +592,8 @@ mod tests {
                 flight: Flight {
                     count: 30,
                     speed: 2.5,
-                    scale: 0.75
+                    scale: 0.75,
+                    style: Style::Level,
                 },
                 display: Display {
                     max_fps: MaxFps::MatchMonitor,
@@ -706,6 +720,30 @@ mod tests {
     }
 
     #[test]
+    fn flight_style_is_read_and_falls_back_to_tumbling() {
+        assert_eq!(
+            flight("[flight]\nstyle = \"tumbling\"").style,
+            Style::Tumbling
+        );
+        assert_eq!(flight("[flight]\nstyle = \"level\"").style, Style::Level);
+        // Choices are exact, and other types fall back with a note.
+        for text in [
+            "[flight]\nstyle = \"Level\"",
+            "[flight]\nstyle = \"spin\"",
+            "[flight]\nstyle = 1",
+            "[flight]\nstyle = true",
+        ] {
+            let loaded = load(text);
+            assert_eq!(loaded.config.flight.style, Style::Tumbling, "{text}");
+            assert!(!loaded.notes.is_empty(), "{text}");
+        }
+        // A file of v0.2.0 has no style: the default, without a note.
+        let loaded = load("schema_version = 1\n[flight]\ncount = 3");
+        assert_eq!(loaded.config.flight.style, Style::Tumbling);
+        assert!(loaded.notes.is_empty(), "{:?}", loaded.notes);
+    }
+
+    #[test]
     fn other_type_mismatches_fall_back() {
         assert_eq!(flight("[flight]\ncount = \"12\"").count, 12);
         assert_eq!(flight("[flight]\ncount = \"3\"").count, 12);
@@ -767,13 +805,16 @@ mod tests {
 
     #[test]
     fn a_newer_schema_uses_the_readable_items_and_asks_before_writing() {
-        let loaded = load("schema_version = 2\n[flight]\ncount = 9\nwings = 2\n");
+        let loaded = load("schema_version = 3\n[flight]\ncount = 9\nwings = 2\n");
         assert_eq!(loaded.config.flight.count, 9);
-        assert_eq!(loaded.newer_schema, Some(2));
+        assert_eq!(loaded.newer_schema, Some(3));
     }
 
     #[test]
     fn the_current_or_no_schema_version_needs_no_confirmation() {
+        // Why 2: v0.3.0 added items (ADR-0027); files of v0.2.0 are 1.
+        assert_eq!(SCHEMA_VERSION, 2);
+        assert_eq!(load("schema_version = 2").newer_schema, None);
         assert_eq!(load("schema_version = 1").newer_schema, None);
         assert_eq!(load("[flight]\ncount = 3").newer_schema, None);
     }
@@ -799,12 +840,13 @@ mod tests {
     fn the_defaults_are_written_as_in_the_specification() {
         assert_eq!(
             to_toml(&Config::default()),
-            "schema_version = 1\n\
+            "schema_version = 2\n\
              \n\
              [flight]\n\
              count = 12\n\
              speed = 1.0\n\
              scale = 1.0\n\
+             style = \"tumbling\"\n\
              \n\
              [display]\n\
              max_fps = 60\n\
@@ -822,6 +864,7 @@ mod tests {
                 count: 50,
                 speed: 0.25,
                 scale: 1.35,
+                style: Style::Level,
             },
             display: Display {
                 max_fps: MaxFps::MatchMonitor,
