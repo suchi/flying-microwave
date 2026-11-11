@@ -206,7 +206,7 @@ python3 -I scripts/check_publish_age.py Cargo.lock
 python3 -I scripts/check_hooks.py
 ```
 
-ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。Phase 0の技術スパイクは、v0.2.0の前に削除した(計画0001のD-28。結果は[スパイクの結果](../research/spike-results.md))。コードは、タグ`v0.2.0-alpha.4`の内容で読める(例: `git show v0.2.0-alpha.4:spikes/README.md`)。
+ライセンス表記(`THIRD-PARTY-LICENSES.txt`)は、CIの手動実行とリリースのワークフローが作る(8章)。Phase 0の技術スパイクは、v0.2.0の前に削除した(計画0001のD-28。結果は[スパイクの結果](../research/spike-results.md))。コードは、タグ`v0.2.0-alpha.4`の内容で読める(例: `git show v0.2.0-alpha.4:spikes/README.md`)。いまの`spikes/`には、計画0005の作業4の3Dの描画のスパイク(`spikes/render3d/`)がある。作業6のあとで削除する([スパイクの説明](../../spikes/README.md))。
 
 ### 5.2 実行と動作確認
 
@@ -450,7 +450,7 @@ cargo fetch --locked || true
 | Standalone mode | スクリーンセーバーとしてではなく、通常のアプリ(ウィンドウ表示または全画面)として起動するモードで、計画中のもの。決定内容は[ADR-0012](../adr/0012-standalone-app-mode.md)を参照 |
 | flyer | 飛行物体。電子レンジと食べ物を同じ構造で表す。`core`のシミュレーションが扱う |
 | core / app | 製品を作るCargoワークスペースの2つのcrate(ほかにテスト用の`smoke`がある)。`core`(`flying-microwave-core`)はOSやGPUに依存しないロジック(シミュレーション、設定モデル、終了判定など)、`app`(`flying-microwave`)は実行ファイル(起動モード、描画、設定画面、プラットフォーム固有処理) |
-| スパイク | 本実装の前に、技術的な不確実性を小さなプログラムで確かめる調査。S1〜S6があり、Phase 0でWindows 11実機を使って行った。`spikes/`は削除した(過去のコミット`v0.2.0-alpha.4`までに残る)。結果は[スパイクの結果](../research/spike-results.md) |
+| スパイク | 本実装の前に、技術的な不確実性を小さなプログラムで確かめる調査。S1〜S6があり、Phase 0でWindows 11実機を使って行った。Phase 0のスパイクは削除した(過去のコミット`v0.2.0-alpha.4`までに残る)。結果は[スパイクの結果](../research/spike-results.md)。いまの`spikes/`には、計画0005の作業4の3Dの描画のスパイクがある(作業6のあとで削除する) |
 | ADR | アーキテクチャ決定記録。技術選択・設計判断を`docs/adr/`に1決定1ファイルで残す |
 | SOW | 作業範囲記述書。ここでは`docs/plans/`に保存する計画のこと |
 | 敵対的レビュー | 作成者とは別のコンテキストを持つレビュアーが、結論を知らされずに欠陥を探すレビュー。このリポジトリのPRすべてで行う |
