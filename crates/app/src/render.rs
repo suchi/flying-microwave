@@ -1,9 +1,10 @@
 //! wgpu setup and the 3D renderer (ADR-0026).
 //!
 //! Each frame clears the surface to the background color and the depth
-//! buffer, draws the opaque parts of every flyer (body, door, turntable)
-//! with depth, and then the translucent door glass back to front without
-//! writing depth ([`crate::model`], `mesh.wgsl`). The face images are
+//! buffer, draws every body and turntable (opaque images, no alpha test)
+//! and the opaque texels of every door with depth, and then the translucent
+//! door glass back to front without writing depth ([`crate::model`],
+//! `mesh.wgsl`). The face images are
 //! rasterized from the SVG assets into one atlas with mipmaps when the first
 //! surface is set up; the atlas and the meshes are shared by every window
 //! (plan 0005, D-13). Nothing is rasterized per frame.
@@ -367,7 +368,10 @@ impl Scene {
 /// What one surface draws the scene with: the pipelines for its format, its
 /// depth buffer, its uniforms and its instance buffer.
 struct Meshes {
-    opaque: wgpu::RenderPipeline,
+    /// Body and turntable: opaque images, no alpha test.
+    solid: wgpu::RenderPipeline,
+    /// Door: the opaque texels.
+    cutout: wgpu::RenderPipeline,
     glass: wgpu::RenderPipeline,
     depth: wgpu::TextureView,
     globals: wgpu::Buffer,
@@ -440,7 +444,8 @@ impl Meshes {
                         cache: None,
                     })
                 };
-            let opaque = pipeline("opaque", "fs_opaque", true, None);
+            let solid = pipeline("solid", "fs_solid", true, None);
+            let cutout = pipeline("cutout", "fs_cutout", true, None);
             // resvg renders premultiplied alpha.
             let glass = pipeline(
                 "glass",
@@ -463,7 +468,8 @@ impl Meshes {
                 }],
             });
             Ok(Self {
-                opaque,
+                solid,
+                cutout,
                 glass,
                 depth: depth_view(device, config.width, config.height),
                 globals,
@@ -528,13 +534,17 @@ impl Meshes {
         pass.set_vertex_buffer(0, scene.vertices.slice(..));
         pass.set_vertex_buffer(1, self.instances.slice(..));
         pass.set_index_buffer(scene.indices.slice(..), wgpu::IndexFormat::Uint32);
-        pass.set_pipeline(&self.opaque);
+        pass.set_pipeline(&self.solid);
         for (i, f) in flyers.iter().enumerate() {
             let base = 3 * i as u32;
             let body = scene.body[usize::from(f.color) % scene.body.len()].clone();
             pass.draw_indexed(body, 0, base..base + 1);
-            pass.draw_indexed(scene.door.clone(), 0, base + 1..base + 2);
             pass.draw_indexed(scene.turntable.clone(), 0, base + 2..base + 3);
+        }
+        pass.set_pipeline(&self.cutout);
+        for i in 0..flyers.len() {
+            let base = 3 * i as u32;
+            pass.draw_indexed(scene.door.clone(), 0, base + 1..base + 2);
         }
         pass.set_pipeline(&self.glass);
         for i in model::glass_order(flyers) {

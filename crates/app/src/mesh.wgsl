@@ -4,9 +4,14 @@
 // smoothly and stays within 0.55..1.00 as a body turns (guideline G-3).
 // Emissive vertices (the lit cavity, the turntable, the LED) ignore it.
 //
-// The atlas holds premultiplied alpha. The opaque pass keeps only fully
-// opaque texels and writes depth; the glass pass keeps only translucent
-// texels (the door window), blends them and does not write depth.
+// The atlas holds premultiplied alpha. Three passes, all on the same depth
+// buffer:
+// - solid (body, cavity, turntable, LED): their images are opaque to the
+//   edges, so the texel alpha is not tested; nothing is discarded, which
+//   keeps edges whole and lets the early depth test work.
+// - cutout (door): keeps only fully opaque texels and writes depth.
+// - glass (door): keeps only translucent texels (the window), blends them
+//   and does not write depth.
 
 struct Globals {
     view_proj: mat4x4<f32>,
@@ -64,7 +69,12 @@ fn shade(in: VertexOutput) -> vec4<f32> {
 }
 
 @fragment
-fn fs_opaque(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_solid(in: VertexOutput) -> @location(0) vec4<f32> {
+    return vec4<f32>(shade(in).rgb, 1.0);
+}
+
+@fragment
+fn fs_cutout(in: VertexOutput) -> @location(0) vec4<f32> {
     let color = shade(in);
     if (color.a < 0.999) {
         discard;
