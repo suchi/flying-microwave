@@ -34,8 +34,8 @@ pub const BODY_SIZE: Vec3 = Vec3::new(1.5, 1.0, 1.3125);
 /// included) with the door of the spike's mesh
 /// (`spikes/render3d/src/mesh.rs`). A flyer only leaves
 /// the frustum once this sphere is fully outside, so the mesh of the
-/// renderer must stay within it; the renderer checks that in its tests
-/// (plan 0005, task 6).
+/// renderer must stay within it; the renderer is to check that in its
+/// tests (plan 0005, task 6; not done yet).
 pub const BOUNDING_RADIUS: f32 = 1.75;
 
 // Why: the values from here to `LEVEL_ROLL_DEG` are the starting values of
@@ -305,7 +305,8 @@ impl World {
     /// stay spread evenly over [`DEPTH_RANGE`], as they start in
     /// [`World::new`]. The margin is the same at every depth, so among the
     /// flyers whose center is in the view, far ones are more common (about
-    /// 1 to 1.4 between the nearest and the farthest quarter at `scale` 1.0).
+    /// 1 to 1.3 to 1.4 between the nearest and the farthest quarter at
+    /// `scale` 1.0, depending on the aspect ratio).
     /// A flyer at depth d stays in the view for a time proportional to
     /// area / entry line = 4 hx hy / (2 hx + 4 hy), so the depth is drawn
     /// with a weight proportional to the inverse, 1 / hy + 2 / hx (by
