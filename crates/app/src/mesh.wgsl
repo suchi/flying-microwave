@@ -7,8 +7,9 @@
 // The atlas holds premultiplied alpha. Three passes, all on the same depth
 // buffer:
 // - solid (body, cavity, turntable, LED): their images are opaque to the
-//   edges, so the texel alpha is not tested; nothing is discarded, which
-//   keeps edges whole and lets the early depth test work.
+//   edges, so the texel alpha is not tested, which keeps edges whole. Only
+//   the lit LED segments are discarded, while their bit of the clock mask
+//   is clear.
 // - cutout (door): keeps only fully opaque texels and writes depth.
 // - glass (door): keeps only translucent texels (the window), blends them
 //   and does not write depth.
@@ -19,6 +20,8 @@ struct Globals {
     light_dir: vec4<f32>,
     // x: ambient, y: diffuse.
     params: vec4<f32>,
+    // x: the lit segments of the LED clock (core::clock::led_mask).
+    led: vec4<u32>,
 }
 
 @group(0) @binding(0) var<uniform> globals: Globals;
@@ -34,6 +37,8 @@ struct VertexInput {
     @location(5) model1: vec4<f32>,
     @location(6) model2: vec4<f32>,
     @location(7) model3: vec4<f32>,
+    // 0, or the bit of an LED segment in `globals.led.x` plus 1.
+    @location(8) segment: u32,
 }
 
 struct VertexOutput {
@@ -41,6 +46,7 @@ struct VertexOutput {
     @location(0) normal: vec3<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) emissive: f32,
+    @location(3) @interpolate(flat) segment: u32,
 }
 
 @vertex
@@ -54,6 +60,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.normal = (model * vec4<f32>(in.normal, 0.0)).xyz;
     out.uv = in.uv;
     out.emissive = in.emissive;
+    out.segment = in.segment;
     return out;
 }
 
@@ -70,7 +77,13 @@ fn shade(in: VertexOutput) -> vec4<f32> {
 
 @fragment
 fn fs_solid(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(shade(in).rgb, 1.0);
+    let color = shade(in);
+    // An LED segment is drawn only while its bit is set; the unlit segment
+    // of the LED image shows through otherwise.
+    if (in.segment > 0u && ((globals.led.x >> (in.segment - 1u)) & 1u) == 0u) {
+        discard;
+    }
+    return vec4<f32>(color.rgb, 1.0);
 }
 
 @fragment

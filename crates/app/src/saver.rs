@@ -23,7 +23,8 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use flying_microwave_core::config::{Config, Monitors};
+use flying_microwave_core::clock;
+use flying_microwave_core::config::{self, Config, Monitors};
 use flying_microwave_core::exit_policy::{self, Decision, Event, ExitPolicy};
 use flying_microwave_core::flight::{Style, World};
 use flying_microwave_core::frame_loop::{Flow, next_flow, wake_times};
@@ -105,6 +106,8 @@ struct SaverApp {
     params: SimParams,
     /// `flight.style` of the settings.
     style: Style,
+    /// The `[clock]` table of the settings.
+    clock: config::Clock,
     /// `display.max_fps`.
     max_fps: u32,
     /// `display.monitors = "primary"`.
@@ -162,6 +165,7 @@ pub fn run() -> i32 {
         config_rx: Some(config_rx),
         params: SimParams::default(),
         style: Style::default(),
+        clock: config::Clock::default(),
         max_fps: 0,
         only_primary: false,
         known_monitors: Vec::new(),
@@ -371,6 +375,7 @@ impl SaverApp {
         log!("settings: {config:?}");
         self.params = config.sim_params();
         self.style = config.flight.style;
+        self.clock = config.clock;
         self.max_fps = config.display.max_fps.value();
         self.only_primary = config.display.monitors == Monitors::Primary;
         self.policy = ExitPolicy::new(
@@ -807,6 +812,11 @@ impl SaverApp {
     /// Tries to draw the window at `position` (ADR-0025). Returns whether a
     /// frame was presented. A window with no target is not drawn here.
     fn try_draw(&mut self, position: usize, now: Instant) -> bool {
+        let led = clock::led_mask(
+            Some(win::local_time()),
+            self.clock.format,
+            self.clock.enabled,
+        );
         let w = &mut self.windows[position];
         let (Some(target), Some(gpu)) = (w.target.as_mut(), self.gpu.as_ref()) else {
             return false;
@@ -834,7 +844,7 @@ impl SaverApp {
             w.world.advance(now - last);
         }
         w.last_frame = Some(now);
-        let frame = target.draw(gpu, &w.world.instances());
+        let frame = target.draw(gpu, &w.world.instances(), led);
         if let Frame::Skipped(skip) = frame {
             if diag::first_few(w.stats.skipped(skip)) {
                 log!("window {}: frame skipped: {skip:?}", w.index);

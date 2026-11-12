@@ -54,6 +54,9 @@ windows-sys = { version = "=0.61.2", features = [
     # (plan 0005, D-8). powrprof.dll is in System32 (SEC-1).
     "Win32_System_Power",
     "Win32_System_SystemServices",
+    # Win32_System_SystemInformation: GetLocalTime (kernel32.dll) for the LED
+    # clock (plan 0005, F-06 and D-16).
+    "Win32_System_SystemInformation",
     "Win32_System_Threading",
     # Win32_UI_Input_KeyboardAndMouse: EnableWindow for the settings owner (F-03).
     "Win32_UI_Input_KeyboardAndMouse",

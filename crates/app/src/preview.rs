@@ -16,6 +16,8 @@ use std::num::NonZeroIsize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use flying_microwave_core::clock;
+use flying_microwave_core::config;
 use flying_microwave_core::exit_policy::{Decision, Event, ExitPolicy, Mode};
 use flying_microwave_core::flight::{Style, World};
 use flying_microwave_core::pacing::{FramePacer, Pace};
@@ -58,6 +60,8 @@ struct PreviewApp {
     params: SimParams,
     /// `flight.style` of the settings.
     style: Style,
+    /// The `[clock]` table of the settings.
+    clock: config::Clock,
     /// `display.max_fps`, until the window's monitor is known.
     max_fps: u32,
     pacer: Option<FramePacer>,
@@ -108,6 +112,7 @@ pub fn run(parent: u64) -> i32 {
         aspect: 1.0,
         params: config.sim_params(),
         style: config.flight.style,
+        clock: config.clock,
         max_fps: config.display.max_fps.value(),
         pacer: None,
         gpu: None,
@@ -220,6 +225,11 @@ impl PreviewApp {
     }
 
     fn redraw(&mut self) {
+        let led = clock::led_mask(
+            Some(win::local_time()),
+            self.clock.format,
+            self.clock.enabled,
+        );
         let (Some(window), Some(world), Some(gpu), Some(target)) = (
             self.window.as_ref(),
             self.world.as_mut(),
@@ -240,7 +250,7 @@ impl PreviewApp {
             world.advance(now - last);
         }
         self.last_frame = Some(now);
-        if target.draw(gpu, &world.instances()) == Frame::Presented {
+        if target.draw(gpu, &world.instances(), led) == Frame::Presented {
             self.frames += 1;
             if self.frames == 1 {
                 log!("preview: first frame presented");
