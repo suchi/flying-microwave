@@ -265,7 +265,9 @@ mod tests {
         let (cells, height) = pack(&sizes).expect("fits");
         assert_eq!(cells.len(), sizes.len());
         // Every device of the DX12 feature level 11 takes 16384 pixels;
-        // the bound keeps the memory near the spike's 35 MB (ADR-0026).
+        // the bound keeps the atlas near its size of v0.3.0, 4096 x 1920
+        // (about 42 MB with the mipmaps; 2048 is about 45 MB). Raise it only
+        // after deciding the memory for new faces (plan 0001, N-04).
         assert!(height <= 2048, "{height}");
     }
 
