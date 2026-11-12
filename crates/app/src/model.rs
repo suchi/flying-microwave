@@ -652,7 +652,7 @@ pub fn glass_order(flyers: &[FlyerInstance]) -> Vec<usize> {
 
 #[cfg(test)]
 mod tests {
-    use flying_microwave_core::flight::{BODY_SIZE, BOUNDING_RADIUS, door_angle};
+    use flying_microwave_core::flight::{BODY_SIZE, BOUNDING_RADIUS, Kind, door_angle};
 
     use super::*;
 
@@ -676,6 +676,7 @@ mod tests {
             door_angle,
             turntable_phase: 0.0,
             color: 0,
+            kind: Kind::Microwave,
         }
     }
 

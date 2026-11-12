@@ -105,6 +105,30 @@ impl Style {
     }
 }
 
+/// What a flyer is (plan 0005, F-07 and D-17).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Microwave,
+    Food(Food),
+}
+
+/// The food that flies besides the microwaves (plan 0005, D-16 (1)).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Food {
+    /// A frozen boxed meal.
+    Bento,
+    /// A bag of microwave popcorn.
+    Popcorn,
+    /// A mug of a drink being warmed up.
+    Mug,
+    /// A steamed bun.
+    Bun,
+}
+
+impl Food {
+    pub const ALL: [Food; 4] = [Food::Bento, Food::Popcorn, Food::Mug, Food::Bun];
+}
+
 /// Where and how to draw one flyer, interpolated for the current frame.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FlyerInstance {
@@ -118,8 +142,11 @@ pub struct FlyerInstance {
     pub door_angle: f32,
     /// Turntable phase in turns, in `[0, 1)`; the angle is `TAU` times this.
     pub turntable_phase: f32,
-    /// Body color, below [`BODY_COLORS`].
+    /// Body color, below [`BODY_COLORS`] (used by the microwaves only).
     pub color: u8,
+    /// A microwave or a food item. Food has no door and no turntable; its
+    /// door angle and turntable phase are not used.
+    pub kind: Kind,
 }
 
 /// The projection matrix of the camera for a screen of the given `aspect`
@@ -171,6 +198,7 @@ struct Flyer {
     prev_turntable: f32,
     turntable: f32,
     color: u8,
+    kind: Kind,
 }
 
 /// The simulated world: a set of flyers that cross the view.
@@ -194,7 +222,8 @@ pub struct World {
 }
 
 impl World {
-    /// Creates a world of `params.count` flyers spread over the view.
+    /// Creates a world of `params.count` microwaves and `params.food_count`
+    /// food items, spread over the view. The microwaves come first.
     ///
     /// `aspect` is the screen width divided by its height; a value that is
     /// not finite or not positive is replaced by 1.0. `params.speed` and
@@ -223,13 +252,16 @@ impl World {
         };
         // Start in the state the respawn keeps (see `respawn`): depths spread
         // evenly over the range, flyers spread evenly over the view.
-        world.flyers = (0..params.count)
-            .map(|_| {
+        let food = (0..params.count)
+            .map(|_| false)
+            .chain((0..params.food_count).map(|_| true));
+        world.flyers = food
+            .map(|food| {
                 let depth = world.rng.range_f32(DEPTH_RANGE.0, DEPTH_RANGE.1);
                 let (hx, hy) = world.half_extents(depth);
                 let x = world.rng.range_f32(-hx, hx);
                 let y = world.rng.range_f32(-hy, hy);
-                world.spawn(Vec3::new(x, y, -depth))
+                world.spawn(Vec3::new(x, y, -depth), food)
             })
             .collect();
         world
@@ -269,6 +301,7 @@ impl World {
                     door_angle: door_angle(interpolate_phase(f.prev_flap, f.flap, alpha)),
                     turntable_phase: interpolate_phase(f.prev_turntable, f.turntable, alpha),
                     color: f.color,
+                    kind: f.kind,
                 }
             })
             .collect()
@@ -297,7 +330,8 @@ impl World {
             let p = f.position;
             let (hx, hy) = self.half_extents(-p.z);
             if p.x < -hx || p.y < -hy {
-                self.flyers[i] = self.respawn();
+                let food = matches!(self.flyers[i].kind, Kind::Food(_));
+                self.flyers[i] = self.respawn(food);
             }
         }
     }
@@ -334,7 +368,7 @@ impl World {
     /// rejection). The weight falls as the depth grows, and hx and hy grow
     /// at most in proportion to the depth, so at least DEPTH_RANGE.0 /
     /// DEPTH_RANGE.1 (about 0.38) of the draws are accepted.
-    fn respawn(&mut self) -> Flyer {
+    fn respawn(&mut self, food: bool) -> Flyer {
         let weight = |(hx, hy): (f32, f32)| 1.0 / hy + 2.0 / hx;
         let most = weight(self.half_extents(DEPTH_RANGE.0));
         let depth = loop {
@@ -352,11 +386,12 @@ impl World {
         } else {
             (hx, hy - (u - top) / 2.0)
         };
-        self.spawn(Vec3::new(x, y, -depth))
+        self.spawn(Vec3::new(x, y, -depth), food)
     }
 
-    /// A new flyer at `position` with fresh random motion and looks.
-    fn spawn(&mut self, position: Vec3) -> Flyer {
+    /// A new flyer at `position` with fresh random motion and looks: a
+    /// microwave, or a food item of a random kind when `food` is set.
+    fn spawn(&mut self, position: Vec3, food: bool) -> Flyer {
         let rng = &mut self.rng;
         let factor = rng.range_f32(SPEED_FACTOR_RANGE.0, SPEED_FACTOR_RANGE.1);
         let axis = random_unit_vector(rng);
@@ -365,8 +400,15 @@ impl World {
         let flap = rng.next_f32();
         let flap_rate = rng.range_f32(FLAP_RATE_RANGE.0, FLAP_RATE_RANGE.1);
         let turntable = rng.next_f32();
-        // The top bits, as in `Rng::next_f32`; BODY_COLORS is far below 2^32.
-        let color = ((rng.next_u64() >> 32) % u64::from(BODY_COLORS)) as u8;
+        // The top bits, as in `Rng::next_f32`; BODY_COLORS and the kinds of
+        // food are far below 2^32. One draw picks both.
+        let pick = rng.next_u64() >> 32;
+        let color = (pick % u64::from(BODY_COLORS)) as u8;
+        let kind = if food {
+            Kind::Food(Food::ALL[(pick % Food::ALL.len() as u64) as usize])
+        } else {
+            Kind::Microwave
+        };
         Flyer {
             // The previous state equals the new one so that interpolation
             // never draws a streak across the view or a jump of a phase.
@@ -384,6 +426,7 @@ impl World {
             prev_turntable: turntable,
             turntable,
             color,
+            kind,
         }
     }
 }
@@ -464,6 +507,67 @@ mod tests {
     const ASPECT: f32 = 16.0 / 9.0;
     const EPS: f32 = 1e-4;
 
+    fn with_food(count: u32, food_count: u32) -> SimParams {
+        SimParams {
+            count,
+            food_count,
+            ..SimParams::default()
+        }
+    }
+
+    fn kinds(w: &World) -> (usize, usize) {
+        let food = w
+            .instances()
+            .iter()
+            .filter(|i| matches!(i.kind, Kind::Food(_)))
+            .count();
+        (w.instances().len() - food, food)
+    }
+
+    #[test]
+    fn microwaves_come_first_then_the_food() {
+        let w = World::new(3, ASPECT, with_food(3, 5), Style::Tumbling);
+        let order: Vec<Kind> = w.instances().iter().map(|i| i.kind).collect();
+        assert_eq!(order.len(), 8);
+        assert!(order[..3].iter().all(|k| *k == Kind::Microwave));
+        assert!(order[3..].iter().all(|k| matches!(k, Kind::Food(_))));
+        let none = World::new(3, ASPECT, with_food(3, 0), Style::Tumbling);
+        assert_eq!(kinds(&none), (3, 0));
+    }
+
+    #[test]
+    fn food_stays_food_when_it_enters_again() {
+        let mut w = World::new(17, ASPECT, with_food(6, 9), Style::Tumbling);
+        for _ in 0..3000 {
+            w.advance(Duration::from_millis(100));
+            assert_eq!(kinds(&w), (6, 9));
+        }
+    }
+
+    #[test]
+    fn every_kind_of_food_flies() {
+        let w = World::new(23, ASPECT, with_food(1, 30), Style::Tumbling);
+        for food in Food::ALL {
+            assert!(
+                w.instances().iter().any(|i| i.kind == Kind::Food(food)),
+                "{food:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn level_food_faces_the_same_way_as_the_microwaves() {
+        let mut w = World::new(31, ASPECT, with_food(4, 4), Style::Level);
+        w.advance(Duration::from_millis(500));
+        for i in w.instances() {
+            let want = toward(i.position) * level_orientation();
+            let d = (i.orientation.rotate(Vec3::new(1.0, 0.0, 0.0))
+                - want.rotate(Vec3::new(1.0, 0.0, 0.0)))
+            .length();
+            assert!(d < 1e-4, "{:?}", i.kind);
+        }
+    }
+
     fn params(count: u32) -> SimParams {
         SimParams {
             count,
@@ -523,6 +627,7 @@ mod tests {
             prev_turntable: 0.0,
             turntable: 0.0,
             color: 0,
+            kind: Kind::Microwave,
         }
     }
 
