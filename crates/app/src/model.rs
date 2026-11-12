@@ -48,10 +48,10 @@ const LED_RECT: [f32; 4] = [178.0, 18.0, 48.0, 22.0];
 const TEXELS_PER_SVG: f32 = 3.2;
 /// Texels per SVG unit of the left side, the top and the bottom.
 ///
-/// Why 3/8 of the other faces: these faces have little detail, and the atlas
-/// grows by about 6 MB only (4096 x 1920 instead of 4096 x 1632, mipmaps
-/// included), within the few megabytes of plan 0005, D-16 (3). At half the
-/// texels it would grow by about 12 MB.
+/// Why 3/8 of the other faces: decided by the maintainer (plan 0005, D-16
+/// (3)). These faces have little detail; the atlas grows by about 6 MB
+/// (4096 x 1920 instead of 4096 x 1632, mipmaps included), against about
+/// 13 MB at half and 37 MB at the same texels.
 const LOW_TEXELS_PER_SVG: f32 = TEXELS_PER_SVG * 0.375;
 /// Texels per SVG unit of the LED window (its segments are thin).
 const LED_TEXELS_PER_SVG: f32 = 8.0;
