@@ -46,6 +46,13 @@ const OPENING_RECT: [f32; 4] = [24.0, 24.0, 128.0, 112.0];
 const LED_RECT: [f32; 4] = [178.0, 18.0, 48.0, 22.0];
 /// Texels per SVG unit of the body and door faces (512 per model unit).
 const TEXELS_PER_SVG: f32 = 3.2;
+/// Texels per SVG unit of the left side, the top and the bottom.
+///
+/// Why 3/8 of the other faces: decided by the maintainer (plan 0005, D-16
+/// (3)). These faces have little detail; the atlas grows by about 6 MB
+/// (4096 x 1920 instead of 4096 x 1632, mipmaps included), against about
+/// 13 MB at half and 37 MB at the same texels.
+const LOW_TEXELS_PER_SVG: f32 = TEXELS_PER_SVG * 0.375;
 /// Texels per SVG unit of the LED window (its segments are thin).
 const LED_TEXELS_PER_SVG: f32 = 8.0;
 /// Door thickness in model units.
@@ -170,8 +177,10 @@ pub enum Face {
     Back(u8),
     /// The right side.
     Side(u8),
-    /// The left side, the top and the bottom.
-    Plain(u8),
+    /// The left side.
+    Left(u8),
+    Top(u8),
+    Bottom(u8),
     DoorOuter,
     DoorInner,
     DoorEdge,
@@ -182,7 +191,7 @@ pub enum Face {
 
 /// Number of face images.
 #[cfg(test)]
-pub const FACE_COUNT: usize = 4 * BODY_COLORS as usize + 6;
+pub const FACE_COUNT: usize = 6 * BODY_COLORS as usize + 6;
 
 impl Face {
     /// Every face, in the order of [`Face::index`].
@@ -193,7 +202,9 @@ impl Face {
             .map(Face::Front)
             .chain(colors.clone().map(Face::Back))
             .chain(colors.clone().map(Face::Side))
-            .chain(colors.map(Face::Plain))
+            .chain(colors.clone().map(Face::Left))
+            .chain(colors.clone().map(Face::Top))
+            .chain(colors.map(Face::Bottom))
             .chain([
                 Face::DoorOuter,
                 Face::DoorInner,
@@ -213,13 +224,15 @@ impl Face {
             Face::Front(c) => color(c),
             Face::Back(c) => colors + color(c),
             Face::Side(c) => 2 * colors + color(c),
-            Face::Plain(c) => 3 * colors + color(c),
-            Face::DoorOuter => 4 * colors,
-            Face::DoorInner => 4 * colors + 1,
-            Face::DoorEdge => 4 * colors + 2,
-            Face::Cavity => 4 * colors + 3,
-            Face::Turntable => 4 * colors + 4,
-            Face::Led => 4 * colors + 5,
+            Face::Left(c) => 3 * colors + color(c),
+            Face::Top(c) => 4 * colors + color(c),
+            Face::Bottom(c) => 5 * colors + color(c),
+            Face::DoorOuter => 6 * colors,
+            Face::DoorInner => 6 * colors + 1,
+            Face::DoorEdge => 6 * colors + 2,
+            Face::Cavity => 6 * colors + 3,
+            Face::Turntable => 6 * colors + 4,
+            Face::Led => 6 * colors + 5,
         }
     }
 
@@ -233,6 +246,7 @@ impl Face {
             height,
         };
         let px = |units: f32| (units * TEXELS_PER_SVG).round() as u32;
+        let low = |units: f32| (units * LOW_TEXELS_PER_SVG).round() as u32;
         let [bw, bh, bd] = BODY_SVG;
         let [_, _, dw, dh] = DOOR_RECT;
         let [_, _, lw, lh] = LED_RECT;
@@ -246,7 +260,9 @@ impl Face {
             Face::Front(c) => body(c, [0.0, 0.0, bw, bh], px(bw), px(bh)),
             Face::Back(c) => body(c, [250.0, 0.0, bw, bh], px(bw), px(bh)),
             Face::Side(c) => body(c, [500.0, 0.0, bd, bh], px(bd), px(bh)),
-            Face::Plain(c) => body(c, [0.0, 170.0, 40.0, 40.0], 64, 64),
+            Face::Left(c) => body(c, [0.0, 220.0, bd, bh], low(bd), low(bh)),
+            Face::Top(c) => body(c, [220.0, 220.0, bw, bd], low(bw), low(bd)),
+            Face::Bottom(c) => body(c, [470.0, 220.0, bw, bd], low(bw), low(bd)),
             Face::DoorOuter => other(Sheet::Door, [0.0, 0.0, dw, dh], px(dw), px(dh)),
             Face::DoorInner => other(Sheet::Door, [160.0, 0.0, dw, dh], px(dw), px(dh)),
             Face::DoorEdge => other(Sheet::Door, [320.0, 0.0, 10.0, 10.0], 16, 16),
@@ -470,7 +486,6 @@ const Z: Vec3 = Vec3::new(0.0, 0.0, 1.0);
 fn body(b: &mut Builder, uvs: &[UvRect], color: u8) {
     let uv = |face: Face| uvs[face.index()];
     let e = half_extents();
-    let plain = uv(Face::Plain(color));
     // Every face of the box is cut where the opening of the front is, so
     // that neighboring faces share all their edge vertices (no T-junctions,
     // which can leave one-pixel cracks).
@@ -487,10 +502,14 @@ fn body(b: &mut Builder, uvs: &[UvRect], color: u8) {
     b.grid(&back_xs, &ys, |x, y| Vec3::new(x, y, -e.z), back, None);
     let side = uv(Face::Side(color));
     b.grid(&front_zs, &ys, |z, y| Vec3::new(e.x, y, z), side, None);
-    // Left, top and bottom.
-    b.grid(&back_zs, &ys, |z, y| Vec3::new(-e.x, y, z), plain, None);
-    b.grid(&xs, &front_zs, |x, z| Vec3::new(x, e.y, z), plain, None);
-    b.grid(&xs, &back_zs, |x, z| Vec3::new(x, -e.y, z), plain, None);
+    // The left side, its right edge at the front; the top, its bottom edge at
+    // the front; the bottom (seen from below), its top edge at the front.
+    let left = uv(Face::Left(color));
+    b.grid(&back_zs, &ys, |z, y| Vec3::new(-e.x, y, z), left, None);
+    let top = uv(Face::Top(color));
+    b.grid(&xs, &front_zs, |x, z| Vec3::new(x, e.y, z), top, None);
+    let bottom = uv(Face::Bottom(color));
+    b.grid(&xs, &back_zs, |x, z| Vec3::new(x, -e.y, z), bottom, None);
 
     // The LED window, unlit, just in front of the panel.
     let [lx, ly, lw, lh] = LED_RECT;
@@ -912,7 +931,9 @@ mod tests {
                 Face::Front(color),
                 Face::Back(color),
                 Face::Side(color),
-                Face::Plain(color),
+                Face::Left(color),
+                Face::Top(color),
+                Face::Bottom(color),
                 Face::Led,
                 Face::Cavity,
             ]

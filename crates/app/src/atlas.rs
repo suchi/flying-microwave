@@ -69,9 +69,22 @@ pub struct Atlas {
 /// Places the cells in rows from the top left. Returns the cells and the
 /// atlas height.
 fn pack(sizes: &[(u32, u32)]) -> Result<(Vec<Cell>, u32), String> {
-    let mut cells = Vec::with_capacity(sizes.len());
+    // Why the tallest first: images of similar height share a row, so the
+    // rows waste less height (the faces differ from 16 to 512 pixels high).
+    let mut order: Vec<usize> = (0..sizes.len()).collect();
+    order.sort_by_key(|&i| std::cmp::Reverse(Cell::outer(sizes[i].0, sizes[i].1).1));
+    let mut cells = vec![
+        Cell {
+            x: 0,
+            y: 0,
+            w: 0,
+            h: 0,
+        };
+        sizes.len()
+    ];
     let (mut x, mut y, mut row_h) = (0u32, 0u32, 0u32);
-    for &(w, h) in sizes {
+    for i in order {
+        let (w, h) = sizes[i];
         let (outer_w, outer_h) = Cell::outer(w, h);
         if w == 0 || h == 0 || outer_w > ATLAS_WIDTH {
             return Err(format!("an image of {w}x{h} pixels does not fit the atlas"));
@@ -81,12 +94,12 @@ fn pack(sizes: &[(u32, u32)]) -> Result<(Vec<Cell>, u32), String> {
             y += row_h;
             row_h = 0;
         }
-        cells.push(Cell {
+        cells[i] = Cell {
             x: x + GUTTER,
             y: y + GUTTER,
             w,
             h,
-        });
+        };
         x += outer_w;
         row_h = row_h.max(outer_h);
     }
@@ -252,7 +265,9 @@ mod tests {
         let (cells, height) = pack(&sizes).expect("fits");
         assert_eq!(cells.len(), sizes.len());
         // Every device of the DX12 feature level 11 takes 16384 pixels;
-        // the bound keeps the memory near the spike's 35 MB (ADR-0026).
+        // the bound keeps the atlas near its size of v0.3.0, 4096 x 1920
+        // (about 42 MB with the mipmaps; 2048 is about 45 MB). Raise it only
+        // after deciding the memory for new faces (plan 0001, N-04).
         assert!(height <= 2048, "{height}");
     }
 
@@ -293,13 +308,17 @@ mod tests {
             .enumerate()
             .map(|(i, f)| {
                 let img = f.image();
-                solid(img.width, img.height, [i as u8 * 10, 255 - i as u8, 7, 255])
+                solid(
+                    img.width,
+                    img.height,
+                    [(i * 8) as u8, 255 - i as u8, 7, 255],
+                )
             })
             .collect();
         let atlas = build(&images).expect("atlas");
         let (w, h) = (atlas.width as f32, atlas.height as f32);
         for (i, uv) in atlas.uvs.iter().enumerate() {
-            let want = [i as u8 * 10, 255 - i as u8, 7, 255];
+            let want = [(i * 8) as u8, 255 - i as u8, 7, 255];
             let x0 = (uv.u0 * w).round() as u32;
             let x1 = (uv.u1 * w).round() as u32;
             let y0 = (uv.v0 * h).round() as u32;
@@ -411,7 +430,17 @@ mod tests {
         // edges are kept only where opaque (fs_cutout): every pixel of their
         // images must be opaque, or the edges would come out darker or holed.
         let solid = (0..4)
-            .flat_map(|c| [Face::Front(c), Face::Back(c), Face::Side(c), Face::Plain(c)])
+            .flat_map(|c| {
+                [
+                    Face::Front,
+                    Face::Back,
+                    Face::Side,
+                    Face::Left,
+                    Face::Top,
+                    Face::Bottom,
+                ]
+                .map(|f| f(c))
+            })
             .chain([Face::Cavity, Face::Turntable, Face::Led, Face::DoorEdge]);
         for face in solid {
             let img = &images[face.index()];
@@ -430,7 +459,7 @@ mod tests {
         assert!((10..250).contains(&window), "window alpha {window}");
         // The body colors differ.
         let rgb = |color: u8| {
-            let img = &images[Face::Plain(color).index()];
+            let img = &images[Face::Left(color).index()];
             img.rgba[..3].to_vec()
         };
         for a in 0..4 {
