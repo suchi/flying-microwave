@@ -142,8 +142,13 @@ fn checked<T>(
 
 /// Depth buffer format.
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-/// Bytes of the per-surface uniforms: the projection, the light and its strengths.
-const GLOBALS_BYTES: u64 = 96;
+/// Bytes of the per-surface uniforms (`Globals` in `mesh.wgsl`): the
+/// projection, the light and its strengths, the lit segments of the LED
+/// clock, and where the LED image and its segments are.
+const GLOBALS_BYTES: u64 =
+    160 + 16 * model::LED_SEGMENT_COUNT as u64 + 16 * model::LED_SEGMENT_COUNT.div_ceil(4) as u64;
+/// Offset of the LED mask in the uniforms.
+const LED_OFFSET: u64 = 96;
 /// Anisotropic filtering where the adapter supports it (plan 0005, D-13).
 const ANISOTROPY: u16 = 8;
 /// Instance buffer capacity at start, in flyers.
@@ -160,6 +165,8 @@ struct Scene {
     body: [Range<u32>; BODY_COLORS as usize],
     door: Range<u32>,
     turntable: Range<u32>,
+    /// The cell of the LED image in the atlas.
+    led_uv: model::UvRect,
 }
 
 impl Gpu {
@@ -351,6 +358,7 @@ impl Scene {
                 body: meshes.body.clone(),
                 door: meshes.door.clone(),
                 turntable: meshes.turntable.clone(),
+                led_uv: atlas.uvs[model::Face::Led.index()],
             })
         })?;
         log!(
@@ -379,6 +387,10 @@ struct Meshes {
     instances: wgpu::Buffer,
     /// Instance bytes of the current frame, kept to reuse the allocation.
     bytes: Vec<u8>,
+    /// The LED mask last written to the uniforms.
+    led: u32,
+    /// The cell of the LED image in the atlas.
+    led_uv: model::UvRect,
 }
 
 impl Meshes {
@@ -386,7 +398,7 @@ impl Meshes {
         let device = &gpu.device;
         let meshes = checked(device, "creating the mesh pipelines", || {
             let vertex_attributes = wgpu::vertex_attr_array![
-                0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32
+                0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32, 8 => Uint32
             ];
             let instance_attributes = wgpu::vertex_attr_array![
                 4 => Float32x4, 5 => Float32x4, 6 => Float32x4, 7 => Float32x4
@@ -476,6 +488,8 @@ impl Meshes {
                 globals_group,
                 instances: instance_buffer(device, INITIAL_FLYERS),
                 bytes: Vec::new(),
+                led: 0,
+                led_uv: scene.led_uv,
             })
         })?;
         meshes.write_globals(gpu, config.width, config.height);
@@ -508,7 +522,34 @@ impl Meshes {
         for v in values {
             bytes.extend_from_slice(&v.to_ne_bytes());
         }
+        for v in [self.led, 0, 0, 0] {
+            bytes.extend_from_slice(&v.to_ne_bytes());
+        }
+        let uv = self.led_uv;
+        let [w, h] = model::LED_SIZE;
+        let [r, g, b] = model::LED_LIT_RGB.map(|c| f32::from(c) / 255.0);
+        let mut floats = vec![uv.u0, uv.v0, uv.u1, uv.v1, w, h, 0.0, 0.0, r, g, b, 1.0];
+        let segments = model::led_segments();
+        floats.extend(segments.iter().flat_map(|(rect, _)| *rect));
+        for v in floats {
+            bytes.extend_from_slice(&v.to_ne_bytes());
+        }
+        let mut bits: Vec<u32> = segments.iter().map(|&(_, bit)| bit).collect();
+        bits.resize(4 * model::LED_SEGMENT_COUNT.div_ceil(4), 0);
+        for v in bits {
+            bytes.extend_from_slice(&v.to_ne_bytes());
+        }
+        debug_assert_eq!(bytes.len() as u64, GLOBALS_BYTES);
         gpu.queue.write_buffer(&self.globals, 0, &bytes);
+    }
+
+    /// Writes the lit segments of the LED clock when they change.
+    fn set_led(&mut self, gpu: &Gpu, led: u32) {
+        if led != self.led {
+            self.led = led;
+            gpu.queue
+                .write_buffer(&self.globals, LED_OFFSET, &led.to_ne_bytes());
+        }
     }
 
     /// Writes the instances of `flyers`.
@@ -684,8 +725,9 @@ impl Target {
         }
     }
 
-    /// Draws one frame. Returns why the frame was skipped, if it was.
-    pub fn draw(&mut self, gpu: &Gpu, flyers: &[FlyerInstance]) -> Frame {
+    /// Draws one frame, with the segments of the LED clocks in `led`
+    /// (`core::clock::led_mask`). Returns why the frame was skipped, if it was.
+    pub fn draw(&mut self, gpu: &Gpu, flyers: &[FlyerInstance], led: u32) -> Frame {
         use wgpu::CurrentSurfaceTexture as Acquired;
 
         let (texture, suboptimal) = match self.surface.get_current_texture() {
@@ -710,6 +752,7 @@ impl Target {
         let scene = gpu.scene.get().and_then(Option::as_ref);
         let drawing = match (&mut self.meshes, scene) {
             (Some(meshes), Some(scene)) if !flyers.is_empty() => {
+                meshes.set_led(gpu, led);
                 meshes.prepare(gpu, flyers);
                 Some((&*meshes, scene))
             }

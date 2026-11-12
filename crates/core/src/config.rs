@@ -11,6 +11,7 @@ use std::ops::RangeInclusive;
 use serde::Serialize;
 use toml::{Table, Value};
 
+use crate::clock::ClockFormat;
 use crate::flight::Style;
 use crate::sim::SimParams;
 
@@ -35,6 +36,26 @@ pub struct Config {
     pub display: Display,
     /// The `[input]` table.
     pub input: Input,
+    /// The `[clock]` table (from v0.3.0).
+    pub clock: Clock,
+}
+
+/// The `[clock]` table: the LED clock on the microwaves (plan 0005, F-06).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Clock {
+    /// `clock.enabled`: show the local time on the LED display.
+    pub enabled: bool,
+    /// `clock.format`: 24 or 12 hours.
+    pub format: ClockFormat,
+}
+
+impl Default for Clock {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            format: ClockFormat::H24,
+        }
+    }
 }
 
 /// The `[flight]` table.
@@ -265,6 +286,7 @@ impl Loaded {
         let flight = reader.table(&table, "flight");
         let display = reader.table(&table, "display");
         let input = reader.table(&table, "input");
+        let clock = reader.table(&table, "clock");
         let defaults = Config::default();
         let config = Config {
             flight: Flight {
@@ -298,6 +320,20 @@ impl Loaded {
                     "input.exit_sensitivity",
                     |v| v.as_str().and_then(ExitSensitivity::from_name),
                     defaults.input.exit_sensitivity,
+                ),
+            },
+            clock: Clock {
+                enabled: reader.choice(
+                    clock,
+                    "clock.enabled",
+                    Value::as_bool,
+                    defaults.clock.enabled,
+                ),
+                format: reader.choice(
+                    clock,
+                    "clock.format",
+                    |v| v.as_str().and_then(ClockFormat::from_name),
+                    defaults.clock.format,
                 ),
             },
         };
@@ -429,6 +465,13 @@ struct FileV1 {
     flight: FlightV1,
     display: DisplayV1,
     input: InputV1,
+    clock: ClockV1,
+}
+
+#[derive(Serialize)]
+struct ClockV1 {
+    enabled: bool,
+    format: &'static str,
 }
 
 #[derive(Serialize)]
@@ -471,6 +514,10 @@ pub fn to_toml(config: &Config) -> String {
         input: InputV1 {
             exit_sensitivity: config.input.exit_sensitivity.name(),
         },
+        clock: ClockV1 {
+            enabled: config.clock.enabled,
+            format: config.clock.format.name(),
+        },
     };
     // Why the fallback: serializing plain numbers and strings does not fail,
     // and an empty file would still read back as the defaults.
@@ -505,6 +552,8 @@ mod tests {
         assert_eq!(c.display.max_fps.value(), 60);
         assert_eq!(c.display.monitors, Monitors::All);
         assert_eq!(c.input.exit_sensitivity, ExitSensitivity::Medium);
+        assert!(c.clock.enabled);
+        assert_eq!(c.clock.format, ClockFormat::H24);
     }
 
     // Row: the file does not exist.
@@ -584,7 +633,8 @@ mod tests {
             "schema_version = 2\n\
              [flight]\ncount = 30\nspeed = 2.5\nscale = 0.75\nstyle = \"level\"\n\
              [display]\nmax_fps = 0\nmonitors = \"primary\"\n\
-             [input]\nexit_sensitivity = \"high\"\n",
+             [input]\nexit_sensitivity = \"high\"\n\
+             [clock]\nenabled = false\nformat = \"12h\"\n",
         );
         assert_eq!(
             c,
@@ -601,6 +651,10 @@ mod tests {
                 },
                 input: Input {
                     exit_sensitivity: ExitSensitivity::High
+                },
+                clock: Clock {
+                    enabled: false,
+                    format: ClockFormat::H12,
                 },
             }
         );
@@ -744,6 +798,30 @@ mod tests {
     }
 
     #[test]
+    fn clock_settings_are_read_and_fall_back() {
+        assert!(!config("[clock]\nenabled = false").clock.enabled);
+        assert_eq!(
+            config("[clock]\nformat = \"12h\"").clock.format,
+            ClockFormat::H12
+        );
+        for text in [
+            "[clock]\nenabled = \"false\"",
+            "[clock]\nenabled = 0",
+            "[clock]\nformat = \"12H\"",
+            "[clock]\nformat = 12",
+            "clock = true",
+        ] {
+            let loaded = load(text);
+            assert_eq!(loaded.config.clock, Clock::default(), "{text}");
+            assert!(!loaded.notes.is_empty(), "{text}");
+        }
+        // A file of v0.2.0 has no [clock]: the defaults, without a note.
+        let loaded = load("schema_version = 1\n[flight]\ncount = 3");
+        assert_eq!(loaded.config.clock, Clock::default());
+        assert!(loaded.notes.is_empty(), "{:?}", loaded.notes);
+    }
+
+    #[test]
     fn other_type_mismatches_fall_back() {
         assert_eq!(flight("[flight]\ncount = \"12\"").count, 12);
         assert_eq!(flight("[flight]\ncount = \"3\"").count, 12);
@@ -853,7 +931,11 @@ mod tests {
              monitors = \"all\"\n\
              \n\
              [input]\n\
-             exit_sensitivity = \"medium\"\n"
+             exit_sensitivity = \"medium\"\n\
+             \n\
+             [clock]\n\
+             enabled = true\n\
+             format = \"24h\"\n"
         );
     }
 
@@ -872,6 +954,10 @@ mod tests {
             },
             input: Input {
                 exit_sensitivity: ExitSensitivity::Low,
+            },
+            clock: Clock {
+                enabled: false,
+                format: ClockFormat::H12,
             },
         };
         let loaded = load(&to_toml(&c));

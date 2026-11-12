@@ -24,6 +24,7 @@ use eframe::egui::{
     self, Align, Button, Color32, CornerRadius, FontFamily, FontId, Frame, Label, Layout, Margin,
     RichText, Slider, Stroke, TextStyle, Theme, Ui, vec2,
 };
+use flying_microwave_core::clock::ClockFormat;
 use flying_microwave_core::config::{
     self, COUNT_RANGE, Config, ExitSensitivity, MaxFps, Monitors, SCALE_RANGE, SPEED_RANGE,
 };
@@ -618,6 +619,17 @@ impl SettingsApp {
                 }
             },
         );
+        let clock = &mut self.form.clock;
+        row(ui, "Show clock on display", None, |ui| {
+            ui.checkbox(&mut clock.enabled, "");
+        });
+        row(ui, "Clock format", None, |ui| {
+            ui.add_enabled_ui(clock.enabled, |ui| {
+                ui.spacing_mut().item_spacing.x = 18.0;
+                ui.radio_value(&mut clock.format, ClockFormat::H24, "24-hour");
+                ui.radio_value(&mut clock.format, ClockFormat::H12, "12-hour");
+            });
+        });
     }
 
     fn about(&self, ui: &mut Ui) {
@@ -675,6 +687,18 @@ impl SettingsApp {
             });
         });
     }
+}
+
+/// Shows the rows of a tab in a vertical scroll area.
+///
+/// Why: the window has a fixed size and the area above the footer is only
+/// about 225 points high, less while the footer shows a warning. The
+/// Display tab has five rows from v0.3.0, so the rows can scroll instead of
+/// being cut off (plan 0005, task 9; review of task 7).
+fn scrolled(ui: &mut Ui, add: impl FnOnce(&mut Ui)) {
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .show(ui, add);
 }
 
 /// One labeled row: the label on the left, the controls and an optional
@@ -762,8 +786,8 @@ impl eframe::App for SettingsApp {
                 bottom: 8,
             }))
             .show(ui, |ui| match self.tab {
-                Tab::Flight => self.flight(ui),
-                Tab::Display => self.display(ui),
+                Tab::Flight => scrolled(ui, |ui| self.flight(ui)),
+                Tab::Display => scrolled(ui, |ui| self.display(ui)),
                 Tab::About => self.about(ui),
             });
     }

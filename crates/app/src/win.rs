@@ -6,7 +6,7 @@ use std::os::windows::ffi::OsStringExt;
 use std::path::PathBuf;
 
 use windows_sys::Win32::Foundation::{
-    ERROR_ALREADY_EXISTS, GetLastError, HANDLE, HWND, POINT, RECT, SetLastError,
+    ERROR_ALREADY_EXISTS, GetLastError, HANDLE, HWND, POINT, RECT, SYSTEMTIME, SetLastError,
 };
 use windows_sys::Win32::Graphics::Gdi::{
     BLACK_BRUSH, FillRect, GetDC, GetMonitorInfoW, GetStockObject, MONITORINFO, ReleaseDC,
@@ -19,6 +19,7 @@ use windows_sys::Win32::System::Power::{
     DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS, HPOWERNOTIFY, POWERBROADCAST_SETTING,
     PowerSettingRegisterNotification, PowerSettingUnregisterNotification,
 };
+use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 use windows_sys::Win32::System::SystemServices::GUID_SESSION_DISPLAY_STATUS;
 use windows_sys::Win32::System::Threading::{CreateMutexW, GetCurrentProcess, TerminateProcess};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled};
@@ -404,4 +405,18 @@ fn known_folder(id: &GUID) -> Option<PathBuf> {
     // buffer whether the call succeeded or not; freeing null does nothing.
     unsafe { CoTaskMemFree(raw as *const c_void) };
     path
+}
+
+/// The local time of day, for the LED clock (plan 0005, F-06). Values that
+/// do not fit are passed on as 255, which the clock shows as nothing.
+pub fn local_time() -> flying_microwave_core::clock::LocalTime {
+    let mut t = SYSTEMTIME::default();
+    // SAFETY: GetLocalTime only writes the SYSTEMTIME it is given.
+    unsafe { GetLocalTime(&mut t) };
+    let part = |v: u16| u8::try_from(v).unwrap_or(u8::MAX);
+    flying_microwave_core::clock::LocalTime {
+        hour: part(t.wHour),
+        minute: part(t.wMinute),
+        second: part(t.wSecond),
+    }
 }
