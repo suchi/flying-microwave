@@ -265,10 +265,11 @@ mod tests {
         let (cells, height) = pack(&sizes).expect("fits");
         assert_eq!(cells.len(), sizes.len());
         // Every device of the DX12 feature level 11 takes 16384 pixels;
-        // the bound keeps the atlas near its size of v0.3.0, 4096 x 1920
-        // (about 42 MB with the mipmaps; 2048 is about 45 MB). Raise it only
-        // after deciding the memory for new faces (plan 0001, N-04).
-        assert!(height <= 2048, "{height}");
+        // the bound keeps the atlas near its size of v0.3.0, 4096 x 2080
+        // with the food (about 45 MB with the mipmaps; 2304 is about 50 MB,
+        // plan 0005, D-17). Raise it only after deciding the memory for new
+        // faces (plan 0001, N-04).
+        assert!(height <= 2304, "{height}");
     }
 
     #[test]
@@ -425,8 +426,8 @@ mod tests {
             let y = ((img.height as f32 * fy) as u32).min(img.height - 1);
             img.rgba[((y * img.width + x) * 4 + 3) as usize]
         };
-        // The body, cavity, turntable and LED are drawn as opaque without
-        // looking at the texel alpha (fs_solid in mesh.wgsl), and the door
+        // The body, cavity, turntable, LED and food are drawn as opaque
+        // without looking at the texel alpha (fs_solid in mesh.wgsl), and the door
         // edges are kept only where opaque (fs_cutout): every pixel of their
         // images must be opaque, or the edges would come out darker or holed.
         let solid = (0..4)
@@ -441,7 +442,8 @@ mod tests {
                 ]
                 .map(|f| f(c))
             })
-            .chain([Face::Cavity, Face::Turntable, Face::Led, Face::DoorEdge]);
+            .chain([Face::Cavity, Face::Turntable, Face::Led, Face::DoorEdge])
+            .chain(crate::model::FOOD_FACES);
         for face in solid {
             let img = &images[face.index()];
             let clear = img

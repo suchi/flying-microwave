@@ -1,7 +1,8 @@
 //! The 3D microwave (ADR-0026): the face images on the SVG sheets of
 //! `assets/sprites/`, the hand-written meshes (the body box with an opening
-//! in the front and a lit cavity behind it, the door, the turntable), the
-//! model matrices of one flyer and the light.
+//! in the front and a lit cavity behind it, the door, the turntable, and the
+//! food that flies besides the microwaves), the model matrices of one flyer
+//! and the light.
 //!
 //! Everything here has no platform dependency and is tested on every host.
 //! Model units are body heights, as in `core::flight`: the body is
@@ -9,11 +10,11 @@
 //! Every quad is wound counterclockwise seen from the side its normal
 //! points to, so back faces can be culled.
 
-use std::f32::consts::TAU;
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI, TAU};
 use std::ops::Range;
 
 use flying_microwave_core::clock;
-use flying_microwave_core::flight::FlyerInstance;
+use flying_microwave_core::flight::{FlyerInstance, Food, Kind};
 use flying_microwave_core::sim::BODY_COLORS;
 use flying_microwave_core::space::{Mat4, Quat, Vec3};
 
@@ -33,6 +34,8 @@ pub const DOOR_SVG: &str = include_str!("../../../assets/sprites/microwave-door.
 pub const INTERIOR_SVG: &str = include_str!("../../../assets/sprites/microwave-interior.svg");
 /// The LED window.
 pub const LED_SVG: &str = include_str!("../../../assets/sprites/microwave-led.svg");
+/// The food (plan 0005, D-17). One SVG unit is one pixel of the atlas.
+pub const FOOD_SVG: &str = include_str!("../../../assets/sprites/food.svg");
 
 /// SVG units of the body sheets per model unit (the front is 240 x 160).
 const SVG_PER_UNIT: f32 = 160.0;
@@ -110,6 +113,24 @@ const CAVITY_BACK_WALL: f32 = 0.1;
 /// Segments of the turntable disc.
 const TURNTABLE_SEGMENTS: u32 = 48;
 
+/// Sizes of the food in body heights (plan 0005, D-17 (3)): width, height
+/// and depth.
+const BENTO_SIZE: [f32; 3] = [0.55, 0.18, 0.4];
+const POPCORN_SIZE: [f32; 3] = [0.45, 0.6, 0.12];
+/// The cup of the mug: radius and height. Its handle is on the right.
+const MUG_RADIUS: f32 = 0.18;
+const MUG_HEIGHT: f32 = 0.4;
+/// The dome of the bun: radius and height.
+const BUN_RADIUS: f32 = 0.25;
+const BUN_HEIGHT: f32 = 0.22;
+/// Segments around the mug and the bun.
+const ROUND_SEGMENTS: usize = 32;
+/// Rings of the dome of the bun under its side image and under its top.
+const BUN_SIDE_RINGS: usize = 4;
+const BUN_TOP_RINGS: usize = 4;
+/// Latitude of the dome where the side image of the bun meets the top.
+const BUN_SIDE_TOP: f32 = FRAC_PI_4;
+
 /// Brightness of the unlit parts: they ignore the scene light. 0 means
 /// "lit by the scene light".
 const EMIT_CEILING: f32 = 1.0;
@@ -138,6 +159,7 @@ pub enum Sheet {
     Door,
     Interior,
     Led,
+    Food,
 }
 
 impl Sheet {
@@ -147,6 +169,7 @@ impl Sheet {
             Sheet::Door => DOOR_SVG,
             Sheet::Interior => INTERIOR_SVG,
             Sheet::Led => LED_SVG,
+            Sheet::Food => FOOD_SVG,
         }
     }
 }
@@ -155,7 +178,7 @@ impl Sheet {
 pub fn sheets() -> Vec<Sheet> {
     (0..BODY_COLORS)
         .map(Sheet::Body)
-        .chain([Sheet::Door, Sheet::Interior, Sheet::Led])
+        .chain([Sheet::Door, Sheet::Interior, Sheet::Led, Sheet::Food])
         .collect()
 }
 
@@ -187,11 +210,47 @@ pub enum Face {
     Cavity,
     Turntable,
     Led,
+    /// The boxed meal: the top seen through the lid, the four sides and the
+    /// bottom.
+    BentoTop,
+    BentoSide,
+    BentoBottom,
+    /// The popcorn bag: front, back and the four edges.
+    PopcornFront,
+    PopcornBack,
+    PopcornEdge,
+    /// The mug: the side around it, the drink seen from above, the handle
+    /// and the bottom.
+    MugSide,
+    MugInside,
+    MugHandle,
+    MugBottom,
+    /// The steamed bun: the side around the dome, the top and the bottom.
+    BunSide,
+    BunTop,
+    BunBottom,
 }
+
+/// The faces of the food, in the order of [`Face::all`].
+pub const FOOD_FACES: [Face; 13] = [
+    Face::BentoTop,
+    Face::BentoSide,
+    Face::BentoBottom,
+    Face::PopcornFront,
+    Face::PopcornBack,
+    Face::PopcornEdge,
+    Face::MugSide,
+    Face::MugInside,
+    Face::MugHandle,
+    Face::MugBottom,
+    Face::BunSide,
+    Face::BunTop,
+    Face::BunBottom,
+];
 
 /// Number of face images.
 #[cfg(test)]
-pub const FACE_COUNT: usize = 6 * BODY_COLORS as usize + 6;
+pub const FACE_COUNT: usize = 6 * BODY_COLORS as usize + 6 + FOOD_FACES.len();
 
 impl Face {
     /// Every face, in the order of [`Face::index`].
@@ -213,7 +272,19 @@ impl Face {
                 Face::Turntable,
                 Face::Led,
             ])
+            .chain(FOOD_FACES)
             .collect()
+    }
+
+    /// The faces of one food.
+    #[cfg(test)]
+    pub fn food(food: Food) -> &'static [Face] {
+        match food {
+            Food::Bento => &FOOD_FACES[0..3],
+            Food::Popcorn => &FOOD_FACES[3..6],
+            Food::Mug => &FOOD_FACES[6..10],
+            Food::Bun => &FOOD_FACES[10..13],
+        }
     }
 
     /// Position in [`Face::all`] and in the atlas cells.
@@ -233,6 +304,10 @@ impl Face {
             Face::Cavity => 6 * colors + 3,
             Face::Turntable => 6 * colors + 4,
             Face::Led => 6 * colors + 5,
+            food => {
+                let k = FOOD_FACES.iter().position(|&f| f == food);
+                6 * colors + 6 + k.expect("every other face is food")
+            }
         }
     }
 
@@ -274,6 +349,25 @@ impl Face {
                 (lw * LED_TEXELS_PER_SVG) as u32,
                 (lh * LED_TEXELS_PER_SVG) as u32,
             ),
+            // One SVG unit of the food sheet is one pixel (plan 0005, D-17).
+            food => {
+                let rect = match food {
+                    Face::BentoTop => [0.0, 0.0, 256.0, 192.0],
+                    Face::BentoSide => [266.0, 0.0, 256.0, 64.0],
+                    Face::BentoBottom => [532.0, 0.0, 64.0, 64.0],
+                    Face::PopcornFront => [0.0, 202.0, 192.0, 256.0],
+                    Face::PopcornBack => [202.0, 202.0, 192.0, 256.0],
+                    Face::PopcornEdge => [404.0, 202.0, 32.0, 32.0],
+                    Face::MugSide => [446.0, 202.0, 256.0, 128.0],
+                    Face::MugInside => [446.0, 340.0, 128.0, 128.0],
+                    Face::MugHandle => [584.0, 340.0, 16.0, 16.0],
+                    Face::MugBottom => [610.0, 340.0, 64.0, 64.0],
+                    Face::BunSide => [0.0, 478.0, 256.0, 96.0],
+                    Face::BunTop => [266.0, 478.0, 128.0, 128.0],
+                    _ => [404.0, 478.0, 64.0, 64.0],
+                };
+                other(Sheet::Food, rect, rect[2] as u32, rect[3] as u32)
+            }
         }
     }
 }
@@ -344,6 +438,9 @@ pub struct Meshes {
     pub door: Range<u32>,
     /// The turntable: a disc of radius 1 facing +y.
     pub turntable: Range<u32>,
+    /// The food, in the order of [`Food::ALL`], centered on the origin like
+    /// the body and drawn with its matrix.
+    pub food: [Range<u32>; Food::ALL.len()],
 }
 
 /// Half extents of the body in model units.
@@ -451,6 +548,147 @@ impl Builder {
     fn mark(&self) -> u32 {
         self.indices.len() as u32
     }
+
+    /// Appends a vertex lit by the scene light and returns its index.
+    fn vertex(&mut self, p: &RoundPoint) -> u32 {
+        let (pos, n) = (p.pos, p.normal);
+        self.vertices.push(Vertex {
+            pos: [pos.x, pos.y, pos.z],
+            normal: [n.x, n.y, n.z],
+            uv: p.uv,
+            emissive: 0.0,
+            led: 0,
+        });
+        (self.vertices.len() - 1) as u32
+    }
+
+    /// A box from its smallest and largest corners, with the images of its
+    /// front, back, right, left, top and bottom placed as on the body.
+    /// Corners are passed as the same values to every face that meets them.
+    fn cuboid(&mut self, lo: Vec3, hi: Vec3, faces: [UvRect; 6]) {
+        let [front, back, right, left, top, bottom] = faces;
+        let (x0, y0, z0) = (lo.x, lo.y, lo.z);
+        let (x1, y1, z1) = (hi.x, hi.y, hi.z);
+        let p = Vec3::new;
+        let quads = [
+            (
+                [p(x0, y0, z1), p(x1, y0, z1), p(x1, y1, z1), p(x0, y1, z1)],
+                front,
+            ),
+            (
+                [p(x1, y0, z0), p(x0, y0, z0), p(x0, y1, z0), p(x1, y1, z0)],
+                back,
+            ),
+            (
+                [p(x1, y0, z1), p(x1, y0, z0), p(x1, y1, z0), p(x1, y1, z1)],
+                right,
+            ),
+            (
+                [p(x0, y0, z0), p(x0, y0, z1), p(x0, y1, z1), p(x0, y1, z0)],
+                left,
+            ),
+            (
+                [p(x0, y1, z1), p(x1, y1, z1), p(x1, y1, z0), p(x0, y1, z0)],
+                top,
+            ),
+            (
+                [p(x0, y0, z0), p(x1, y0, z0), p(x1, y0, z1), p(x0, y0, z1)],
+                bottom,
+            ),
+        ];
+        for (corners, uv) in quads {
+            self.corners(corners, uv, 0.0);
+        }
+    }
+
+    /// The band between two rings around the y axis, `upper` above `lower`,
+    /// facing out.
+    fn band(&mut self, lower: &[RoundPoint], upper: &[RoundPoint]) {
+        for i in 0..ROUND_SEGMENTS {
+            let base = self.vertices.len() as u32;
+            for p in [&lower[i], &lower[i + 1], &upper[i + 1], &upper[i]] {
+                self.vertex(p);
+            }
+            self.indices
+                .extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+        }
+    }
+
+    /// Triangles from `center` to every segment of `rim`, facing up (+y,
+    /// or outward when the center is above the rim) or down.
+    fn fan(&mut self, center: &RoundPoint, rim: &[RoundPoint], up: bool) {
+        for i in 0..ROUND_SEGMENTS {
+            let c = self.vertex(center);
+            let a = self.vertex(&rim[i]);
+            let b = self.vertex(&rim[i + 1]);
+            self.indices.extend(if up { [c, a, b] } else { [c, b, a] });
+        }
+    }
+}
+
+/// A vertex of a round food.
+struct RoundPoint {
+    pos: Vec3,
+    normal: Vec3,
+    uv: [f32; 2],
+}
+
+/// A ring of `ROUND_SEGMENTS + 1` points around the y axis at radius `r`
+/// and height `y`. Point `i` is at the angle `TAU * i / ROUND_SEGMENTS - PI`
+/// from the front (+z) toward the right (+x), so that the seam of a side
+/// image is at the back. The last point is the first again (the same
+/// position, bit for bit), with the u of the right edge of a side image.
+/// `normal(sin, cos)` and `uv(i, pos)` give the rest of each point.
+fn ring(
+    r: f32,
+    y: f32,
+    normal: impl Fn(f32, f32) -> Vec3,
+    uv: impl Fn(usize, Vec3) -> [f32; 2],
+) -> Vec<RoundPoint> {
+    (0..=ROUND_SEGMENTS)
+        .map(|i| {
+            let angle = TAU * (i % ROUND_SEGMENTS) as f32 / ROUND_SEGMENTS as f32 - PI;
+            let (s, c) = angle.sin_cos();
+            let pos = Vec3::new(r * s, y, r * c);
+            RoundPoint {
+                pos,
+                normal: normal(s, c),
+                uv: uv(i, pos),
+            }
+        })
+        .collect()
+}
+
+/// Where a point of a disc of radius `r` lies on an image seen from above
+/// (image up toward the back, -z) or from below (image up toward the front).
+fn disc_uv(uv: UvRect, r: f32, from_above: bool) -> impl Fn(usize, Vec3) -> [f32; 2] {
+    move |_, p| {
+        let fy = if from_above {
+            0.5 + 0.5 * p.z / r
+        } else {
+            0.5 - 0.5 * p.z / r
+        };
+        let fx = 0.5 + 0.5 * p.x / r;
+        [uv.u0 + (uv.u1 - uv.u0) * fx, uv.v0 + (uv.v1 - uv.v0) * fy]
+    }
+}
+
+/// Where point `i` of a ring lies on a side image wrapped around, at the
+/// fraction `fy` from its bottom edge to its top edge.
+fn side_uv(uv: UvRect, fy: f32) -> impl Fn(usize, Vec3) -> [f32; 2] {
+    move |i, _| {
+        let fx = i as f32 / ROUND_SEGMENTS as f32;
+        [uv.u0 + (uv.u1 - uv.u0) * fx, uv.v1 + (uv.v0 - uv.v1) * fy]
+    }
+}
+
+/// The center of a disc at height `y`.
+fn disc_center(y: f32, up: bool, uv: UvRect) -> RoundPoint {
+    RoundPoint {
+        pos: Vec3::new(0.0, y, 0.0),
+        normal: if up { Y } else { Y.scale(-1.0) },
+        uv: [(uv.u0 + uv.u1) / 2.0, (uv.v0 + uv.v1) / 2.0],
+    }
 }
 
 /// Builds every mesh. `uvs[face.index()]` is the atlas cell of each face.
@@ -470,12 +708,18 @@ pub fn build(uvs: &[UvRect]) -> Meshes {
     let start = b.mark();
     turntable(&mut b, uvs[Face::Turntable.index()]);
     let turntable = start..b.mark();
+    let food = Food::ALL.map(|kind| {
+        let start = b.mark();
+        food(&mut b, uvs, kind);
+        start..b.mark()
+    });
     Meshes {
         vertices: b.vertices,
         indices: b.indices,
         body,
         door,
         turntable,
+        food,
     }
 }
 
@@ -612,6 +856,124 @@ fn turntable(b: &mut Builder, uv: UvRect) {
     }
 }
 
+/// One food, centered on the origin (plan 0005, D-17): the boxed meal and
+/// the popcorn bag are boxes, the mug a cylinder with a handle, the bun a
+/// flattened half sphere.
+fn food(b: &mut Builder, uvs: &[UvRect], food: Food) {
+    let uv = |face: Face| uvs[face.index()];
+    let half = |[w, h, d]: [f32; 3]| Vec3::new(w, h, d).scale(0.5);
+    match food {
+        Food::Bento => {
+            let (e, side) = (half(BENTO_SIZE), uv(Face::BentoSide));
+            let faces = [
+                side,
+                side,
+                side,
+                side,
+                uv(Face::BentoTop),
+                uv(Face::BentoBottom),
+            ];
+            b.cuboid(e.scale(-1.0), e, faces);
+        }
+        Food::Popcorn => {
+            let (e, edge) = (half(POPCORN_SIZE), uv(Face::PopcornEdge));
+            let faces = [
+                uv(Face::PopcornFront),
+                uv(Face::PopcornBack),
+                edge,
+                edge,
+                edge,
+                edge,
+            ];
+            b.cuboid(e.scale(-1.0), e, faces);
+        }
+        Food::Mug => mug(b, uvs),
+        Food::Bun => bun(b, uvs),
+    }
+}
+
+fn mug(b: &mut Builder, uvs: &[UvRect]) {
+    let uv = |face: Face| uvs[face.index()];
+    let (r, hh) = (MUG_RADIUS, MUG_HEIGHT / 2.0);
+    let side = uv(Face::MugSide);
+    let out = |s: f32, c: f32| Vec3::new(s, 0.0, c);
+    b.band(
+        &ring(r, -hh, out, side_uv(side, 0.0)),
+        &ring(r, hh, out, side_uv(side, 1.0)),
+    );
+    for (y, up, face) in [(hh, true, Face::MugInside), (-hh, false, Face::MugBottom)] {
+        let normal = move |_: f32, _: f32| if up { Y } else { Y.scale(-1.0) };
+        let rim = ring(r, y, normal, disc_uv(uv(face), r, up));
+        b.fan(&disc_center(y, up, uv(face)), &rim, up);
+    }
+    // The handle: two arms from inside the cup to a bar on the right. The
+    // arms end inside the bar and are a little thinner, so that no faces of
+    // the boxes lie on the same plane (no z-fighting).
+    let handle = [uv(Face::MugHandle); 6];
+    let p = Vec3::new;
+    b.cuboid(p(0.23, -0.12, -0.02), p(0.27, 0.12, 0.02), handle);
+    for (y0, y1) in [(0.075, 0.115), (-0.115, -0.075)] {
+        b.cuboid(p(0.16, y0, -0.018), p(0.25, y1, 0.018), handle);
+    }
+}
+
+fn bun(b: &mut Builder, uvs: &[UvRect]) {
+    let uv = |face: Face| uvs[face.index()];
+    let (a, h) = (BUN_RADIUS, BUN_HEIGHT);
+    let side = uv(Face::BunSide);
+    let cap = a * BUN_SIDE_TOP.cos();
+    // Rings of the dome from the base (latitude 0) up to the last one below
+    // the top; the normals are those of the ellipsoid.
+    let rings: Vec<Vec<RoundPoint>> = (0..BUN_SIDE_RINGS + BUN_TOP_RINGS)
+        .map(|j| {
+            let lat = if j <= BUN_SIDE_RINGS {
+                BUN_SIDE_TOP * j as f32 / BUN_SIDE_RINGS as f32
+            } else {
+                let k = (j - BUN_SIDE_RINGS) as f32 / BUN_TOP_RINGS as f32;
+                BUN_SIDE_TOP + (FRAC_PI_2 - BUN_SIDE_TOP) * k
+            };
+            let (sl, cl) = lat.sin_cos();
+            let normal =
+                move |s: f32, c: f32| Vec3::new(cl * s / a, sl / h, cl * c / a).normalized();
+            ring(a * cl, -h / 2.0 + h * sl, normal, move |i, p| {
+                if j < BUN_SIDE_RINGS {
+                    side_uv(side, j as f32 / BUN_SIDE_RINGS as f32)(i, p)
+                } else {
+                    disc_uv(uv(Face::BunTop), cap, true)(i, p)
+                }
+            })
+        })
+        .collect();
+    for j in 0..rings.len() - 1 {
+        if j + 1 == BUN_SIDE_RINGS {
+            // The last band of the side ends on the ring where the top
+            // starts: the same positions with the side image's top edge.
+            let edge: Vec<RoundPoint> = rings[j + 1]
+                .iter()
+                .enumerate()
+                .map(|(i, p)| RoundPoint {
+                    pos: p.pos,
+                    normal: p.normal,
+                    uv: side_uv(side, 1.0)(i, p.pos),
+                })
+                .collect();
+            b.band(&rings[j], &edge);
+        } else {
+            b.band(&rings[j], &rings[j + 1]);
+        }
+    }
+    let top = RoundPoint {
+        pos: Vec3::new(0.0, h / 2.0, 0.0),
+        normal: Y,
+        uv: disc_uv(uv(Face::BunTop), cap, true)(0, Vec3::new(0.0, 0.0, 0.0)),
+    };
+    b.fan(&top, &rings[rings.len() - 1], true);
+    let bottom = uv(Face::BunBottom);
+    let down = |_: f32, _: f32| Y.scale(-1.0);
+    let rim = ring(a, -h / 2.0, down, disc_uv(bottom, a, false));
+    b.fan(&disc_center(-h / 2.0, false, bottom), &rim, false);
+}
+
 /// The model matrices of one flyer: the body, the door and the turntable.
 pub fn matrices(flyer: &FlyerInstance) -> [Mat4; 3] {
     let body = Mat4::translation(flyer.position)
@@ -642,17 +1004,20 @@ pub fn write_instance(flyer: &FlyerInstance, out: &mut Vec<u8>) {
 }
 
 /// The order in which to draw the door glass: back to front (the farthest
-/// door first), so that the translucent windows blend correctly.
+/// door first), so that the translucent windows blend correctly. Only the
+/// microwaves have doors.
 pub fn glass_order(flyers: &[FlyerInstance]) -> Vec<usize> {
     let depth = |f: &FlyerInstance| matrices(f)[1].transform(Vec3::new(0.0, 0.0, 0.0))[2];
-    let mut order: Vec<usize> = (0..flyers.len()).collect();
+    let mut order: Vec<usize> = (0..flyers.len())
+        .filter(|&i| flyers[i].kind == Kind::Microwave)
+        .collect();
     order.sort_by(|&a, &b| depth(&flyers[a]).total_cmp(&depth(&flyers[b])));
     order
 }
 
 #[cfg(test)]
 mod tests {
-    use flying_microwave_core::flight::{BODY_SIZE, BOUNDING_RADIUS, door_angle};
+    use flying_microwave_core::flight::{BODY_SIZE, BOUNDING_RADIUS, Food, Kind, door_angle};
 
     use super::*;
 
@@ -676,6 +1041,7 @@ mod tests {
             door_angle,
             turntable_phase: 0.0,
             color: 0,
+            kind: Kind::Microwave,
         }
     }
 
@@ -902,6 +1268,7 @@ mod tests {
     fn meshes_cover_every_index_once() {
         let m = build(&unit_uvs());
         let mut ranges: Vec<Range<u32>> = m.body.to_vec();
+        ranges.extend(m.food.iter().cloned());
         ranges.push(m.door.clone());
         ranges.push(m.turntable.clone());
         ranges.sort_by_key(|r| r.start);
@@ -1071,5 +1438,141 @@ mod tests {
         let flyers = [at(-12.0), at(-25.0), at(-10.0), at(-18.0)];
         assert_eq!(glass_order(&flyers), vec![1, 3, 0, 2]);
         assert!(glass_order(&[]).is_empty());
+    }
+
+    #[test]
+    fn food_has_no_glass() {
+        // Food has no door (plan 0005, D-17): only the microwaves are in the
+        // order, still back to front.
+        let at = |z: f32, kind: Kind| {
+            let mut f = flyer(0.0);
+            f.position = Vec3::new(0.0, 0.0, z);
+            f.kind = kind;
+            f
+        };
+        let flyers = [
+            at(-12.0, Kind::Microwave),
+            at(-30.0, Kind::Food(Food::Mug)),
+            at(-25.0, Kind::Microwave),
+            at(-5.0, Kind::Food(Food::Bento)),
+        ];
+        assert_eq!(glass_order(&flyers), vec![2, 0]);
+    }
+
+    /// The corners of the triangles of `range`.
+    fn points_of(m: &Meshes, range: &Range<u32>) -> Vec<Vec3> {
+        vertices_of(m, range)
+            .map(|v| Vec3::new(v.pos[0], v.pos[1], v.pos[2]))
+            .collect()
+    }
+
+    /// The smallest and largest x, y and z of `points`.
+    fn bounds(points: &[Vec3]) -> (Vec3, Vec3) {
+        let mut lo = Vec3::new(f32::MAX, f32::MAX, f32::MAX);
+        let mut hi = Vec3::new(f32::MIN, f32::MIN, f32::MIN);
+        for p in points {
+            lo = Vec3::new(lo.x.min(p.x), lo.y.min(p.y), lo.z.min(p.z));
+            hi = Vec3::new(hi.x.max(p.x), hi.y.max(p.y), hi.z.max(p.z));
+        }
+        (lo, hi)
+    }
+
+    fn near(a: f32, b: f32) -> bool {
+        (a - b).abs() < 1e-4
+    }
+
+    #[test]
+    fn food_has_the_sizes_of_d17() {
+        // Plan 0005, D-17 (3): width, height and depth in body heights,
+        // centered on the origin like the body.
+        let m = build(&unit_uvs());
+        let sizes = [
+            (Food::Bento, [0.55, 0.18, 0.4]),
+            (Food::Popcorn, [0.45, 0.6, 0.12]),
+            (Food::Bun, [0.5, 0.22, 0.5]),
+        ];
+        for (food, [w, h, d]) in sizes {
+            let (lo, hi) = bounds(&points_of(&m, &m.food[food as usize]));
+            for (a, b) in [(lo.x, -w / 2.0), (hi.x, w / 2.0), (lo.y, -h / 2.0)] {
+                assert!(near(a, b), "{food:?}: {lo:?} {hi:?}");
+            }
+            for (a, b) in [(hi.y, h / 2.0), (lo.z, -d / 2.0), (hi.z, d / 2.0)] {
+                assert!(near(a, b), "{food:?}: {lo:?} {hi:?}");
+            }
+        }
+        // The mug: diameter 0.36 and height 0.4 around the y axis, with the
+        // handle on the right (+x).
+        let (lo, hi) = bounds(&points_of(&m, &m.food[Food::Mug as usize]));
+        for (a, b) in [
+            (lo.x, -0.18),
+            (lo.y, -0.2),
+            (hi.y, 0.2),
+            (lo.z, -0.18),
+            (hi.z, 0.18),
+        ] {
+            assert!(near(a, b), "mug: {lo:?} {hi:?}");
+        }
+        assert!(hi.x > 0.2 && hi.x < 0.3, "mug handle: {hi:?}");
+    }
+
+    #[test]
+    fn food_meshes_are_closed() {
+        // Every edge is shared with one triangle in the other direction,
+        // at the same corner values bit for bit: no cracks, no T-junctions
+        // and no hole where the seam of a round side meets itself.
+        let m = build(&unit_uvs());
+        for food in Food::ALL {
+            let range = &m.food[food as usize];
+            let key = |i: u32| m.vertices[i as usize].pos.map(f32::to_bits);
+            let mut edges: Vec<([u32; 3], [u32; 3])> = Vec::new();
+            for t in m.indices[range.start as usize..range.end as usize].chunks(3) {
+                for (a, b) in [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])] {
+                    edges.push((key(a), key(b)));
+                }
+            }
+            for &(a, b) in &edges {
+                assert_ne!(a, b, "{food:?}: an edge of no length");
+                let twins = edges.iter().filter(|&&e| e == (b, a)).count();
+                let same = edges.iter().filter(|&&e| e == (a, b)).count();
+                assert_eq!((twins, same), (1, 1), "{food:?}: {a:?}-{b:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn food_meshes_use_their_own_faces() {
+        let uvs: Vec<UvRect> = (0..FACE_COUNT)
+            .map(|i| UvRect {
+                u0: i as f32,
+                v0: 0.0,
+                u1: i as f32 + 1.0,
+                v1: 1.0,
+            })
+            .collect();
+        let m = build(&uvs);
+        for food in Food::ALL {
+            let own: Vec<f32> = Face::food(food).iter().map(|f| f.index() as f32).collect();
+            let mut used = vec![false; own.len()];
+            for v in vertices_of(&m, &m.food[food as usize]) {
+                let k = own.iter().position(|&c| (c..=c + 1.0).contains(&v.uv[0]));
+                let k = k.unwrap_or_else(|| panic!("{food:?}: uv {:?}", v.uv));
+                used[k] = true;
+                // Food is lit by the scene light and has no clock.
+                assert_eq!((v.emissive, v.led), (0.0, 0), "{food:?}");
+            }
+            assert!(used.iter().all(|&u| u), "{food:?}: {used:?}");
+        }
+    }
+
+    #[test]
+    fn food_stays_within_the_bounding_radius() {
+        // core::flight uses the radius of the microwave for the food too
+        // (plan 0005, D-17), so the food stays well inside it.
+        let m = build(&unit_uvs());
+        for food in Food::ALL {
+            for p in points_of(&m, &m.food[food as usize]) {
+                assert!(p.length() < BOUNDING_RADIUS / 2.0, "{food:?}: {p:?}");
+            }
+        }
     }
 }
