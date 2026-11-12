@@ -13,7 +13,7 @@ UIラベルはAGENTS.mdの言語ルールに従い英語とする。
 | `flight.count` | Number of microwaves | Flight | 整数 | 1〜50 | 12 | v0.2.0 | 同時に飛ぶ電子レンジの数 |
 | `flight.speed` | Speed | Flight | 小数 | 0.25〜3.0 | 1.0 | v0.2.0 | 飛行速度の倍率 |
 | `flight.scale` | Size | Flight | 小数 | 0.5〜2.0 | 1.0 | v0.2.0 | 大きさの倍率 |
-| `flight.style` | Flight style | Flight | 選択 | tumbling / level | tumbling | v0.3.0 | 飛び方。tumblingは、それぞれ違う向きと速さで回転しながら飛ぶ。levelは、全機が同じ向き(v0.2.0に近い見え方)で飛ぶ([計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-4、D-15) |
+| `flight.style` | Flight style | Flight | 選択 | tumbling / level | tumbling | v0.3.0 | 飛び方。tumblingは、それぞれ違う向きと速さで回転しながら飛ぶ。levelは、全機が同じ向き(v0.2.0に近い見え方)で飛ぶ。食べ物も同じ向きで飛ぶ([計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-4、D-15、D-17) |
 | `display.max_fps` | Frame rate limit | Display | 整数 | 0 / 30 / 60 / 120(0はモニタのリフレッシュレートに合わせる) | 60 | v0.2.0 | 描画フレームレートの上限。垂直同期は常に有効で、この値で間引く |
 | `display.monitors` | Monitors | Display | 選択 | all / primary | all | v0.2.0 | アニメーションを表示するモニタ。primaryでも他のモニタは黒で覆う |
 | `input.exit_sensitivity` | Mouse sensitivity | Display | 選択 | low / medium / high | medium | v0.2.0 | 終了と判定するマウス移動の閾値。スクリーン座標の物理ピクセルで、low=48、medium=16、high=4(2026-11-09に、`v0.2.0-alpha.4`の実機で、3つとも想定どおりに終わることを確かめた。計画0004のD-16) |
