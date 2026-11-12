@@ -51,6 +51,10 @@ monitors = "all"
 
 [input]
 exit_sensitivity = "medium"
+
+[clock]
+enabled = true
+format = "24h"
 ```
 
 ## 検証規則

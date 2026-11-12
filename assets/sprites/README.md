@@ -11,7 +11,7 @@
 | `microwave-body-white.svg` | 本体(ホワイト)。色のほかは上と同じ | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
 | `microwave-body-mint.svg` | 本体(ミント)。色のほかは上と同じ | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
 | `microwave-door.svg` | ドアの面の絵のシート。外側(半透明の窓と取っ手)、内側、縁 | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
-| `microwave-interior.svg` | 灯りのついた庫内の壁と、ターンテーブル、LEDの光る画の色 | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
+| `microwave-interior.svg` | 灯りのついた庫内の壁と、ターンテーブル | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
 | `microwave-led.svg` | LEDの表示(すべての画が消えた状態の7セグメント風の4桁、コロン、午後の点) | Flying Microwave contributors | MIT | 本リポジトリで新たに作成 |
 
 外部の素材(画像・フォント・クリップアート)は使っていない。絵は、計画0005の作業4のスパイクで作ったもの(メンテナーが画像を見て、この方向で進めると判断した)を、ファイルに移した。
@@ -23,6 +23,6 @@
 - 本体の色: 4色のファイルは、色(グラデーションの`stop-color`)のほかは同じにする(`model.rs`のテストで確かめる)。
 - 不透明と半透明: 本体の面、ドアの縁、庫内、ターンテーブル、LEDは、端まで不透明に塗る。本体、庫内、ターンテーブル、LEDは、テクセルのアルファを見ずに不透明として描き、ドアは不透明な画素だけを描くため。半透明にするのは、ドアの窓のガラスだけである。
 - 文字: `<text>`は使わない。resvgの文字の機能を切っているため(LEDの時計は四角で描いた7セグメント風の表示)。
-- LEDの時計: `microwave-led.svg`には、すべての画を消えた状態(薄い色)で描く。光る画は、描画のときに画ごとの板を重ねて表す(`crates/app/src/model.rs`の`led_segments`。画の位置は、この絵の四角と同じにし、`model.rs`のテストで確かめる)。画の位置を変えたときは、両方を合わせる。
+- LEDの時計: `microwave-led.svg`には、すべての画を消えた状態(薄い色)で描く。光る画は、描画のときにシェーダーが、この絵の上の画素ごとに、光っている画の上かを計算して光らせる(`crates/app/src/model.rs`の`led_segments`。画の位置は、この絵の四角と同じにし、`model.rs`のテストで確かめる)。画の位置を変えたときは、両方を合わせる。
 - 外部の参照: `<image>`や外部ファイルへの参照は使わない(読み込みは無効にしている)。
 - ガイドライン: 安全な使い方だけを描く(G-2)。

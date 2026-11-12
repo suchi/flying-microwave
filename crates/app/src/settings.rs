@@ -689,8 +689,6 @@ impl SettingsApp {
     }
 }
 
-/// One labeled row: the label on the left, the controls and an optional
-/// hint on the right.
 /// Shows the rows of a tab in a vertical scroll area.
 ///
 /// Why: the window has a fixed size and the area above the footer is only
@@ -703,6 +701,8 @@ fn scrolled(ui: &mut Ui, add: impl FnOnce(&mut Ui)) {
         .show(ui, add);
 }
 
+/// One labeled row: the label on the left, the controls and an optional
+/// hint on the right.
 fn row(ui: &mut Ui, label: &str, hint: Option<&str>, add: impl FnOnce(&mut Ui)) {
     ui.horizontal_top(|ui| {
         ui.allocate_ui_with_layout(
