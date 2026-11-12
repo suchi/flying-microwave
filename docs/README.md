@@ -107,3 +107,4 @@
 | [0022](incidents/0022-note-hook-reads-transcript-too-early.md) | 合間の文を確かめるフックが、記録の書き込みより先に動き、何も止めていなかった |
 | [0023](incidents/0023-tag-check-command-failed-in-cmd.md) | タグの前に件名を確かめるコマンドが、Windowsのコマンドプロンプトで動かなかった |
 | [0024](incidents/0024-unfounded-guess-as-premise.md) | 記録にない過去の事実を、根拠のない推測で補い、異常の記録の前提にしようとした |
+| [0025](incidents/0025-implemented-against-recorded-decision.md) | 記録した決定と違う方式を、確認を取らずに実装した |
