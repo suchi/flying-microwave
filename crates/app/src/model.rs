@@ -232,7 +232,7 @@ pub enum Face {
 }
 
 /// The faces of the food, in the order of [`Face::all`].
-const FOOD_FACES: [Face; 13] = [
+pub const FOOD_FACES: [Face; 13] = [
     Face::BentoTop,
     Face::BentoSide,
     Face::BentoBottom,

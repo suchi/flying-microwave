@@ -426,8 +426,8 @@ mod tests {
             let y = ((img.height as f32 * fy) as u32).min(img.height - 1);
             img.rgba[((y * img.width + x) * 4 + 3) as usize]
         };
-        // The body, cavity, turntable and LED are drawn as opaque without
-        // looking at the texel alpha (fs_solid in mesh.wgsl), and the door
+        // The body, cavity, turntable, LED and food are drawn as opaque
+        // without looking at the texel alpha (fs_solid in mesh.wgsl), and the door
         // edges are kept only where opaque (fs_cutout): every pixel of their
         // images must be opaque, or the edges would come out darker or holed.
         let solid = (0..4)
@@ -442,7 +442,8 @@ mod tests {
                 ]
                 .map(|f| f(c))
             })
-            .chain([Face::Cavity, Face::Turntable, Face::Led, Face::DoorEdge]);
+            .chain([Face::Cavity, Face::Turntable, Face::Led, Face::DoorEdge])
+            .chain(crate::model::FOOD_FACES);
         for face in solid {
             let img = &images[face.index()];
             let clear = img

@@ -2,7 +2,7 @@
   <!-- Food that flies besides the microwaves (plan 0005, D-16 (1) and D-17). One SVG unit is one pixel of the atlas. Face positions are fixed by crates/app/src/model.rs. Only safe uses are drawn (guideline G-2). -->
   <!-- boxed meal (bento), top seen from above through the clear lid; its bottom edge meets the front: 256 x 192 at (0, 0) -->
   <g transform="translate(0 0)">
-    <rect width="256" height="192" rx="10" fill="#1d1f24"/>
+    <rect width="256" height="192" fill="#1d1f24"/>
     <rect x="10" y="10" width="236" height="172" rx="6" fill="#2a2d33"/>
     <rect x="16" y="16" width="120" height="160" rx="6" fill="#f4f1e8"/>
     <circle cx="76" cy="96" r="9" fill="#c0392b"/>
