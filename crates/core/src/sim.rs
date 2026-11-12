@@ -33,6 +33,8 @@ pub struct SimParams {
     pub speed: f32,
     /// Size multiplier (1.0 is the default size).
     pub scale: f32,
+    /// Number of food items flying besides the `count` microwaves.
+    pub food_count: u32,
 }
 
 impl Default for SimParams {
@@ -41,6 +43,7 @@ impl Default for SimParams {
             count: 12,
             speed: 1.0,
             scale: 1.0,
+            food_count: 4,
         }
     }
 }
@@ -55,5 +58,6 @@ mod tests {
         assert_eq!(p.count, 12);
         assert_eq!(p.speed, 1.0);
         assert_eq!(p.scale, 1.0);
+        assert_eq!(p.food_count, 4);
     }
 }

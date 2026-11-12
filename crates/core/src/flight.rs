@@ -467,6 +467,7 @@ mod tests {
     fn params(count: u32) -> SimParams {
         SimParams {
             count,
+            food_count: 0,
             ..SimParams::default()
         }
     }
@@ -828,6 +829,7 @@ mod tests {
                 count: 500,
                 speed,
                 scale: 1.0,
+                food_count: 0,
             };
             let w = World::new(5, ASPECT, p, Style::Tumbling);
             for f in &w.flyers {
@@ -852,6 +854,7 @@ mod tests {
                 count: 20,
                 speed: 1.0,
                 scale,
+                food_count: 0,
             };
             let w = World::new(5, ASPECT, p, Style::Tumbling);
             for i in w.instances() {
@@ -911,6 +914,7 @@ mod tests {
                 count: 1,
                 speed: 1.0,
                 scale,
+                food_count: 0,
             };
             let w = World::new(1, ASPECT, p, Style::Tumbling);
             let radius = BOUNDING_RADIUS * scale;
@@ -1026,6 +1030,7 @@ mod tests {
             count: 2000,
             speed: 3.0,
             scale: 1.0,
+            food_count: 0,
         };
         let mut w = World::new(41, ASPECT, p, Style::Tumbling);
         // The longest crossing (the far corner at depth 26, factor 0.8) is

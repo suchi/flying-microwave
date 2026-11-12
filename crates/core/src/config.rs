@@ -22,6 +22,8 @@ pub const MAX_FILE_BYTES: usize = 64 * 1024;
 
 /// `flight.count`.
 pub const COUNT_RANGE: RangeInclusive<u32> = 1..=50;
+/// `flight.food_count`.
+pub const FOOD_COUNT_RANGE: RangeInclusive<u32> = 0..=30;
 /// `flight.speed`.
 pub const SPEED_RANGE: RangeInclusive<f64> = 0.25..=3.0;
 /// `flight.scale`.
@@ -69,6 +71,9 @@ pub struct Flight {
     pub scale: f64,
     /// `flight.style`: how the microwaves are oriented (from v0.3.0).
     pub style: Style,
+    /// `flight.food_count`: number of food items flying besides the
+    /// microwaves, in [`FOOD_COUNT_RANGE`] (from v0.3.0).
+    pub food_count: u32,
 }
 
 impl Default for Flight {
@@ -78,6 +83,7 @@ impl Default for Flight {
             speed: 1.0,
             scale: 1.0,
             style: Style::Tumbling,
+            food_count: 4,
         }
     }
 }
@@ -216,6 +222,7 @@ impl Config {
             count: self.flight.count,
             speed: self.flight.speed as f32,
             scale: self.flight.scale as f32,
+            food_count: self.flight.food_count,
         }
     }
 }
@@ -298,6 +305,12 @@ impl Loaded {
                     "flight.style",
                     |v| v.as_str().and_then(Style::from_name),
                     defaults.flight.style,
+                ),
+                food_count: reader.integer(
+                    flight,
+                    "flight.food_count",
+                    FOOD_COUNT_RANGE,
+                    defaults.flight.food_count,
                 ),
             },
             display: Display {
@@ -480,6 +493,7 @@ struct FlightV1 {
     speed: f64,
     scale: f64,
     style: &'static str,
+    food_count: u32,
 }
 
 #[derive(Serialize)]
@@ -506,6 +520,7 @@ pub fn to_toml(config: &Config) -> String {
             speed: config.flight.speed,
             scale: config.flight.scale,
             style: config.flight.style.name(),
+            food_count: config.flight.food_count,
         },
         display: DisplayV1 {
             max_fps: config.display.max_fps.value(),
@@ -549,6 +564,7 @@ mod tests {
         assert_eq!(c.flight.speed, 1.0);
         assert_eq!(c.flight.scale, 1.0);
         assert_eq!(c.flight.style, Style::Tumbling);
+        assert_eq!(c.flight.food_count, 4);
         assert_eq!(c.display.max_fps.value(), 60);
         assert_eq!(c.display.monitors, Monitors::All);
         assert_eq!(c.input.exit_sensitivity, ExitSensitivity::Medium);
@@ -631,7 +647,7 @@ mod tests {
     fn valid_values_are_used() {
         let c = config(
             "schema_version = 2\n\
-             [flight]\ncount = 30\nspeed = 2.5\nscale = 0.75\nstyle = \"level\"\n\
+             [flight]\ncount = 30\nspeed = 2.5\nscale = 0.75\nstyle = \"level\"\nfood_count = 0\n\
              [display]\nmax_fps = 0\nmonitors = \"primary\"\n\
              [input]\nexit_sensitivity = \"high\"\n\
              [clock]\nenabled = false\nformat = \"12h\"\n",
@@ -644,6 +660,7 @@ mod tests {
                     speed: 2.5,
                     scale: 0.75,
                     style: Style::Level,
+                    food_count: 0,
                 },
                 display: Display {
                     max_fps: MaxFps::MatchMonitor,
@@ -798,6 +815,25 @@ mod tests {
     }
 
     #[test]
+    fn food_count_is_read_within_its_range() {
+        assert_eq!(flight("[flight]\nfood_count = 30").food_count, 30);
+        assert_eq!(flight("[flight]\nfood_count = 0").food_count, 0);
+        // Out of range is clamped; other types fall back to the default
+        // (the validation rules of the settings specification).
+        for (text, want) in [
+            ("[flight]\nfood_count = 31", 30),
+            ("[flight]\nfood_count = -1", 0),
+            ("[flight]\nfood_count = 2.0", 4),
+            ("[flight]\nfood_count = \"4\"", 4),
+        ] {
+            let loaded = load(text);
+            assert_eq!(loaded.config.flight.food_count, want, "{text}");
+            assert!(!loaded.notes.is_empty(), "{text}");
+        }
+        assert_eq!(FOOD_COUNT_RANGE, 0..=30);
+    }
+
+    #[test]
     fn clock_settings_are_read_and_fall_back() {
         assert!(!config("[clock]\nenabled = false").clock.enabled);
         assert_eq!(
@@ -925,6 +961,7 @@ mod tests {
              speed = 1.0\n\
              scale = 1.0\n\
              style = \"tumbling\"\n\
+             food_count = 4\n\
              \n\
              [display]\n\
              max_fps = 60\n\
@@ -947,6 +984,7 @@ mod tests {
                 speed: 0.25,
                 scale: 1.35,
                 style: Style::Level,
+                food_count: 30,
             },
             display: Display {
                 max_fps: MaxFps::MatchMonitor,
@@ -977,13 +1015,14 @@ mod tests {
 
     #[test]
     fn flight_settings_become_the_simulation_parameters() {
-        let c = config("[flight]\ncount = 20\nspeed = 2.5\nscale = 0.5");
+        let c = config("[flight]\ncount = 20\nspeed = 2.5\nscale = 0.5\nfood_count = 7");
         assert_eq!(
             c.sim_params(),
             SimParams {
                 count: 20,
                 speed: 2.5,
-                scale: 0.5
+                scale: 0.5,
+                food_count: 7,
             }
         );
         assert_eq!(Config::default().sim_params(), SimParams::default());
