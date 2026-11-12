@@ -52,12 +52,10 @@ const LED_TEXELS_PER_SVG: f32 = 8.0;
 const DOOR_THICKNESS: f32 = 0.045;
 /// How far the LED quad sits in front of the front face (against z-fighting).
 const LED_OFFSET: f32 = 0.003;
-/// How far the lit LED segments sit in front of the LED quad.
-const LED_SEGMENT_OFFSET: f32 = 0.002;
 
 /// One LED segment: left, top, width and height on the LED image (SVG
 /// units of `microwave-led.svg`), and its bit in the mask of `core::clock`.
-type Segment = ([f32; 4], u32);
+pub type Segment = ([f32; 4], u32);
 
 /// Rectangles of the segments a to g of a digit whose left edge is `x0`
 /// (the same as the unlit segments of `microwave-led.svg`).
@@ -77,9 +75,18 @@ const fn digit_rects(x0: f32) -> [[f32; 4]; 7] {
 /// Left edges of the four digits on the LED image.
 const DIGIT_X: [f32; clock::DIGITS as usize] = [3.0, 13.0, 27.0, 37.0];
 
+/// Size of the LED image in its SVG units: the LED window shows all of it.
+pub const LED_SIZE: [f32; 2] = [LED_RECT[2], LED_RECT[3]];
+/// Color of a lit LED segment (8-bit RGB; the same as the unlit segments of
+/// `microwave-led.svg`, which are drawn at 8% opacity).
+pub const LED_LIT_RGB: [u8; 3] = [0x5e, 0xe7, 0xdf];
+/// Number of LED segments (the size of the arrays in `mesh.wgsl`).
+pub const LED_SEGMENT_COUNT: usize = 31;
+
 /// Every LED segment that can be lit: the digits, the two dots of the
-/// colon and the PM dot.
-fn led_segments() -> Vec<Segment> {
+/// colon and the PM dot. The shader lights the pixels of the LED window
+/// that lie on a segment whose bit is set (plan 0005, D-16).
+pub fn led_segments() -> Vec<Segment> {
     let mut out = Vec::new();
     for (digit, x0) in (0..).zip(DIGIT_X) {
         for (segment, rect) in (0..).zip(digit_rects(x0)) {
@@ -171,13 +178,11 @@ pub enum Face {
     Cavity,
     Turntable,
     Led,
-    /// The color of a lit LED segment.
-    LedSegment,
 }
 
 /// Number of face images.
 #[cfg(test)]
-pub const FACE_COUNT: usize = 4 * BODY_COLORS as usize + 7;
+pub const FACE_COUNT: usize = 4 * BODY_COLORS as usize + 6;
 
 impl Face {
     /// Every face, in the order of [`Face::index`].
@@ -196,7 +201,6 @@ impl Face {
                 Face::Cavity,
                 Face::Turntable,
                 Face::Led,
-                Face::LedSegment,
             ])
             .collect()
     }
@@ -216,7 +220,6 @@ impl Face {
             Face::Cavity => 4 * colors + 3,
             Face::Turntable => 4 * colors + 4,
             Face::Led => 4 * colors + 5,
-            Face::LedSegment => 4 * colors + 6,
         }
     }
 
@@ -249,7 +252,6 @@ impl Face {
             Face::DoorEdge => other(Sheet::Door, [320.0, 0.0, 10.0, 10.0], 16, 16),
             Face::Cavity => other(Sheet::Interior, [0.0, 0.0, 128.0, 128.0], 128, 128),
             Face::Turntable => other(Sheet::Interior, [140.0, 0.0, 256.0, 256.0], 256, 256),
-            Face::LedSegment => other(Sheet::Interior, [410.0, 0.0, 10.0, 10.0], 16, 16),
             Face::Led => other(
                 Sheet::Led,
                 [0.0, 0.0, lw, lh],
@@ -292,9 +294,8 @@ pub struct Vertex {
     pub uv: [f32; 2],
     /// Brightness of an unlit part, or 0 for a part lit by the scene light.
     pub emissive: f32,
-    /// 0, or for a segment of the LED clock, its bit in the mask of
-    /// `core::clock` plus 1: drawn only while that bit is set.
-    pub segment: u32,
+    /// 1 on the LED window, whose lit segments the shader draws; 0 elsewhere.
+    pub led: u32,
 }
 
 /// Bytes of one [`Vertex`] in the vertex buffer (nine `f32` and a `u32`).
@@ -312,7 +313,7 @@ impl Vertex {
         {
             out.extend_from_slice(&v.to_ne_bytes());
         }
-        out.extend_from_slice(&self.segment.to_ne_bytes());
+        out.extend_from_slice(&self.led.to_ne_bytes());
     }
 }
 
@@ -395,7 +396,7 @@ impl Builder {
                 normal: [normal.x, normal.y, normal.z],
                 uv,
                 emissive,
-                segment: 0,
+                led: 0,
             });
         }
         self.indices
@@ -502,31 +503,10 @@ fn body(b: &mut Builder, uvs: &[UvRect], color: u8) {
         uv(Face::Led),
         EMIT_LED,
     );
-    // The lit segments, just in front of it: the shader draws each one only
-    // while its bit of the clock mask is set.
-    let [_, _, lw_img, lh_img] = LED_RECT;
-    let to_front = |x: f32, y: f32| {
-        // LED image units to the front plane (the image fills the window).
-        (
-            lx0 + (lx1 - lx0) * x / lw_img,
-            ly1 - (ly1 - ly0) * y / lh_img,
-        )
-    };
-    let z = e.z + LED_OFFSET + LED_SEGMENT_OFFSET;
-    for ([x, y, w, h], bit) in led_segments() {
-        let (x0, y1) = to_front(x, y);
-        let (x1, y0) = to_front(x + w, y + h);
-        let corners = [
-            Vec3::new(x0, y0, z),
-            Vec3::new(x1, y0, z),
-            Vec3::new(x1, y1, z),
-            Vec3::new(x0, y1, z),
-        ];
-        let first = b.vertices.len();
-        b.corners(corners, uv(Face::LedSegment), EMIT_LED);
-        for v in &mut b.vertices[first..] {
-            v.segment = bit + 1;
-        }
+    // The shader lights its segments from the clock mask.
+    let last = b.vertices.len() - 4;
+    for v in &mut b.vertices[last..] {
+        v.led = 1;
     }
 
     // The cavity, with its faces turned inward. Its front edges are the
@@ -598,7 +578,7 @@ fn turntable(b: &mut Builder, uv: UvRect) {
         normal: [0.0, 1.0, 0.0],
         uv,
         emissive: EMIT_TURNTABLE,
-        segment: 0,
+        led: 0,
     };
     b.vertices.push(vertex([0.0, 0.0, 0.0], at(0.5, 0.5)));
     for i in 0..TURNTABLE_SEGMENTS {
@@ -792,11 +772,8 @@ mod tests {
         // show the background through the body without multisampling.
         let m = build(&unit_uvs());
         let range = &m.body[0];
-        // The lit LED segments are decals over the LED quad, not part of the
-        // closed body, so they are left out.
         let tris: Vec<[Vec3; 3]> = m.indices[range.start as usize..range.end as usize]
             .chunks(3)
-            .filter(|t| m.vertices[t[0] as usize].segment == 0)
             .map(|t| {
                 t.iter()
                     .map(|&i| {
@@ -859,22 +836,36 @@ mod tests {
     }
 
     #[test]
-    fn lit_segments_lie_on_the_led_window() {
-        let m = build(&unit_uvs());
-        let e = half_extents();
-        let [lx, ly, lw, lh] = LED_RECT;
-        let (x0, y1) = front_point(lx, ly);
-        let (x1, y0) = front_point(lx + lw, ly + lh);
-        let mut seen = 0;
-        for v in vertices_of(&m, &m.body[0]).filter(|v| v.segment != 0) {
-            let [x, y, z] = v.pos;
-            assert!((x0..=x1).contains(&x) && (y0..=y1).contains(&y), "{v:?}");
-            assert!(z > e.z + LED_OFFSET, "in front of the LED quad: {v:?}");
+    fn only_the_led_window_is_marked_for_the_clock() {
+        let uvs: Vec<UvRect> = (0..FACE_COUNT)
+            .map(|i| UvRect {
+                u0: i as f32,
+                v0: 0.0,
+                u1: i as f32 + 1.0,
+                v1: 1.0,
+            })
+            .collect();
+        let m = build(&uvs);
+        let led = Face::Led.index() as f32;
+        let marked: Vec<&Vertex> = m.vertices.iter().filter(|v| v.led != 0).collect();
+        // One quad per body color, with the LED image on it.
+        assert_eq!(marked.len(), 4 * usize::from(BODY_COLORS));
+        for v in marked {
+            assert_eq!(v.led, 1);
+            assert!((led..=led + 1.0).contains(&v.uv[0]), "{v:?}");
             assert_eq!(v.emissive, EMIT_LED);
-            assert!(v.segment <= clock::PM_BIT + 1);
-            seen += 1;
         }
-        assert_eq!(seen, 6 * led_segments().len());
+    }
+
+    #[test]
+    fn shader_arrays_hold_every_segment() {
+        assert_eq!(led_segments().len(), LED_SEGMENT_COUNT);
+        let shader = include_str!("mesh.wgsl");
+        let decl = format!("array<vec4<f32>, {LED_SEGMENT_COUNT}>");
+        assert!(shader.contains(&decl), "mesh.wgsl declares {decl}");
+        let bits = format!("array<vec4<u32>, {}>", LED_SEGMENT_COUNT.div_ceil(4));
+        assert!(shader.contains(&bits), "mesh.wgsl declares {bits}");
+        assert_eq!(LED_SIZE, [48.0, 22.0]);
     }
 
     #[test]
@@ -912,7 +903,6 @@ mod tests {
                 Face::Side(color),
                 Face::Plain(color),
                 Face::Led,
-                Face::LedSegment,
                 Face::Cavity,
             ]
             .map(|f| f.index() as f32);

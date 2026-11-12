@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="22" viewBox="0 0 48 22">
-  <!-- LED window with every segment unlit (seven segments for 4 digits, the colon and the PM dot at the lower left), drawn with rectangles only (no text). The lit segments are drawn over it by the renderer (crates/app/src/model.rs, LED_SEGMENTS). -->
+  <!-- LED window with every segment unlit (seven segments for 4 digits, the colon and the PM dot at the lower left), drawn with rectangles only (no text). The renderer lights the segments over it (crates/app/src/model.rs, led_segments). -->
   <rect width="48" height="22" fill="#06110f"/>
   <rect x="4" y="4" width="6" height="2" fill="#5ee7df" opacity="0.08"/>
   <rect x="9" y="6" width="2" height="5" fill="#5ee7df" opacity="0.08"/>

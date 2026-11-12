@@ -7,9 +7,9 @@
 // The atlas holds premultiplied alpha. Three passes, all on the same depth
 // buffer:
 // - solid (body, cavity, turntable, LED): their images are opaque to the
-//   edges, so the texel alpha is not tested, which keeps edges whole. Only
-//   the lit LED segments are discarded, while their bit of the clock mask
-//   is clear.
+//   edges, so the texel alpha is not tested; nothing is discarded, which
+//   keeps edges whole and lets the early depth test work. On the LED window
+//   the shader lights the segments of the clock mask.
 // - cutout (door): keeps only fully opaque texels and writes depth.
 // - glass (door): keeps only translucent texels (the window), blends them
 //   and does not write depth.
@@ -22,6 +22,17 @@ struct Globals {
     params: vec4<f32>,
     // x: the lit segments of the LED clock (core::clock::led_mask).
     led: vec4<u32>,
+    // The cell of the LED image in the atlas: u0, v0, u1, v1.
+    led_uv: vec4<f32>,
+    // xy: size of the LED image in its own units.
+    led_size: vec4<f32>,
+    // rgb: color of a lit segment.
+    led_color: vec4<f32>,
+    // Each LED segment: left, top, width and height on the LED image
+    // (crates/app/src/model.rs, led_segments).
+    led_rects: array<vec4<f32>, 31>,
+    // The bit of each segment in `led.x`, four to a vector.
+    led_bits: array<vec4<u32>, 8>,
 }
 
 @group(0) @binding(0) var<uniform> globals: Globals;
@@ -37,8 +48,8 @@ struct VertexInput {
     @location(5) model1: vec4<f32>,
     @location(6) model2: vec4<f32>,
     @location(7) model3: vec4<f32>,
-    // 0, or the bit of an LED segment in `globals.led.x` plus 1.
-    @location(8) segment: u32,
+    // 1 on the LED window, 0 elsewhere.
+    @location(8) led: u32,
 }
 
 struct VertexOutput {
@@ -46,7 +57,7 @@ struct VertexOutput {
     @location(0) normal: vec3<f32>,
     @location(1) uv: vec2<f32>,
     @location(2) emissive: f32,
-    @location(3) @interpolate(flat) segment: u32,
+    @location(3) @interpolate(flat) led: u32,
 }
 
 @vertex
@@ -60,7 +71,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.normal = (model * vec4<f32>(in.normal, 0.0)).xyz;
     out.uv = in.uv;
     out.emissive = in.emissive;
-    out.segment = in.segment;
+    out.led = in.led;
     return out;
 }
 
@@ -75,15 +86,38 @@ fn shade(in: VertexOutput) -> vec4<f32> {
     return vec4<f32>(texel.rgb * k, texel.a);
 }
 
+// How much of the pixel at `p` (LED image units, `px` units per pixel)
+// the rectangle `r` (left, top, width, height) covers, with the edges
+// smoothed over one pixel, so that thin segments of a far LED fade instead
+// of breaking up (plan 0005, D-16).
+fn coverage(p: vec2<f32>, px: vec2<f32>, r: vec4<f32>) -> f32 {
+    let lo = clamp((p - r.xy) / px + 0.5, vec2<f32>(0.0), vec2<f32>(1.0));
+    let hi = clamp((r.xy + r.zw - p) / px + 0.5, vec2<f32>(0.0), vec2<f32>(1.0));
+    let c = lo * hi;
+    return c.x * c.y;
+}
+
 @fragment
 fn fs_solid(in: VertexOutput) -> @location(0) vec4<f32> {
     let color = shade(in);
-    // An LED segment is drawn only while its bit is set; the unlit segment
-    // of the LED image shows through otherwise.
-    if (in.segment > 0u && ((globals.led.x >> (in.segment - 1u)) & 1u) == 0u) {
-        discard;
+    // The position on the LED image and its size per pixel. Computed for
+    // every fragment, so the derivatives stay in uniform control flow.
+    let p = (in.uv - globals.led_uv.xy) / (globals.led_uv.zw - globals.led_uv.xy)
+        * globals.led_size.xy;
+    let px = max(fwidth(p), vec2<f32>(1e-4));
+    if (in.led == 0u) {
+        return vec4<f32>(color.rgb, 1.0);
     }
-    return vec4<f32>(color.rgb, 1.0);
+    // The LED window: light the segments whose bit is set over the image,
+    // which shows every segment unlit.
+    var lit = 0.0;
+    for (var i = 0u; i < 31u; i++) {
+        let bit = globals.led_bits[i / 4u][i % 4u];
+        if (((globals.led.x >> bit) & 1u) == 1u) {
+            lit = max(lit, coverage(p, px, globals.led_rects[i]));
+        }
+    }
+    return vec4<f32>(mix(color.rgb, globals.led_color.rgb, lit), 1.0);
 }
 
 @fragment

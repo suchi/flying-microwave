@@ -142,9 +142,11 @@ fn checked<T>(
 
 /// Depth buffer format.
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-/// Bytes of the per-surface uniforms: the projection, the light and its
-/// strengths, and the lit segments of the LED clock.
-const GLOBALS_BYTES: u64 = 112;
+/// Bytes of the per-surface uniforms (`Globals` in `mesh.wgsl`): the
+/// projection, the light and its strengths, the lit segments of the LED
+/// clock, and where the LED image and its segments are.
+const GLOBALS_BYTES: u64 =
+    160 + 16 * model::LED_SEGMENT_COUNT as u64 + 16 * model::LED_SEGMENT_COUNT.div_ceil(4) as u64;
 /// Offset of the LED mask in the uniforms.
 const LED_OFFSET: u64 = 96;
 /// Anisotropic filtering where the adapter supports it (plan 0005, D-13).
@@ -163,6 +165,8 @@ struct Scene {
     body: [Range<u32>; BODY_COLORS as usize],
     door: Range<u32>,
     turntable: Range<u32>,
+    /// The cell of the LED image in the atlas.
+    led_uv: model::UvRect,
 }
 
 impl Gpu {
@@ -354,6 +358,7 @@ impl Scene {
                 body: meshes.body.clone(),
                 door: meshes.door.clone(),
                 turntable: meshes.turntable.clone(),
+                led_uv: atlas.uvs[model::Face::Led.index()],
             })
         })?;
         log!(
@@ -384,6 +389,8 @@ struct Meshes {
     bytes: Vec<u8>,
     /// The LED mask last written to the uniforms.
     led: u32,
+    /// The cell of the LED image in the atlas.
+    led_uv: model::UvRect,
 }
 
 impl Meshes {
@@ -482,6 +489,7 @@ impl Meshes {
                 instances: instance_buffer(device, INITIAL_FLYERS),
                 bytes: Vec::new(),
                 led: 0,
+                led_uv: scene.led_uv,
             })
         })?;
         meshes.write_globals(gpu, config.width, config.height);
@@ -517,6 +525,21 @@ impl Meshes {
         for v in [self.led, 0, 0, 0] {
             bytes.extend_from_slice(&v.to_ne_bytes());
         }
+        let uv = self.led_uv;
+        let [w, h] = model::LED_SIZE;
+        let [r, g, b] = model::LED_LIT_RGB.map(|c| f32::from(c) / 255.0);
+        let mut floats = vec![uv.u0, uv.v0, uv.u1, uv.v1, w, h, 0.0, 0.0, r, g, b, 1.0];
+        let segments = model::led_segments();
+        floats.extend(segments.iter().flat_map(|(rect, _)| *rect));
+        for v in floats {
+            bytes.extend_from_slice(&v.to_ne_bytes());
+        }
+        let mut bits: Vec<u32> = segments.iter().map(|&(_, bit)| bit).collect();
+        bits.resize(4 * model::LED_SEGMENT_COUNT.div_ceil(4), 0);
+        for v in bits {
+            bytes.extend_from_slice(&v.to_ne_bytes());
+        }
+        debug_assert_eq!(bytes.len() as u64, GLOBALS_BYTES);
         gpu.queue.write_buffer(&self.globals, 0, &bytes);
     }
 
