@@ -860,11 +860,22 @@ mod tests {
     #[test]
     fn shader_arrays_hold_every_segment() {
         assert_eq!(led_segments().len(), LED_SEGMENT_COUNT);
+        // The arrays and the loop of the shader use these constants.
         let shader = include_str!("mesh.wgsl");
-        let decl = format!("array<vec4<f32>, {LED_SEGMENT_COUNT}>");
-        assert!(shader.contains(&decl), "mesh.wgsl declares {decl}");
-        let bits = format!("array<vec4<u32>, {}>", LED_SEGMENT_COUNT.div_ceil(4));
-        assert!(shader.contains(&bits), "mesh.wgsl declares {bits}");
+        let count = format!("const LED_SEGMENTS: u32 = {LED_SEGMENT_COUNT}u;");
+        assert!(shader.contains(&count), "mesh.wgsl declares {count}");
+        let vectors = format!(
+            "const LED_BIT_VECTORS: u32 = {}u;",
+            LED_SEGMENT_COUNT.div_ceil(4)
+        );
+        assert!(shader.contains(&vectors), "mesh.wgsl declares {vectors}");
+        for used in [
+            "array<vec4<f32>, LED_SEGMENTS>",
+            "array<vec4<u32>, LED_BIT_VECTORS>",
+            "i < LED_SEGMENTS;",
+        ] {
+            assert!(shader.contains(used), "mesh.wgsl uses {used}");
+        }
         assert_eq!(LED_SIZE, [48.0, 22.0]);
     }
 

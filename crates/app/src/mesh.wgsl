@@ -14,6 +14,11 @@
 // - glass (door): keeps only translucent texels (the window), blends them
 //   and does not write depth.
 
+// Number of LED segments (crates/app/src/model.rs, LED_SEGMENT_COUNT) and
+// of the vectors that hold their bits, four to a vector.
+const LED_SEGMENTS: u32 = 31u;
+const LED_BIT_VECTORS: u32 = 8u;
+
 struct Globals {
     view_proj: mat4x4<f32>,
     // xyz: unit vector toward the light, in view space.
@@ -30,9 +35,9 @@ struct Globals {
     led_color: vec4<f32>,
     // Each LED segment: left, top, width and height on the LED image
     // (crates/app/src/model.rs, led_segments).
-    led_rects: array<vec4<f32>, 31>,
+    led_rects: array<vec4<f32>, LED_SEGMENTS>,
     // The bit of each segment in `led.x`, four to a vector.
-    led_bits: array<vec4<u32>, 8>,
+    led_bits: array<vec4<u32>, LED_BIT_VECTORS>,
 }
 
 @group(0) @binding(0) var<uniform> globals: Globals;
@@ -87,14 +92,14 @@ fn shade(in: VertexOutput) -> vec4<f32> {
 }
 
 // How much of the pixel at `p` (LED image units, `px` units per pixel)
-// the rectangle `r` (left, top, width, height) covers, with the edges
-// smoothed over one pixel, so that thin segments of a far LED fade instead
-// of breaking up (plan 0005, D-16).
+// the rectangle `r` (left, top, width, height) covers: the overlap of a
+// one-pixel box around `p` with the rectangle, so that the edges are smooth
+// and thin segments of a far LED fade instead of breaking up (plan 0005,
+// D-16).
 fn coverage(p: vec2<f32>, px: vec2<f32>, r: vec4<f32>) -> f32 {
-    let lo = clamp((p - r.xy) / px + 0.5, vec2<f32>(0.0), vec2<f32>(1.0));
-    let hi = clamp((r.xy + r.zw - p) / px + 0.5, vec2<f32>(0.0), vec2<f32>(1.0));
-    let c = lo * hi;
-    return c.x * c.y;
+    let overlap = min(p + 0.5 * px, r.xy + r.zw) - max(p - 0.5 * px, r.xy);
+    let a = clamp(overlap / px, vec2<f32>(0.0), vec2<f32>(1.0));
+    return a.x * a.y;
 }
 
 @fragment
@@ -111,7 +116,7 @@ fn fs_solid(in: VertexOutput) -> @location(0) vec4<f32> {
     // The LED window: light the segments whose bit is set over the image,
     // which shows every segment unlit.
     var lit = 0.0;
-    for (var i = 0u; i < 31u; i++) {
+    for (var i = 0u; i < LED_SEGMENTS; i++) {
         let bit = globals.led_bits[i / 4u][i % 4u];
         if (((globals.led.x >> bit) & 1u) == 1u) {
             lit = max(lit, coverage(p, px, globals.led_rects[i]));
