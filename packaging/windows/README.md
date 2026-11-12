@@ -31,7 +31,7 @@ Flying Microwave は、電子レンジが画面を飛び回る Windows 用のス
 スクリーン セーバーの設定を開き、FlyingMicrowave を選んで [設定] をクリックすると、設定画面が開きます。
 
 - Flight: 電子レンジの数(Number of microwaves)、速さ(Speed)、大きさ(Size)、飛び方(Flight style。Tumbling では、それぞれ違う向きで回転しながら飛び、Level では、すべて同じ向きで飛びます)。
-- Display: フレームレートの上限(Frame rate limit)、表示するモニター(Monitors。Primary only では、ほかのモニターは黒で覆います)、マウスの感度(Mouse sensitivity。終わらせるのに必要なマウスの移動の量)。
+- Display: フレームレートの上限(Frame rate limit)、表示するモニター(Monitors。Primary only では、ほかのモニターは黒で覆います)、マウスの感度(Mouse sensitivity。終わらせるのに必要なマウスの移動の量)、時計の表示(Show clock on display)と形式(Clock format。24-hour または 12-hour。12-hour では、午後は左下の点が光ります)。
 - About: 版、ライセンス、プロジェクトの URL、依存しているライブラリのライセンス表記。
 
 [OK] で保存し、[Cancel] で変更を捨てます。[Defaults] で既定値に戻します。設定は `%APPDATA%\FlyingMicrowave\config.toml` に保存され、次にスクリーン セーバーが起動したときから使われます。
@@ -96,7 +96,7 @@ In Screen Saver Settings, the screen saver is listed as "FlyingMicrowave" (the n
 Open Screen Saver Settings, select FlyingMicrowave, and click Settings to open the settings dialog.
 
 - Flight: the number of microwaves, their speed, their size, and the flight style (with "Tumbling", each one tumbles in its own way; with "Level", all of them face the same way).
-- Display: the frame rate limit, the monitors to use (with "Primary only", the other monitors are covered in black), and the mouse sensitivity (how far the mouse must move to end the screen saver).
+- Display: the frame rate limit, the monitors to use (with "Primary only", the other monitors are covered in black), the mouse sensitivity (how far the mouse must move to end the screen saver), and the clock on the microwaves (Show clock on display, and Clock format: 24-hour or 12-hour; with 12-hour, the dot at the lower left lights in the afternoon).
 - About: the version, the license, the project URL, and the license notices of the libraries it depends on.
 
 Click OK to save, or Cancel to discard your changes. Defaults restores the default values. The settings are saved to `%APPDATA%\FlyingMicrowave\config.toml` and are used from the next time the screen saver starts.
