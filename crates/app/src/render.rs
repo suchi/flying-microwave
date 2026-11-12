@@ -1,10 +1,10 @@
 //! wgpu setup and the 3D renderer (ADR-0026).
 //!
 //! Each frame clears the surface to the background color and the depth
-//! buffer, draws every body and turntable (opaque images, no alpha test)
-//! and the opaque texels of every door with depth, and then the translucent
-//! door glass back to front without writing depth ([`crate::model`],
-//! `mesh.wgsl`). The face images are
+//! buffer, draws every body, turntable and food (opaque images, no alpha
+//! test) and the opaque texels of every door with depth, and then the
+//! translucent door glass back to front without writing depth
+//! ([`crate::model`], `mesh.wgsl`). The face images are
 //! rasterized from the SVG assets into one atlas with mipmaps when the first
 //! surface is set up; the atlas and the meshes are shared by every window
 //! (plan 0005, D-13). Nothing is rasterized per frame.
@@ -24,7 +24,7 @@ use std::ops::Range;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use flying_microwave_core::flight::{self, FlyerInstance};
+use flying_microwave_core::flight::{self, FlyerInstance, Food, Kind};
 use flying_microwave_core::sim::BODY_COLORS;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
@@ -165,6 +165,8 @@ struct Scene {
     body: [Range<u32>; BODY_COLORS as usize],
     door: Range<u32>,
     turntable: Range<u32>,
+    /// The food, in the order of `Food::ALL`.
+    food: [Range<u32>; Food::ALL.len()],
     /// The cell of the LED image in the atlas.
     led_uv: model::UvRect,
 }
@@ -358,6 +360,7 @@ impl Scene {
                 body: meshes.body.clone(),
                 door: meshes.door.clone(),
                 turntable: meshes.turntable.clone(),
+                food: meshes.food.clone(),
                 led_uv: atlas.uvs[model::Face::Led.index()],
             })
         })?;
@@ -376,7 +379,7 @@ impl Scene {
 /// What one surface draws the scene with: the pipelines for its format, its
 /// depth buffer, its uniforms and its instance buffer.
 struct Meshes {
-    /// Body and turntable: opaque images, no alpha test.
+    /// Body, turntable and food: opaque images, no alpha test.
     solid: wgpu::RenderPipeline,
     /// Door: the opaque texels.
     cutout: wgpu::RenderPipeline,
@@ -578,14 +581,25 @@ impl Meshes {
         pass.set_pipeline(&self.solid);
         for (i, f) in flyers.iter().enumerate() {
             let base = 3 * i as u32;
-            let body = scene.body[usize::from(f.color) % scene.body.len()].clone();
-            pass.draw_indexed(body, 0, base..base + 1);
-            pass.draw_indexed(scene.turntable.clone(), 0, base + 2..base + 3);
+            match f.kind {
+                Kind::Microwave => {
+                    let body = scene.body[usize::from(f.color) % scene.body.len()].clone();
+                    pass.draw_indexed(body, 0, base..base + 1);
+                    pass.draw_indexed(scene.turntable.clone(), 0, base + 2..base + 3);
+                }
+                // Food is drawn with the body matrix; it has no door and no
+                // turntable (plan 0005, D-17).
+                Kind::Food(food) => {
+                    pass.draw_indexed(scene.food[food as usize].clone(), 0, base..base + 1);
+                }
+            }
         }
         pass.set_pipeline(&self.cutout);
-        for i in 0..flyers.len() {
-            let base = 3 * i as u32;
-            pass.draw_indexed(scene.door.clone(), 0, base + 1..base + 2);
+        for (i, f) in flyers.iter().enumerate() {
+            if f.kind == Kind::Microwave {
+                let base = 3 * i as u32;
+                pass.draw_indexed(scene.door.clone(), 0, base + 1..base + 2);
+            }
         }
         pass.set_pipeline(&self.glass);
         for i in model::glass_order(flyers) {
