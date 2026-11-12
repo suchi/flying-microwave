@@ -26,7 +26,8 @@ use eframe::egui::{
 };
 use flying_microwave_core::clock::ClockFormat;
 use flying_microwave_core::config::{
-    self, COUNT_RANGE, Config, ExitSensitivity, MaxFps, Monitors, SCALE_RANGE, SPEED_RANGE,
+    self, COUNT_RANGE, Config, ExitSensitivity, FOOD_COUNT_RANGE, MaxFps, Monitors, SCALE_RANGE,
+    SPEED_RANGE,
 };
 use flying_microwave_core::flight::Style;
 use windows_sys::Win32::Foundation::HWND;
@@ -562,6 +563,9 @@ impl SettingsApp {
         row(ui, "Number of microwaves", None, |ui| {
             ui.add(Slider::new(&mut flight.count, COUNT_RANGE));
         });
+        row(ui, "Number of food items", None, |ui| {
+            ui.add(Slider::new(&mut flight.food_count, FOOD_COUNT_RANGE));
+        });
         row(ui, "Speed", None, |ui| {
             ui.add(multiplier(&mut flight.speed, SPEED_RANGE));
         });
@@ -571,7 +575,7 @@ impl SettingsApp {
         row(
             ui,
             "Flight style",
-            Some("With \"Level\", all microwaves face the same way."),
+            Some("With \"Level\", the microwaves and the food all face the same way."),
             |ui| {
                 ui.spacing_mut().item_spacing.x = 18.0;
                 ui.radio_value(&mut flight.style, Style::Tumbling, "Tumbling");
