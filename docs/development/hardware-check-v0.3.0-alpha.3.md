@@ -73,4 +73,4 @@
 
 ## Z. ログ
 
-- Z-1. 次のファイルを送ってください: `%TEMP%\flying-microwave.log`。起動の速さ(N-01)は、このログの起動の行(`Flying Microwave 0.3.0-alpha.3 started`。`crates/app/src/main.rs`の65行目)から、ウィンドウごとの`first frame presented`の行(`crates/app/src/saver.rs`の861行目)までの時間で、エージェントが読みます。
+- Z-1. 次のファイルを送ってください: `%TEMP%\flying-microwave.log`。起動の速さ(N-01)は、このログの起動の行(`Flying Microwave 0.3.0-alpha.3 started`。`crates/app/src/main.rs`の`run`)から、ウィンドウごとの`first frame presented`の行(`crates/app/src/saver.rs`の`try_draw`)までの時間で、エージェントが読みます。
