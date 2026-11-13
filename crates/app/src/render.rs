@@ -648,12 +648,14 @@ pub struct Target {
     timings: Timings,
 }
 
-/// How long one `Target::draw` waited for the surface texture and took to
-/// present (incident 0028: input waits while the event loop is in these).
+/// How long one `Target::draw` waited for the surface texture, took to
+/// present and took in all, reconfiguring and submitting included
+/// (incident 0028: input waits while the event loop is in a draw).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Timings {
     pub wait: Duration,
     pub present: Duration,
+    pub total: Duration,
 }
 
 impl Target {
@@ -731,8 +733,8 @@ impl Target {
         })
     }
 
-    /// How long the last `draw` waited for the surface texture and took to
-    /// present (zero when it did not present).
+    /// How long the last `draw` waited for the surface texture, took to
+    /// present (zero when it did not present) and took in all.
     pub fn timings(&self) -> Timings {
         self.timings
     }
@@ -759,13 +761,21 @@ impl Target {
     /// Draws one frame, with the segments of the LED clocks in `led`
     /// (`core::clock::led_mask`). Returns why the frame was skipped, if it was.
     pub fn draw(&mut self, gpu: &Gpu, flyers: &[FlyerInstance], led: u32) -> Frame {
+        let started = Instant::now();
+        let frame = self.draw_timed(gpu, flyers, led);
+        self.timings.total = started.elapsed();
+        frame
+    }
+
+    /// `draw` without the total time; sets the wait and present times.
+    fn draw_timed(&mut self, gpu: &Gpu, flyers: &[FlyerInstance], led: u32) -> Frame {
         use wgpu::CurrentSurfaceTexture as Acquired;
 
         let waited = Instant::now();
         let acquired = self.surface.get_current_texture();
         self.timings = Timings {
             wait: waited.elapsed(),
-            present: Duration::ZERO,
+            ..Timings::default()
         };
         let (texture, suboptimal) = match acquired {
             Acquired::Success(texture) => (texture, false),

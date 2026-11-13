@@ -33,10 +33,12 @@ pub struct FrameStats {
     timeout: u64,
     occluded: u64,
     validation: u64,
-    /// The longest wait for the surface texture, and the longest present
-    /// (incident 0028: the log has no line for the later frames).
+    /// The longest wait for the surface texture, the longest present and
+    /// the longest whole draw (incident 0028: the log has no line for the
+    /// later frames).
     longest_wait: Duration,
     longest_present: Duration,
+    longest_draw: Duration,
 }
 
 impl FrameStats {
@@ -62,11 +64,12 @@ impl FrameStats {
         self.blank += 1;
     }
 
-    /// Records how long one draw waited for the surface texture and took
-    /// to present, keeping the longest of each.
-    pub fn timed(&mut self, wait: Duration, present: Duration) {
+    /// Records how long one draw waited for the surface texture, took to
+    /// present and took in all, keeping the longest of each.
+    pub fn timed(&mut self, wait: Duration, present: Duration, draw: Duration) {
         self.longest_wait = self.longest_wait.max(wait);
         self.longest_present = self.longest_present.max(present);
+        self.longest_draw = self.longest_draw.max(draw);
     }
 
     /// Records a skipped frame. Returns how many frames were skipped for
@@ -92,7 +95,7 @@ impl FrameStats {
         format!(
             "window {index}: {} draws attempted, {} frames, {} paced, {} blank, \
              {} skipped (Outdated {}, Lost {}, Timeout {}, Occluded {}, Validation {}); \
-             longest surface wait {} ms, longest present {} ms",
+             longest surface wait {} ms, longest present {} ms, longest draw {} ms",
             self.attempts,
             self.frames,
             self.paced,
@@ -104,7 +107,8 @@ impl FrameStats {
             self.occluded,
             self.validation,
             self.longest_wait.as_millis(),
-            self.longest_present.as_millis()
+            self.longest_present.as_millis(),
+            self.longest_draw.as_millis()
         )
     }
 }
@@ -140,7 +144,7 @@ mod tests {
             FrameStats::default().summary(2),
             "window 2: 0 draws attempted, 0 frames, 0 paced, 0 blank, \
              0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0); \
-             longest surface wait 0 ms, longest present 0 ms"
+             longest surface wait 0 ms, longest present 0 ms, longest draw 0 ms"
         );
     }
 
@@ -159,12 +163,16 @@ mod tests {
         s.skipped(Skip::Occluded);
         s.skipped(Skip::Occluded);
         s.skipped(Skip::Validation);
-        s.timed(Duration::from_millis(12), Duration::from_millis(3));
+        s.timed(
+            Duration::from_millis(12),
+            Duration::from_millis(3),
+            Duration::from_millis(20),
+        );
         assert_eq!(
             s.summary(0),
             "window 0: 9 draws attempted, 2 frames, 1 paced, 2 blank, \
              4 skipped (Outdated 1, Lost 0, Timeout 0, Occluded 2, Validation 1); \
-             longest surface wait 12 ms, longest present 3 ms"
+             longest surface wait 12 ms, longest present 3 ms, longest draw 20 ms"
         );
     }
 
@@ -174,12 +182,13 @@ mod tests {
         // first few attempts, so the summary keeps the longest of each.
         let mut s = FrameStats::default();
         let ms = Duration::from_millis;
-        s.timed(ms(5), ms(40));
-        s.timed(ms(700), ms(2));
-        s.timed(ms(30), ms(9));
+        s.timed(ms(5), ms(40), ms(60));
+        s.timed(ms(700), ms(2), ms(705));
+        s.timed(ms(30), ms(9), ms(900));
         assert!(
-            s.summary(0)
-                .ends_with("; longest surface wait 700 ms, longest present 40 ms"),
+            s.summary(0).ends_with(
+                "; longest surface wait 700 ms, longest present 40 ms, longest draw 900 ms"
+            ),
             "{}",
             s.summary(0)
         );

@@ -846,7 +846,7 @@ impl SaverApp {
         w.last_frame = Some(now);
         let frame = target.draw(gpu, &w.world.instances(), led);
         let timings = target.timings();
-        w.stats.timed(timings.wait, timings.present);
+        w.stats.timed(timings.wait, timings.present, timings.total);
         if let Frame::Skipped(skip) = frame {
             if diag::first_few(w.stats.skipped(skip)) {
                 log!("window {}: frame skipped: {skip:?}", w.index);
