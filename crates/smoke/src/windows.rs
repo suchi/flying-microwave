@@ -388,8 +388,15 @@ fn screensaver_ends_on_input_with(
         let progress = target.progress();
         match progress.summary_of(0) {
             Some(s) if s.frames >= 1 && s.is_consistent() => {
+                // Incident 0028: where the frames wait, shown in every run.
+                let timings = s
+                    .timings
+                    .map(|(wait, present)| {
+                        format!("; longest surface wait {wait} ms, longest present {present} ms")
+                    })
+                    .unwrap_or_default();
                 println!(
-                    "  window 0: {} draws attempted, {} frames, {} paced, {} blank, {} skipped",
+                    "  window 0: {} draws attempted, {} frames, {} paced, {} blank, {} skipped{timings}",
                     s.attempts, s.frames, s.paced, s.blank, s.skipped
                 );
             }
