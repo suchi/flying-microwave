@@ -644,6 +644,18 @@ pub struct Target {
     /// None when the scene or the pipelines could not be made: only the
     /// background is drawn.
     meshes: Option<Meshes>,
+    /// How long the last `draw` took at its blocking calls.
+    timings: Timings,
+}
+
+/// How long one `Target::draw` waited for the surface texture, took to
+/// present and took in all, reconfiguring and submitting included
+/// (incident 0028: input waits while the event loop is in a draw).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Timings {
+    pub wait: Duration,
+    pub present: Duration,
+    pub total: Duration,
 }
 
 impl Target {
@@ -717,7 +729,14 @@ impl Target {
             surface,
             config,
             meshes,
+            timings: Timings::default(),
         })
+    }
+
+    /// How long the last `draw` waited for the surface texture, took to
+    /// present (zero when it did not present) and took in all.
+    pub fn timings(&self) -> Timings {
+        self.timings
     }
 
     /// Reconfigures the surface for a new window size (ignored while it is zero).
@@ -742,9 +761,23 @@ impl Target {
     /// Draws one frame, with the segments of the LED clocks in `led`
     /// (`core::clock::led_mask`). Returns why the frame was skipped, if it was.
     pub fn draw(&mut self, gpu: &Gpu, flyers: &[FlyerInstance], led: u32) -> Frame {
+        let started = Instant::now();
+        let frame = self.draw_timed(gpu, flyers, led);
+        self.timings.total = started.elapsed();
+        frame
+    }
+
+    /// `draw` without the total time; sets the wait and present times.
+    fn draw_timed(&mut self, gpu: &Gpu, flyers: &[FlyerInstance], led: u32) -> Frame {
         use wgpu::CurrentSurfaceTexture as Acquired;
 
-        let (texture, suboptimal) = match self.surface.get_current_texture() {
+        let waited = Instant::now();
+        let acquired = self.surface.get_current_texture();
+        self.timings = Timings {
+            wait: waited.elapsed(),
+            ..Timings::default()
+        };
+        let (texture, suboptimal) = match acquired {
             Acquired::Success(texture) => (texture, false),
             // Usable now; reconfigured after presenting (wgpu panics if the
             // surface is configured while a surface texture is alive).
@@ -814,7 +847,9 @@ impl Target {
         }
         gpu.queue.submit([encoder.finish()]);
         drop(view);
+        let presenting = Instant::now();
         gpu.queue.present(texture);
+        self.timings.present = presenting.elapsed();
         if suboptimal {
             self.surface.configure(&gpu.device, &self.config);
         }

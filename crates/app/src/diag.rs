@@ -1,5 +1,7 @@
 //! Helpers for the frame diagnostics in the screensaver log.
 
+use std::time::Duration;
+
 /// How many events of each kind are logged per window.
 const LOGGED: u64 = 3;
 
@@ -31,6 +33,12 @@ pub struct FrameStats {
     timeout: u64,
     occluded: u64,
     validation: u64,
+    /// The longest wait for the surface texture, the longest present and
+    /// the longest whole draw (incident 0028: the log has no line for the
+    /// later frames).
+    longest_wait: Duration,
+    longest_present: Duration,
+    longest_draw: Duration,
 }
 
 impl FrameStats {
@@ -56,6 +64,20 @@ impl FrameStats {
         self.blank += 1;
     }
 
+    /// Records how long one draw waited for the surface texture, took to
+    /// present and took in all, keeping the longest of each. Draws of the
+    /// attempts that the log already shows with their times (`first_few`)
+    /// are left out, so that the values are those of the later draws, which
+    /// the log does not show (plan 0005, D-19).
+    pub fn timed(&mut self, wait: Duration, present: Duration, draw: Duration) {
+        if first_few(self.attempts) {
+            return;
+        }
+        self.longest_wait = self.longest_wait.max(wait);
+        self.longest_present = self.longest_present.max(present);
+        self.longest_draw = self.longest_draw.max(draw);
+    }
+
     /// Records a skipped frame. Returns how many frames were skipped for
     /// this reason, so that each reason is logged on its own.
     pub fn skipped(&mut self, skip: Skip) -> u64 {
@@ -78,7 +100,8 @@ impl FrameStats {
     pub fn summary(&self, index: usize) -> String {
         format!(
             "window {index}: {} draws attempted, {} frames, {} paced, {} blank, \
-             {} skipped (Outdated {}, Lost {}, Timeout {}, Occluded {}, Validation {})",
+             {} skipped (Outdated {}, Lost {}, Timeout {}, Occluded {}, Validation {}); \
+             longest surface wait {} ms, longest present {} ms, longest draw {} ms",
             self.attempts,
             self.frames,
             self.paced,
@@ -88,13 +111,18 @@ impl FrameStats {
             self.lost,
             self.timeout,
             self.occluded,
-            self.validation
+            self.validation,
+            self.longest_wait.as_millis(),
+            self.longest_present.as_millis(),
+            self.longest_draw.as_millis()
         )
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
 
     #[test]
@@ -121,7 +149,8 @@ mod tests {
         assert_eq!(
             FrameStats::default().summary(2),
             "window 2: 0 draws attempted, 0 frames, 0 paced, 0 blank, \
-             0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0)"
+             0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0); \
+             longest surface wait 0 ms, longest present 0 ms, longest draw 0 ms"
         );
     }
 
@@ -140,10 +169,61 @@ mod tests {
         s.skipped(Skip::Occluded);
         s.skipped(Skip::Occluded);
         s.skipped(Skip::Validation);
+        s.timed(
+            Duration::from_millis(12),
+            Duration::from_millis(3),
+            Duration::from_millis(20),
+        );
         assert_eq!(
             s.summary(0),
             "window 0: 9 draws attempted, 2 frames, 1 paced, 2 blank, \
-             4 skipped (Outdated 1, Lost 0, Timeout 0, Occluded 2, Validation 1)"
+             4 skipped (Outdated 1, Lost 0, Timeout 0, Occluded 2, Validation 1); \
+             longest surface wait 12 ms, longest present 3 ms, longest draw 20 ms"
+        );
+    }
+
+    #[test]
+    fn the_logged_attempts_are_left_out_of_the_longest() {
+        // The first few attempts are in the log with their times; the
+        // longest values are for the later ones, which are not.
+        let mut s = FrameStats::default();
+        let ms = Duration::from_millis;
+        for _ in 0..LOGGED {
+            s.attempted();
+            s.timed(ms(900), ms(900), ms(900));
+        }
+        assert!(
+            s.summary(0)
+                .ends_with("; longest surface wait 0 ms, longest present 0 ms, longest draw 0 ms"),
+            "{}",
+            s.summary(0)
+        );
+        s.attempted();
+        s.timed(ms(40), ms(2), ms(45));
+        assert!(
+            s.summary(0).ends_with(
+                "; longest surface wait 40 ms, longest present 2 ms, longest draw 45 ms"
+            ),
+            "{}",
+            s.summary(0)
+        );
+    }
+
+    #[test]
+    fn the_longest_wait_and_present_are_kept_apart() {
+        // Incident 0028: where a frame waits is not in the log after the
+        // first few attempts, so the summary keeps the longest of each.
+        let mut s = FrameStats::default();
+        let ms = Duration::from_millis;
+        s.timed(ms(5), ms(40), ms(60));
+        s.timed(ms(700), ms(2), ms(705));
+        s.timed(ms(30), ms(9), ms(900));
+        assert!(
+            s.summary(0).ends_with(
+                "; longest surface wait 700 ms, longest present 40 ms, longest draw 900 ms"
+            ),
+            "{}",
+            s.summary(0)
         );
     }
 

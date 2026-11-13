@@ -40,6 +40,10 @@ pub struct WindowSummary {
     pub paced: u64,
     pub blank: u64,
     pub skipped: u64,
+    /// The longest wait for the surface texture, the longest present and
+    /// the longest whole draw, in ms, when the line has them (only products
+    /// that write them; incident 0028).
+    pub timings: Option<(u64, u64, u64)>,
 }
 
 impl WindowSummary {
@@ -57,7 +61,19 @@ impl WindowSummary {
         let (frames, rest) = rest.split_once(" frames, ")?;
         let (paced, rest) = rest.split_once(" paced, ")?;
         let (blank, rest) = rest.split_once(" blank, ")?;
-        let (skipped, _) = rest.split_once(" skipped")?;
+        let (skipped, rest) = rest.split_once(" skipped")?;
+        let timings = rest
+            .split_once("; longest surface wait ")
+            .and_then(|(_, rest)| rest.split_once(" ms, longest present "))
+            .and_then(|(wait, rest)| {
+                let (present, rest) = rest.split_once(" ms, longest draw ")?;
+                let draw = rest.strip_suffix(" ms")?;
+                Some((
+                    wait.parse().ok()?,
+                    present.parse().ok()?,
+                    draw.parse().ok()?,
+                ))
+            });
         Some(Self {
             window: window.parse().ok()?,
             attempts: attempts.parse().ok()?,
@@ -65,6 +81,7 @@ impl WindowSummary {
             paced: paced.parse().ok()?,
             blank: blank.parse().ok()?,
             skipped: skipped.parse().ok()?,
+            timings,
         })
     }
 }
@@ -390,13 +407,25 @@ mod tests {
                 frames: 10,
                 paced: 1,
                 blank: 0,
-                skipped: 1
+                skipped: 1,
+                timings: None
             })
         );
         assert!(p.summary_of(0).is_some_and(WindowSummary::is_consistent));
         assert_eq!(p.summary_of(1).map(|s| s.frames), Some(0));
         assert_eq!(p.summary_of(2), None);
         assert_eq!(Progress::read(log, 3).summary_of(0), None);
+    }
+
+    #[test]
+    fn the_summary_line_gives_the_longest_wait_and_present() {
+        // Incident 0028: products that measure them append them to the line.
+        let log = "\
++900ms pid=1 window 0: 5 draws attempted, 4 frames, 1 paced, 0 blank, 0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0); longest surface wait 512 ms, longest present 3 ms, longest draw 530 ms
+";
+        let s = Progress::read(log, 1).summary_of(0).copied();
+        assert_eq!(s.map(|s| s.frames), Some(4));
+        assert_eq!(s.and_then(|s| s.timings), Some((512, 3, 530)));
     }
 
     #[test]
