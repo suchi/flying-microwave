@@ -109,3 +109,4 @@
 | [0024](incidents/0024-unfounded-guess-as-premise.md) | 記録にない過去の事実を、根拠のない推測で補い、異常の記録の前提にしようとした |
 | [0025](incidents/0025-implemented-against-recorded-decision.md) | 記録した決定と違う方式を、確認を取らずに実装した |
 | [0026](incidents/0026-incident-row-placed-in-procedure.md) | incidentの一覧の行を、手順の箇条の間に入れてマージした |
+| [0027](incidents/0027-log-contents-stated-without-reading-code.md) | ログに何が書かれるかを、ログを書くコードを読まずに文書に書いた |
