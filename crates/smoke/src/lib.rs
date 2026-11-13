@@ -41,7 +41,8 @@ pub struct WindowSummary {
     pub blank: u64,
     pub skipped: u64,
     /// The longest wait for the surface texture and the longest present, in
-    /// ms, when the line has them (from v0.3.0-alpha.3; incident 0028).
+    /// ms, when the line has them (only products that write them; incident
+    /// 0028).
     pub timings: Option<(u64, u64)>,
 }
 
@@ -413,7 +414,7 @@ mod tests {
 
     #[test]
     fn the_summary_line_gives_the_longest_wait_and_present() {
-        // Incident 0028: the product appends them from v0.3.0-alpha.3.
+        // Incident 0028: products that measure them append them to the line.
         let log = "\
 +900ms pid=1 window 0: 5 draws attempted, 4 frames, 1 paced, 0 blank, 0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0); longest surface wait 512 ms, longest present 3 ms
 ";
