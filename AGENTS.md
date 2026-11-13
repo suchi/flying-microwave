@@ -73,7 +73,7 @@ Qiita、Zenn、note、AI生成記事、SEO目的の記事は、特定の記事�
 - 一次情報で確認できない場合は、その旨を明記し、確認済みの事実と推測を区別する。
 - 推測は、根拠(確かめた事実)を示せるときだけ書き、その根拠を添える。選択肢の説明で数値の見込み(メモリ、時間など)を示すときは、計算の根拠を添える。計算していない見込みは示さない([docs/incidents/0025](docs/incidents/0025-implemented-against-recorded-decision.md))。記録がなく確かめられないことは「記録がなく分からない」と書き、推測で埋めない。記録がないことを、なかったことの根拠にしない。分からないことや推測を、原因の分析・判断・記録の前提にしない。メンテナーの環境や過去の操作など、メンテナーが知っている事実は、推測せずに尋ねる。尋ねる間も進められる作業は進め、その事実は分からないまま扱う([docs/incidents/0024](docs/incidents/0024-unfounded-guess-as-premise.md))。
 - ログに何が書かれるか・書かれないか、ログから何が分かるか・分からないかを、判断に使うときや、文書・記録・報告に書くときは、そのログを書くコードを読んで確かめ、その箇所(ファイルと関数名か行)を添える。行がないことも、事実として読む([docs/incidents/0014](docs/incidents/0014-second-monitor-not-drawn.md)、[0027](docs/incidents/0027-log-contents-stated-without-reading-code.md))。
-- 文書・記録・報告に、ファイルや文書を出典として書くときは、そのファイルを開いて該当箇所を確かめ、その箇所(節か行)を添える([docs/incidents/0024](docs/incidents/0024-unfounded-guess-as-premise.md))。
+- 文書・記録・報告に、ファイルや文書を出典として書くときは、そのファイルを開いて該当箇所を確かめ、その箇所(節か行)を添える。ファイルに書かれていないことを書くときは、検索したコマンドと範囲(ファイル)を添える([docs/incidents/0024](docs/incidents/0024-unfounded-guess-as-premise.md))。
 
 ## 言語ルール
 
