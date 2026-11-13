@@ -644,6 +644,16 @@ pub struct Target {
     /// None when the scene or the pipelines could not be made: only the
     /// background is drawn.
     meshes: Option<Meshes>,
+    /// How long the last `draw` took at its blocking calls.
+    timings: Timings,
+}
+
+/// How long one `Target::draw` waited for the surface texture and took to
+/// present (incident 0028: input waits while the event loop is in these).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Timings {
+    pub wait: Duration,
+    pub present: Duration,
 }
 
 impl Target {
@@ -717,7 +727,14 @@ impl Target {
             surface,
             config,
             meshes,
+            timings: Timings::default(),
         })
+    }
+
+    /// How long the last `draw` waited for the surface texture and took to
+    /// present (zero when it did not present).
+    pub fn timings(&self) -> Timings {
+        self.timings
     }
 
     /// Reconfigures the surface for a new window size (ignored while it is zero).
@@ -744,7 +761,13 @@ impl Target {
     pub fn draw(&mut self, gpu: &Gpu, flyers: &[FlyerInstance], led: u32) -> Frame {
         use wgpu::CurrentSurfaceTexture as Acquired;
 
-        let (texture, suboptimal) = match self.surface.get_current_texture() {
+        let waited = Instant::now();
+        let acquired = self.surface.get_current_texture();
+        self.timings = Timings {
+            wait: waited.elapsed(),
+            present: Duration::ZERO,
+        };
+        let (texture, suboptimal) = match acquired {
             Acquired::Success(texture) => (texture, false),
             // Usable now; reconfigured after presenting (wgpu panics if the
             // surface is configured while a surface texture is alive).
@@ -814,7 +837,9 @@ impl Target {
         }
         gpu.queue.submit([encoder.finish()]);
         drop(view);
+        let presenting = Instant::now();
         gpu.queue.present(texture);
+        self.timings.present = presenting.elapsed();
         if suboptimal {
             self.surface.configure(&gpu.device, &self.config);
         }
