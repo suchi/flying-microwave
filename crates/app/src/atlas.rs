@@ -26,7 +26,7 @@ pub const MIP_LEVELS: u32 = 5;
 /// filter at the edge of a cell on the cell's own colors at every level.
 /// Anisotropic filtering can reach further along a steep face; how far is
 /// up to the GPU, so the edges of far, steep doors are checked by eye with
-/// `v0.3.0-alpha.2` (plan 0005, task 8).
+/// `v0.3.0-alpha.3` (plan 0005, task 10 and D-18).
 const ALIGN: u32 = 1 << (MIP_LEVELS - 1);
 
 /// A premultiplied RGBA image, 8 bits per channel, rows of `width` pixels.
