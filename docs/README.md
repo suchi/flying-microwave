@@ -111,3 +111,4 @@
 | [0026](incidents/0026-incident-row-placed-in-procedure.md) | incidentの一覧の行を、手順の箇条の間に入れてマージした |
 | [0027](incidents/0027-log-contents-stated-without-reading-code.md) | ログに何が書かれるかを、ログを書くコードを読まずに文書に書いた |
 | [0028](incidents/0028-smoke-failure-merged-on-a-guess.md) | スモークテストの失敗を、原因を確かめないまま再実行で通してマージし、再発した |
+| [0029](incidents/0029-incident-status-stale-again.md) | 0020の対策のあとも、incidentのステータスがマージのあとで古いままだった |
