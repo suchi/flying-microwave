@@ -391,8 +391,11 @@ fn screensaver_ends_on_input_with(
                 // Incident 0028: where the frames wait, shown in every run.
                 let timings = s
                     .timings
-                    .map(|(wait, present)| {
-                        format!("; longest surface wait {wait} ms, longest present {present} ms")
+                    .map(|(wait, present, draw)| {
+                        format!(
+                            "; longest surface wait {wait} ms, longest present {present} ms, \
+                             longest draw {draw} ms"
+                        )
                     })
                     .unwrap_or_default();
                 println!(
