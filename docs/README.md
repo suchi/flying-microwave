@@ -63,6 +63,7 @@
 | [review-process.md](development/review-process.md) | PRのレビュー手順(敵対的レビュー) |
 | [hardware-check-v0.1.1.md](development/hardware-check-v0.1.1.md) | v0.1.1の実機での確認の手順 |
 | [hardware-check-v0.2.0-alpha.1.md](development/hardware-check-v0.2.0-alpha.1.md) | v0.2.0-alpha.1(試作版)の実機での確認の手順 |
+| [hardware-check-v0.3.0-alpha.3.md](development/hardware-check-v0.3.0-alpha.3.md) | v0.3.0-alpha.3(試作版)の実機での確認の手順 |
 
 ## アイデア
 
