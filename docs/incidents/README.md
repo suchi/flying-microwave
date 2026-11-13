@@ -57,3 +57,5 @@
 | [0025](0025-implemented-against-recorded-decision.md) | 記録した決定と違う方式を、確認を取らずに実装した | 2026-11-12 |
 | [0026](0026-incident-row-placed-in-procedure.md) | incidentの一覧の行を、手順の箇条の間に入れてマージした | 2026-11-12 |
 | [0027](0027-log-contents-stated-without-reading-code.md) | ログに何が書かれるかを、ログを書くコードを読まずに文書に書いた | 2026-11-13 |
+| [0028](0028-smoke-failure-merged-on-a-guess.md) | スモークテストの失敗を、原因を確かめないまま再実行で通してマージし、再発した | 2026-11-13 |
+| [0029](0029-incident-status-stale-again.md) | 0020の対策のあとも、incidentのステータスがマージのあとで古いままだった | 2026-11-13 |
