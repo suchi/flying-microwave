@@ -65,8 +65,14 @@ impl FrameStats {
     }
 
     /// Records how long one draw waited for the surface texture, took to
-    /// present and took in all, keeping the longest of each.
+    /// present and took in all, keeping the longest of each. Draws of the
+    /// attempts that the log already shows with their times (`first_few`)
+    /// are left out, so that the values are those of the later draws, which
+    /// the log does not show (plan 0005, D-19).
     pub fn timed(&mut self, wait: Duration, present: Duration, draw: Duration) {
+        if first_few(self.attempts) {
+            return;
+        }
         self.longest_wait = self.longest_wait.max(wait);
         self.longest_present = self.longest_present.max(present);
         self.longest_draw = self.longest_draw.max(draw);
@@ -173,6 +179,33 @@ mod tests {
             "window 0: 9 draws attempted, 2 frames, 1 paced, 2 blank, \
              4 skipped (Outdated 1, Lost 0, Timeout 0, Occluded 2, Validation 1); \
              longest surface wait 12 ms, longest present 3 ms, longest draw 20 ms"
+        );
+    }
+
+    #[test]
+    fn the_logged_attempts_are_left_out_of_the_longest() {
+        // The first few attempts are in the log with their times; the
+        // longest values are for the later ones, which are not.
+        let mut s = FrameStats::default();
+        let ms = Duration::from_millis;
+        for _ in 0..LOGGED {
+            s.attempted();
+            s.timed(ms(900), ms(900), ms(900));
+        }
+        assert!(
+            s.summary(0)
+                .ends_with("; longest surface wait 0 ms, longest present 0 ms, longest draw 0 ms"),
+            "{}",
+            s.summary(0)
+        );
+        s.attempted();
+        s.timed(ms(40), ms(2), ms(45));
+        assert!(
+            s.summary(0).ends_with(
+                "; longest surface wait 40 ms, longest present 2 ms, longest draw 45 ms"
+            ),
+            "{}",
+            s.summary(0)
         );
     }
 
