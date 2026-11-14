@@ -691,17 +691,8 @@ impl Target {
             color_space: wgpu::SurfaceColorSpace::Auto,
             width: size.width,
             height: size.height,
-            // EXPERIMENT (incident 0028, do not merge): Mailbox when the
-            // surface supports it, to see whether the 1 s waits for the
-            // surface texture on WARP go away. Fifo otherwise.
-            present_mode: if capabilities
-                .present_modes
-                .contains(&wgpu::PresentMode::Mailbox)
-            {
-                wgpu::PresentMode::Mailbox
-            } else {
-                wgpu::PresentMode::Fifo
-            },
+            // Fifo is vsync and the only mode guaranteed to be supported.
+            present_mode: wgpu::PresentMode::Fifo,
             desired_maximum_frame_latency: 2,
             alpha_mode: capabilities
                 .alpha_modes
