@@ -750,27 +750,33 @@ impl Target {
 
     /// Whether the swap chain can take another frame: its frame latency
     /// waitable object is signalled within `wait` (ADR-0028). Taking the
-    /// signal is what wgpu's own wait would do. True when the surface has
-    /// no such object.
-    fn swap_chain_signalled(&self, wait: Duration) -> bool {
-        use windows_sys::Win32::Foundation::WAIT_OBJECT_0;
+    /// signal is what wgpu's own wait would do. `Some(true)` when the
+    /// surface has no such object; `None` when the wait failed (not a
+    /// timeout), which wgpu would report as a lost surface.
+    fn swap_chain_signalled(&self, wait: Duration) -> Option<bool> {
+        use windows_sys::Win32::Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT};
         use windows_sys::Win32::System::Threading::WaitForSingleObject;
         // SAFETY: nothing is destroyed through the guard, which is dropped
         // at the end of this function (wgpu `Surface::as_hal`).
         let Some(surface) = (unsafe { self.surface.as_hal::<wgpu::hal::api::Dx12>() }) else {
-            return true;
+            return Some(true);
         };
         // SAFETY: the handle is valid while the swap chain is alive
         // (wgpu-hal `Surface::waitable_handle`); only `resize` and
         // `draw_timed` reconfigure it, on this thread, not during this call.
         let Some(handle) = (unsafe { surface.waitable_handle() }) else {
-            return true;
+            return Some(true);
         };
         // Rounded up, so that a 16.7 ms frame waits 17 ms, not 16 ms; below
         // INFINITE (u32::MAX).
         let millis = u32::try_from(wait.as_micros().div_ceil(1000)).unwrap_or(u32::MAX - 1);
         // SAFETY: a valid handle; the wait is bounded by `millis`.
-        unsafe { WaitForSingleObject(handle.0, millis) == WAIT_OBJECT_0 }
+        match unsafe { WaitForSingleObject(handle.0, millis) } {
+            WAIT_OBJECT_0 => Some(true),
+            WAIT_TIMEOUT => Some(false),
+            // As wgpu-hal 30.0.1 `SwapChain::wait`: anything else is Lost.
+            _ => None,
+        }
     }
 
     /// Whether the last `draw` presented a frame without the swap chain
@@ -835,7 +841,16 @@ impl Target {
         // if it cannot take another frame yet, so that input is not held
         // for long; draw without the signal once wgpu's own limit has passed.
         let waited = Instant::now();
-        let signalled = self.swap_chain_signalled(signal_wait);
+        let Some(signalled) = self.swap_chain_signalled(signal_wait) else {
+            // Reconfiguring makes a new waitable object (wgpu-hal
+            // `Surface::configure`); retried after `RETRY_DELAY`, not at once.
+            self.timings = Timings {
+                wait: waited.elapsed(),
+                ..Timings::default()
+            };
+            self.surface.configure(&gpu.device, &self.config);
+            return Frame::Skipped(diag::Skip::Lost);
+        };
         let checked = Instant::now();
         self.without_signal = false;
         self.timings = Timings {
