@@ -83,5 +83,10 @@
   | 4つめの`/s` | 1015ms | 0ms | 1017ms | 40ms | 5 draws attempted, 3 frames, 2 paced |
 
 - 分かったこと: WARPでは、ログに時刻が出ない4回目以降の描画で、描く先の画像を受け取る処理(`get_current_texture`。`crates/app/src/render.rs`の`Target::draw_timed`)が、約1秒止まっていた。表示(`present`)は1ms未満だった。描画とキーの処理は同じスレッドで動く(`crates/app/src/saver.rs`)ため、この待ちの最中にキーが届くと、キーの処理が待たされる、という見立てである。
+- 待ちの長さの理由(wgpu 30.0.1のソースで確かめた。Cargoが取得したクレートの中のファイル):
+  - wgpu-coreの`Surface::get_current_texture`は、描く先の画像の取得を、上限1000msで待つ(`wgpu-core-30.0.1/src/present.rs`の32行目の`FRAME_TIMEOUT_MS`と、177〜178行目)。
+  - DX12では、画像を返す前に、待ちの数の上限(`desired_maximum_frame_latency`。製品は2。`crates/app/src/render.rs`の`Target::new`)に応じた待機オブジェクトを待つ(`wgpu-hal-30.0.1/src/dx12/mod.rs`の`acquire_texture`。既定は`Dx12UseFrameLatencyWaitableObject::Wait`)。
+  - 上限に達したときは`Ok(false)`を返し(同じファイルの`wait`の`WAIT_TIMEOUT`)、`acquire_texture`はその値を見ずに画像を返す。そのため、待ちが上限の1000msに達しても、描画は「スキップ」にならずに続く。CIの「0 skipped」と、1009〜1015msの待ちに合う。
+  - つまり、CIのWARPでは、最初の数フレームのあと、表示が進まずに待機オブジェクトが合図しないまま、毎回1000msの上限まで待っている、と読める。表示が進まない理由(垂直同期の合図が来ないなど)は、確かめていない。
 - まだ分からないこと: 待ちの最中にキーが届いた回(F-01が失敗する回)の値は、まだ得ていない。実機のGPUで同じ待ちが起きるかは、`alpha.4`の実機での確認で確かめる。
 
