@@ -33,7 +33,8 @@ wgpu 30.0.1のソースで確かめた待ちの仕組み(Cargoが取得したク
 実装の方式(エージェントの案):
 
 - wgpuのインスタンスを`Dx12UseFrameLatencyWaitableObject::DontWait`で作る(`crates/app/src/render.rs`の`create_instance`)。wgpuは待機オブジェクトを作るが、待たない(`wgpu-types-30.0.1/src/backend.rs`の871〜872行目の`DontWait`の説明。原文は「This is useful if the application wants to wait for the waitable object itself.」)。
-- `Target::draw`の始めで、`wgpu::Surface::as_hal::<Dx12>`でwgpu-halのサーフェスを取り出し、`waitable_handle`で得たハンドルを、`WaitForSingleObject`で最大1フレーム分待つ(`Target::swap_chain_signalled`。待ちの長さはミリ秒に切り上げる)。合図があれば、そのカウントを1つ消費する。wgpuの`Wait`の方式が待って消費するのと同じである。待ちの長さは、`FramePacer::frame_period`(`crates/core/src/pacing.rs`)を、全画面(`saver.rs`の`try_draw`)とプレビュー枠(`preview.rs`の`redraw`)が渡す。
+- `Target::draw`の始めで、`wgpu::Surface::as_hal::<Dx12>`でwgpu-halのサーフェスを取り出し、`waitable_handle`で得たハンドルを、`WaitForSingleObject`で最大1フレーム分待つ(`Target::swap_chain_signalled`。待ちの長さはミリ秒に切り上げる)。合図があれば、そのカウントを1つ消費する。wgpuの`Wait`の方式が待って消費するのと同じである。待ちの長さは、`FramePacer::frame_period`(`crates/core/src/pacing.rs`)を、全画面(`saver.rs`の`try_draw`)とプレビュー枠(`preview.rs`の`redraw`)が渡す。Windowsが報告するリフレッシュレートが0か1のときは、分からない値として扱う(0と1は、ハードウェアの既定のリフレッシュレートを表す。Microsoftの文書のDEVMODEAの`dmDisplayFrequency`の項)。1Hzをそのまま使うと、1フレーム分が1秒になり、直したい待ちが再発するため。
+- 待ちが時間切れ以外の結果(`WAIT_FAILED`など)で終わったときは、wgpu-halの`SwapChain::wait`と同じく`Lost`として扱う(`wgpu-hal-30.0.1/src/dx12/mod.rs`の1433〜1443行目)。描く先を作り直し(待機オブジェクトも作り直される)、50ms後に試し直す。待たずに戻る結果を「合図なし」として扱うと、すぐの試し直しが続き、イベントループがCPUを使い続けるため。
 - 描くかどうかは`core::pacing::may_draw`で決める。合図があれば描く。合図がなければ、最後に表示した描画(その描画が確かめを通った時刻)から`core::pacing::SIGNAL_WAIT_LIMIT`(1000ms)たつまで、その回を`Skip::NotReady`でスキップし、たったら合図なしで描く。最初の描画は、合図を待ったあとで、合図がなくても描く。
 - `NotReady`でスキップしたときは、すぐに試し直す(`saver.rs`の`retry_delay`。プレビュー枠も同じ)。描画の中ですでに1フレーム分待っているため。試し直すまでの間に、イベントループがキーなどのイベントを処理する。ほかの理由のスキップは、これまでどおり50ms後に試し直す。
 - 描く先の画像の待ち(要約の行の`longest surface wait`)には、合図の待ちと`get_current_texture`の待ちを合わせた時間を記録する。
@@ -54,7 +55,7 @@ wgpuの内部(`as_hal`)と`unsafe`を使う理由: wgpuの公開のAPIには、�
 ## 結果
 
 - メリット:
-  - キーの処理が待たされるのは、最大で1フレーム分(60Hzで約17ms)×モニターの数になる(ウィンドウを順に描くため。60Hzのモニター3台で約51ms)。F-01の上限200msに収まる。
+  - キーの処理が待たされるのは、最大で、1フレーム分(ミリ秒に切り上げ)×モニターの数に、描画そのものの時間(取得、送信、表示)を足した時間になる(ウィンドウを順に描くため)。1フレーム分は、既定の上限60fpsで60Hz以上のモニターなら17ms、上限30fps(設定の最も低い選択肢。`crates/core/src/config.rs`の`MaxFps`)なら34msである。F-01の上限200msに対して、60fpsなら11台(187ms)、30fpsなら5台(170ms)まで収まり、30fpsの6台(204ms)では超える(描画そのものの時間を除いた計算)。合図が来ずに時間切れになるときは、指定より長く待ちうる(製品は`timeBeginPeriod`を呼ばず(`crates/`を`grep`で検索して該当なし)、待ちの時間の精度はシステムのタイマーの分解能による。Microsoftの文書の`timeBeginPeriod`のRemarks)。実際の待ちの時間は測っていない。
   - 実機のGPUで合図が毎フレーム来るなら、いまの方式と同じく、合図の時刻に描く。
   - 合図が来ない環境でも、いまの方式と同じく1秒に1回は描く。
 - デメリット・受け入れたトレードオフ:
@@ -63,5 +64,5 @@ wgpuの内部(`as_hal`)と`unsafe`を使う理由: wgpuの公開のAPIには、�
   - この方式(最大1フレーム待つ)は、PRのCIで初めて確かめる。試しのPR #82で確かめたのは、待ち時間0の案Eである。
 - 実機での判定の基準(`v0.3.0-alpha.4`の実機での確認。計画0005の作業10の2): ログの要約の行(`crates/app/src/diag.rs`の`FrameStats::summary`。ウィンドウごとに終了のときに1行)で判定する。
   - 合図が毎フレーム来ている: `drawn without signal`が0か、ごく少ない。`NotReady`は、フレームの数よりずっと少ない。フレームの数は、動いた秒数×リフレッシュレート(上限がそれより低ければ上限)に近い。
-  - 合図が来ていない: `drawn without signal`が、動いた秒数とほぼ同じ。`NotReady`は、動いた秒数×リフレッシュレートに近い。
+  - 合図が来ていない: `drawn without signal`が、動いた秒数とほぼ同じ。`NotReady`は、フレームの数よりずっと多い。1回の`NotReady`は1フレーム分待つので、`NotReady`は、動いた秒数×(上限とリフレッシュレートの低いほう)以下になる(時間切れの待ちが指定より長ければ、さらに少ない)。
 - 将来の見直し条件: wgpuの更新で、上限を決めて待つ手段が公開のAPIに加わったとき、または`as_hal`や`waitable_handle`が変わったとき。実機で合図が来ずに`drawn without signal`が多いとき。描画を別のスレッドに移すとき。
