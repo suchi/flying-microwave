@@ -50,11 +50,6 @@ pub fn create_instance() -> wgpu::Instance {
     let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
     descriptor.backends = wgpu::Backends::DX12;
     descriptor.backend_options.dx12.shader_compiler = wgpu::Dx12Compiler::Fxc;
-    // EXPERIMENT (incident 0028, do not merge): wgpu does not wait for the
-    // frame latency waitable object; `Target::frame_ready` checks it without
-    // waiting, so that the event loop is not held for up to 1 s.
-    descriptor.backend_options.dx12.latency_waitable_object =
-        wgpu::wgt::Dx12UseFrameLatencyWaitableObject::DontWait;
     wgpu::Instance::new(descriptor)
 }
 
@@ -738,24 +733,6 @@ impl Target {
         })
     }
 
-    /// EXPERIMENT (incident 0028, do not merge): whether the frame latency
-    /// waitable object of the swap chain is signaled, checked without
-    /// waiting. True when there is no such object.
-    fn frame_ready(&self) -> bool {
-        use windows_sys::Win32::Foundation::WAIT_OBJECT_0;
-        use windows_sys::Win32::System::Threading::WaitForSingleObject;
-        // SAFETY: the guard and the handle are used only here, while the
-        // surface and its swap chain are alive.
-        let Some(surface) = (unsafe { self.surface.as_hal::<wgpu::hal::api::Dx12>() }) else {
-            return true;
-        };
-        let Some(handle) = (unsafe { surface.waitable_handle() }) else {
-            return true;
-        };
-        // SAFETY: a valid handle; a zero timeout does not block.
-        unsafe { WaitForSingleObject(handle.0, 0) == WAIT_OBJECT_0 }
-    }
-
     /// How long the last `draw` waited for the surface texture, took to
     /// present (zero when it did not present) and took in all.
     pub fn timings(&self) -> Timings {
@@ -792,12 +769,6 @@ impl Target {
 
     /// `draw` without the total time; sets the wait and present times.
     fn draw_timed(&mut self, gpu: &Gpu, flyers: &[FlyerInstance], led: u32) -> Frame {
-        // EXPERIMENT (incident 0028, do not merge): skip this draw instead of
-        // blocking when the swap chain cannot take another frame yet.
-        if !self.frame_ready() {
-            self.timings = Timings::default();
-            return Frame::Skipped(diag::Skip::Timeout);
-        }
         use wgpu::CurrentSurfaceTexture as Acquired;
 
         let waited = Instant::now();
