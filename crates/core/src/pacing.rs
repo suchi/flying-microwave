@@ -53,8 +53,8 @@ impl FramePacer {
 
     /// How long one frame lasts: the longer of one interval of the limit
     /// and one refresh of the monitor, either of which may be unknown, or
-    /// a sixtieth of a second if neither is known. The time to wait before trying again when the
-    /// swap chain cannot take a frame yet (ADR-0028).
+    /// a sixtieth of a second if neither is known. The longest a draw waits
+    /// for the swap chain to signal that it can take a frame (ADR-0028).
     pub fn frame_period(&self) -> Duration {
         self.period
     }

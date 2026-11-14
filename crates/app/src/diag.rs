@@ -38,8 +38,8 @@ pub struct FrameStats {
     not_ready: u64,
     occluded: u64,
     validation: u64,
-    /// Attempts that were drawn although the swap chain had not signalled
-    /// (ADR-0028); also counted as drawn or skipped by how they ended.
+    /// Frames that were presented although the swap chain had not
+    /// signalled (ADR-0028); also counted in `frames`.
     without_signal: u64,
     /// The longest wait for the surface texture, the longest present and
     /// the longest whole draw (incident 0028: the log has no line for the
@@ -67,8 +67,8 @@ impl FrameStats {
         self.paced += 1;
     }
 
-    /// Records an attempt that went on to draw without the swap chain
-    /// signal, after `pacing::SIGNAL_WAIT_LIMIT` (ADR-0028).
+    /// Records a frame that was presented without the swap chain signal,
+    /// after `pacing::SIGNAL_WAIT_LIMIT` (ADR-0028).
     pub fn drawn_without_signal(&mut self) {
         self.without_signal += 1;
     }
