@@ -766,7 +766,9 @@ impl Target {
         let Some(handle) = (unsafe { surface.waitable_handle() }) else {
             return true;
         };
-        let millis = u32::try_from(wait.as_millis()).unwrap_or(u32::MAX - 1);
+        // Rounded up, so that a 16.7 ms frame waits 17 ms, not 16 ms; below
+        // INFINITE (u32::MAX).
+        let millis = u32::try_from(wait.as_micros().div_ceil(1000)).unwrap_or(u32::MAX - 1);
         // SAFETY: a valid handle; the wait is bounded by `millis`.
         unsafe { WaitForSingleObject(handle.0, millis) == WAIT_OBJECT_0 }
     }
