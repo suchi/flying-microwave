@@ -31,9 +31,11 @@ impl FramePacer {
     /// Creates a pacer for the limit `max_fps` (0: no limit) on a monitor
     /// that refreshes `refresh_millihertz` times per thousand seconds, if
     /// known. A limit at or above the refresh rate needs no pacing: the
-    /// synchronized presentation already keeps to it.
+    /// synchronized presentation already keeps to it. A rate of 0 or 1 Hz
+    /// is unknown: Windows reports these for the hardware's default rate
+    /// (DEVMODE, `dmDisplayFrequency`).
     pub fn new(max_fps: u32, refresh_millihertz: Option<u32>) -> Self {
-        let refresh = refresh_millihertz.filter(|&r| r > 0);
+        let refresh = refresh_millihertz.filter(|&r| r > 1_000);
         let needed =
             max_fps > 0 && refresh.is_none_or(|r| u64::from(max_fps) * 1000 < u64::from(r));
         let rate = [
@@ -190,6 +192,15 @@ mod tests {
             us(16_683)
         );
         assert_eq!(FramePacer::new(60, Some(60_000)).frame_period(), us(16_666));
+    }
+
+    #[test]
+    fn a_refresh_rate_of_one_hertz_is_unknown() {
+        // Windows reports 0 or 1 for the hardware's default rate (DEVMODE,
+        // dmDisplayFrequency); 1 Hz must not make a frame last a second.
+        assert_eq!(FramePacer::new(0, Some(1_000)).frame_period(), us(16_666));
+        assert_eq!(FramePacer::new(30, Some(1_000)).frame_period(), us(33_333));
+        assert!(FramePacer::new(60, Some(1_000)).limits());
     }
 
     #[test]
