@@ -47,7 +47,7 @@
    - ブランチで絞ったワークフローの実行の一覧で、状態が`queued`、`pending`、`waiting`、`requested`、`in_progress`の実行がないことを確かめる。
    - PRのチェック(check runs)の一覧は、ジョブが作られる前の実行を含まないため、この確かめには使わない。
    - 同じことを、`docs/development/review-process.md`の表の「対応」の行(42行目)に書く。
-   - 同じ確かめ方を書いた`.claude/commands/babysit-pr.md`(手順2のc)と`.claude/commands/ship.md`(手順4)も、同じ文言に合わせる(検索した方法: リポジトリ全体で「実行中のものがないこと」を`grep`した)。
+   - 同じ確かめ方を書いた`.claude/commands/babysit-pr.md`(手順3のc)、`.claude/commands/ship.md`(手順4)、[計画0001](../plans/0001-initial-implementation-plan.md)の172行目(リリースのワークフローを手動実行する前の確認)も、同じ文言に合わせる(検索した方法: リポジトリ全体で「実行中のものがないこと」を`grep`した。incidentの記録の中の過去の記述は、起きたことの記録なので直さない)。
 3. 仕組み: 機械的な検査は加えない。理由: 0008の対策4と同じく、フックからGitHubのAPIを使う認証が、実行環境によってそろっていないため。
 
 ## 確かめ方
