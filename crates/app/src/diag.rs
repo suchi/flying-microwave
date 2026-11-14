@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn the_summary_lists_every_count() {
         let mut s = FrameStats::default();
-        for _ in 0..9 {
+        for _ in 0..10 {
             s.attempted();
         }
         s.drawn();
@@ -197,7 +197,7 @@ mod tests {
         );
         assert_eq!(
             s.summary(0),
-            "window 0: 9 draws attempted, 2 frames, 1 paced, 2 blank, \
+            "window 0: 10 draws attempted, 2 frames, 1 paced, 2 blank, \
              5 skipped (Outdated 1, Lost 0, Timeout 0, NotReady 1, Occluded 2, Validation 1); \
              1 drawn without signal; \
              longest surface wait 12 ms, longest present 3 ms, longest draw 20 ms"
