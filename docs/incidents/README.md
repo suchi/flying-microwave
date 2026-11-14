@@ -59,3 +59,4 @@
 | [0027](0027-log-contents-stated-without-reading-code.md) | ログに何が書かれるかを、ログを書くコードを読まずに文書に書いた | 2026-11-13 |
 | [0028](0028-smoke-failure-merged-on-a-guess.md) | スモークテストの失敗を、原因を確かめないまま再実行で通してマージし、再発した | 2026-11-13 |
 | [0029](0029-incident-status-stale-again.md) | 0020の対策のあとも、incidentのステータスがマージのあとで古いままだった | 2026-11-13 |
+| [0030](0030-push-checked-check-runs-not-workflow-runs.md) | プッシュの前にPRのチェックだけを見て、待ち行列のCIの実行に気づかずにプッシュした | 2026-11-14 |
