@@ -47,16 +47,6 @@ use crate::win;
 
 /// Retry delay after a skipped frame (occluded surface and so on).
 const RETRY_DELAY: Duration = Duration::from_millis(50);
-
-/// How long to wait before trying again after a frame skipped for `skip`:
-/// one frame while the swap chain is not ready (ADR-0028), else
-/// `RETRY_DELAY`.
-pub fn retry_delay(skip: diag::Skip, pacer: &FramePacer) -> Duration {
-    match skip {
-        diag::Skip::NotReady => pacer.frame_period(),
-        _ => RETRY_DELAY,
-    }
-}
 /// If GPU initialization has not finished after this long, the watchdog ends
 /// the process, so the black windows cannot cover the screen forever.
 const GPU_INIT_TIMEOUT: Duration = Duration::from_secs(15);
@@ -857,14 +847,11 @@ impl SaverApp {
         let frame = target.draw(gpu, &w.world.instances(), led);
         let timings = target.timings();
         w.stats.timed(timings.wait, timings.present, timings.total);
-        if target.drew_without_signal() {
-            w.stats.drawn_without_signal();
-        }
         if let Frame::Skipped(skip) = frame {
             if diag::first_few(w.stats.skipped(skip)) {
                 log!("window {}: frame skipped: {skip:?}", w.index);
             }
-            w.retry_at = Some(now + retry_delay(skip, &w.pacer));
+            w.retry_at = Some(now + RETRY_DELAY);
             false
         } else {
             w.stats.drawn();
