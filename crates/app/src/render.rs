@@ -50,11 +50,6 @@ pub fn create_instance() -> wgpu::Instance {
     let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
     descriptor.backends = wgpu::Backends::DX12;
     descriptor.backend_options.dx12.shader_compiler = wgpu::Dx12Compiler::Fxc;
-    // EXPERIMENT (incident 0028, do not merge): no frame latency waitable
-    // object, to see whether the 1 s waits for the surface texture on WARP
-    // go away or move to present.
-    descriptor.backend_options.dx12.latency_waitable_object =
-        wgpu::wgt::Dx12UseFrameLatencyWaitableObject::None;
     wgpu::Instance::new(descriptor)
 }
 
