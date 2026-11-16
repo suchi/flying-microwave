@@ -32,12 +32,11 @@ use winit::window::{Window, WindowId};
 
 use crate::log::log;
 use crate::render::{self, Frame, Gpu, Target};
-use crate::saver::{aspect_of, seed};
+use crate::saver::{aspect_of, retry_delay, seed};
 use crate::storage::Startup;
 use crate::win;
 
 const PARENT_CHECK_INTERVAL: Duration = Duration::from_millis(500);
-const RETRY_DELAY: Duration = Duration::from_millis(50);
 /// Same limit as `/s`: a hung driver call must not leave the process behind.
 const GPU_INIT_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -250,14 +249,19 @@ impl PreviewApp {
             world.advance(now - last);
         }
         self.last_frame = Some(now);
-        if target.draw(gpu, &world.instances(), led) == Frame::Presented {
-            self.frames += 1;
-            if self.frames == 1 {
-                log!("preview: first frame presented");
+        let signal_wait = match &self.pacer {
+            Some(pacer) => pacer.frame_period(),
+            None => FramePacer::new(self.max_fps, None).frame_period(),
+        };
+        match target.draw(gpu, &world.instances(), led, signal_wait) {
+            Frame::Presented => {
+                self.frames += 1;
+                if self.frames == 1 {
+                    log!("preview: first frame presented");
+                }
+                window.request_redraw();
             }
-            window.request_redraw();
-        } else {
-            self.retry_at = Some(now + RETRY_DELAY);
+            Frame::Skipped(skip) => self.retry_at = Some(now + retry_delay(skip)),
         }
     }
 }

@@ -429,6 +429,18 @@ mod tests {
     }
 
     #[test]
+    fn the_summary_line_with_the_swap_chain_counts_is_read() {
+        // ADR-0028: NotReady skips and draws without the signal.
+        let log = "\
++900ms pid=1 window 0: 23 draws attempted, 4 frames, 1 paced, 0 blank, 18 skipped (Outdated 0, Lost 0, Timeout 0, NotReady 18, Occluded 0, Validation 0); 2 drawn without signal; longest surface wait 0 ms, longest present 1 ms, longest draw 4 ms
+";
+        let s = Progress::read(log, 1).summary_of(0).copied();
+        assert_eq!(s.map(|s| s.skipped), Some(18));
+        assert!(s.is_some_and(|s| s.is_consistent()));
+        assert_eq!(s.and_then(|s| s.timings), Some((0, 1, 4)));
+    }
+
+    #[test]
     fn other_window_lines_are_not_summaries() {
         let log = "\
 +1ms pid=1 window 0: first frame presented

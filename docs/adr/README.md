@@ -56,3 +56,4 @@
 | [0025](0025-draw-every-window-from-one-place.md) | 全画面のウィンドウを、イベントループの1か所から順に描く | 採用 | 2026-11-08 |
 | [0026](0026-render-microwaves-as-3d-meshes.md) | 電子レンジを箱のメッシュで3Dに描き、面の絵をSVGからテクスチャにする | 採用 | 2026-11-11 |
 | [0027](0027-settings-file-handling-from-v0.3.0.md) | 設定ファイルの場所と扱いを決める(v0.3.0から。項目を加えた版ではschema_versionを上げる) | 採用 | 2026-11-11 |
+| [0028](0028-wait-for-swap-chain-at-most-one-frame.md) | スワップチェーンの待機オブジェクトを、製品が最大1フレームだけ待ってから描く | 採用 | 2026-11-14 |

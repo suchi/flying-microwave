@@ -16,7 +16,11 @@ pub fn first_few(count: u64) -> bool {
 pub enum Skip {
     Outdated,
     Lost,
+    /// wgpu gave up waiting for the surface texture.
     Timeout,
+    /// The swap chain could not take another frame yet; the draw did not
+    /// wait for it (ADR-0028).
+    NotReady,
     Occluded,
     Validation,
 }
@@ -31,8 +35,12 @@ pub struct FrameStats {
     outdated: u64,
     lost: u64,
     timeout: u64,
+    not_ready: u64,
     occluded: u64,
     validation: u64,
+    /// Frames that were presented although the swap chain had not
+    /// signalled (ADR-0028); also counted in `frames`.
+    without_signal: u64,
     /// The longest wait for the surface texture, the longest present and
     /// the longest whole draw (incident 0028: the log has no line for the
     /// later frames).
@@ -57,6 +65,12 @@ impl FrameStats {
     /// Records a frame that `Pace::WaitUntil` held back.
     pub fn paced(&mut self) {
         self.paced += 1;
+    }
+
+    /// Records a frame that was presented without the swap chain signal,
+    /// after `pacing::SIGNAL_WAIT_LIMIT` (ADR-0028).
+    pub fn drawn_without_signal(&mut self) {
+        self.without_signal += 1;
     }
 
     /// Records an attempt that left the window black (no target or no GPU).
@@ -85,6 +99,7 @@ impl FrameStats {
             Skip::Outdated => &mut self.outdated,
             Skip::Lost => &mut self.lost,
             Skip::Timeout => &mut self.timeout,
+            Skip::NotReady => &mut self.not_ready,
             Skip::Occluded => &mut self.occluded,
             Skip::Validation => &mut self.validation,
         };
@@ -93,14 +108,15 @@ impl FrameStats {
     }
 
     fn skipped_total(&self) -> u64 {
-        self.outdated + self.lost + self.timeout + self.occluded + self.validation
+        self.outdated + self.lost + self.timeout + self.not_ready + self.occluded + self.validation
     }
 
     /// The summary line of window `index`, written when it ends.
     pub fn summary(&self, index: usize) -> String {
         format!(
             "window {index}: {} draws attempted, {} frames, {} paced, {} blank, \
-             {} skipped (Outdated {}, Lost {}, Timeout {}, Occluded {}, Validation {}); \
+             {} skipped (Outdated {}, Lost {}, Timeout {}, NotReady {}, Occluded {}, \
+             Validation {}); {} drawn without signal; \
              longest surface wait {} ms, longest present {} ms, longest draw {} ms",
             self.attempts,
             self.frames,
@@ -110,8 +126,10 @@ impl FrameStats {
             self.outdated,
             self.lost,
             self.timeout,
+            self.not_ready,
             self.occluded,
             self.validation,
+            self.without_signal,
             self.longest_wait.as_millis(),
             self.longest_present.as_millis(),
             self.longest_draw.as_millis()
@@ -149,7 +167,8 @@ mod tests {
         assert_eq!(
             FrameStats::default().summary(2),
             "window 2: 0 draws attempted, 0 frames, 0 paced, 0 blank, \
-             0 skipped (Outdated 0, Lost 0, Timeout 0, Occluded 0, Validation 0); \
+             0 skipped (Outdated 0, Lost 0, Timeout 0, NotReady 0, Occluded 0, Validation 0); \
+             0 drawn without signal; \
              longest surface wait 0 ms, longest present 0 ms, longest draw 0 ms"
         );
     }
@@ -157,7 +176,7 @@ mod tests {
     #[test]
     fn the_summary_lists_every_count() {
         let mut s = FrameStats::default();
-        for _ in 0..9 {
+        for _ in 0..10 {
             s.attempted();
         }
         s.drawn();
@@ -169,6 +188,8 @@ mod tests {
         s.skipped(Skip::Occluded);
         s.skipped(Skip::Occluded);
         s.skipped(Skip::Validation);
+        s.skipped(Skip::NotReady);
+        s.drawn_without_signal();
         s.timed(
             Duration::from_millis(12),
             Duration::from_millis(3),
@@ -176,8 +197,9 @@ mod tests {
         );
         assert_eq!(
             s.summary(0),
-            "window 0: 9 draws attempted, 2 frames, 1 paced, 2 blank, \
-             4 skipped (Outdated 1, Lost 0, Timeout 0, Occluded 2, Validation 1); \
+            "window 0: 10 draws attempted, 2 frames, 1 paced, 2 blank, \
+             5 skipped (Outdated 1, Lost 0, Timeout 0, NotReady 1, Occluded 2, Validation 1); \
+             1 drawn without signal; \
              longest surface wait 12 ms, longest present 3 ms, longest draw 20 ms"
         );
     }
@@ -243,5 +265,8 @@ mod tests {
         assert_eq!(s.skipped(Skip::Outdated), 1);
         assert_eq!(s.skipped(Skip::Occluded), 1);
         assert_eq!(s.skipped(Skip::Validation), 1);
+        assert_eq!(s.skipped(Skip::NotReady), 1);
+        assert_eq!(s.skipped(Skip::NotReady), 2);
+        assert_eq!(s.skipped(Skip::Timeout), 2);
     }
 }
