@@ -1,7 +1,7 @@
 # v0.3.0-alpha.4の実機での確認の手順
 
 - 作成日: 2026-11-18
-- 対象: 試作版`v0.3.0-alpha.4`(タグはPR #84のマージのコミット`63aa33f`に、2026-11-18 07:19(JST)に付いた)。[計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)の作業10の3の確認で、D-21で`alpha.3`から移した作業10の項目(D-18で作業8から移した項目を含む)と、作業10の2の項目(キーの遅れの直し方。D-20、[ADR-0028](../adr/0028-wait-for-swap-chain-at-most-one-frame.md))を含む。もとにしたのは[`alpha.3`の手順書](hardware-check-v0.3.0-alpha.4.md)である。
+- 対象: 試作版`v0.3.0-alpha.4`(タグはPR #84のマージのコミット`63aa33f`に、2026-11-18 07:19(JST)に付いた)。[計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)の作業10の3の確認で、D-21で`alpha.3`から移した作業10の項目(D-18で作業8から移した項目を含む)と、作業10の2の項目(キーの遅れの直し方。D-20、[ADR-0028](../adr/0028-wait-for-swap-chain-at-most-one-frame.md))を含む。もとにしたのは[`alpha.3`の手順書](hardware-check-v0.3.0-alpha.3.md)である。
 - 確かめない項目: 計画0001の手動テストの項目30のうち、新しい版で書かれた設定ファイルで警告を出した状態の確認(項目25の手順で作るファイルが要るため、この版では頼まない)。
 - 結果: まだ受け取っていない。
 
@@ -13,8 +13,8 @@
 
 ## 準備
 
-- P-1. 下書きの`v0.3.0-alpha.4`を、プレリリースとして公開する(「Set as a pre-release」のまま「Publish release」)。
-- P-2. 公開したリリースからzipをダウンロードし、ハッシュを確かめる。coreutilsの入ったcmdで、ダウンロードしたフォルダで次を実行する。
+- P-1. GitHubのリリースの画面で、下書きの`v0.3.0-alpha.4`を開く。公開は、まだしない(確認のあとのZ-4で判断する)。
+- P-2. 下書きからzipをダウンロードし、ハッシュを確かめる。coreutilsの入ったcmdで、ダウンロードしたフォルダで次を実行する。
 
   ```bash
   sha256sum FlyingMicrowave-0.3.0-alpha.4-windows-x64.zip
@@ -95,3 +95,4 @@
   - 起動の速さ(N-01): 起動の行(`Flying Microwave 0.3.0-alpha.4 started`。`crates/app/src/main.rs`の`run`)から、全モニターのウィンドウの行(`window N: inner ...`。ウィンドウを作って黒で塗ったあとに書く。`crates/app/src/saver.rs`の`create_black_window`)までが0.5秒以内、ウィンドウごとの`first frame presented`の行(`saver.rs`の`try_draw`)までが1秒以内。
   - 描くための合図(D-20、ADR-0028の「結果」の判定の基準): 全画面の終了ごとに、ウィンドウごとの要約の行(`window N: ... draws attempted, ... frames, ...`。`crates/app/src/diag.rs`の`FrameStats::summary`)の、`NotReady`のスキップの数と`drawn without signal`の数。合図が毎フレーム来ていれば、`drawn without signal`は0かごく少なく、`NotReady`はフレームの数よりずっと少ない。
   - 設定の反映: 全画面の起動ごとの`settings: Config { ... }`の行(`saver.rs`の`settings: {config:?}`)で、`style: Level`、`clock: Clock { enabled: false, format: H12 }`、`food_count: 30`などが、手順のとおりに変わっていること。
+- Z-4. 確認の結果を見て、下書きを公開するかを判断する。公開するときは、「Set as a pre-release」のまま「Publish release」を押す(計画0001の7.3の手順4)。公開したら、知らせてください。
