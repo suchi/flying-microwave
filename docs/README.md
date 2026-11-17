@@ -64,6 +64,7 @@
 | [hardware-check-v0.1.1.md](development/hardware-check-v0.1.1.md) | v0.1.1の実機での確認の手順 |
 | [hardware-check-v0.2.0-alpha.1.md](development/hardware-check-v0.2.0-alpha.1.md) | v0.2.0-alpha.1(試作版)の実機での確認の手順 |
 | [hardware-check-v0.3.0-alpha.3.md](development/hardware-check-v0.3.0-alpha.3.md) | v0.3.0-alpha.3(試作版)の実機での確認の手順。確認は行わず(計画0005のD-21)、v0.3.0-alpha.4の手順書の元にする |
+| [hardware-check-v0.3.0-alpha.4.md](development/hardware-check-v0.3.0-alpha.4.md) | v0.3.0-alpha.4(試作版)の実機での確認の手順。v0.3.0-alpha.3の確認の項目と、キーの遅れの直し方の確認(計画0005の作業10の3) |
 
 ## アイデア
 
