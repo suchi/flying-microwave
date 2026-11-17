@@ -10,7 +10,7 @@
 //! (plan 0005, D-13). Nothing is rasterized per frame.
 //!
 //! No multisampling (plan 0005, D-13): the edges are judged with
-//! `v0.3.0-alpha.3` (D-18). Anisotropic filtering is 8 where the adapter supports it.
+//! `v0.3.0-alpha.4` (D-18, D-21). Anisotropic filtering is 8 where the adapter supports it.
 //!
 //! Hardening (docs/design/architecture.md):
 //! - SEC-2: the DX12 shader compiler is set to `Fxc` explicitly, and the
