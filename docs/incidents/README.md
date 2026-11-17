@@ -61,3 +61,4 @@
 | [0029](0029-incident-status-stale-again.md) | 0020の対策のあとも、incidentのステータスがマージのあとで古いままだった | 2026-11-13 |
 | [0030](0030-push-checked-check-runs-not-workflow-runs.md) | プッシュの前にPRのチェックだけを見て、待ち行列のCIの実行に気づかずにプッシュした | 2026-11-14 |
 | [0031](0031-requested-publishing-an-already-published-release.md) | 公開済みのリリースの公開を依頼し続け、確かめていない前提で判断を仰いだ | 2026-11-18 |
+| [0032](0032-committed-after-a-failing-check.md) | 検証のコマンドの失敗を見ずに、同じ呼び出しの中でコミットした | 2026-11-18 |
