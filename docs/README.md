@@ -115,3 +115,4 @@
 | [0028](incidents/0028-smoke-failure-merged-on-a-guess.md) | スモークテストの失敗を、原因を確かめないまま再実行で通してマージし、再発した |
 | [0029](incidents/0029-incident-status-stale-again.md) | 0020の対策のあとも、incidentのステータスがマージのあとで古いままだった |
 | [0030](incidents/0030-push-checked-check-runs-not-workflow-runs.md) | プッシュの前にPRのチェックだけを見て、待ち行列のCIの実行に気づかずにプッシュした |
+| [0031](incidents/0031-requested-publishing-an-already-published-release.md) | 公開済みのリリースの公開を依頼し続け、確かめていない前提で判断を仰いだ |
