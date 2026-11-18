@@ -64,6 +64,7 @@
 | [hardware-check-v0.1.1.md](development/hardware-check-v0.1.1.md) | v0.1.1の実機での確認の手順 |
 | [hardware-check-v0.2.0-alpha.1.md](development/hardware-check-v0.2.0-alpha.1.md) | v0.2.0-alpha.1(試作版)の実機での確認の手順 |
 | [hardware-check-v0.3.0-alpha.3.md](development/hardware-check-v0.3.0-alpha.3.md) | v0.3.0-alpha.3(試作版)の実機での確認の手順。確認は行わず(計画0005のD-21)、v0.3.0-alpha.4の手順書の元にする |
+| [hardware-check-v0.3.0-alpha.4.md](development/hardware-check-v0.3.0-alpha.4.md) | v0.3.0-alpha.4(試作版)の実機での確認の手順。v0.3.0-alpha.3の確認の項目と、キーの遅れの直し方の確認(計画0005の作業10の3) |
 
 ## アイデア
 
@@ -114,3 +115,5 @@
 | [0028](incidents/0028-smoke-failure-merged-on-a-guess.md) | スモークテストの失敗を、原因を確かめないまま再実行で通してマージし、再発した |
 | [0029](incidents/0029-incident-status-stale-again.md) | 0020の対策のあとも、incidentのステータスがマージのあとで古いままだった |
 | [0030](incidents/0030-push-checked-check-runs-not-workflow-runs.md) | プッシュの前にPRのチェックだけを見て、待ち行列のCIの実行に気づかずにプッシュした |
+| [0031](incidents/0031-requested-publishing-an-already-published-release.md) | 公開済みのリリースの公開を依頼し続け、確かめていない前提で判断を仰いだ |
+| [0032](incidents/0032-committed-after-a-failing-check.md) | 検証のコマンドの失敗を見ずに、同じ呼び出しの中でコミットした |
