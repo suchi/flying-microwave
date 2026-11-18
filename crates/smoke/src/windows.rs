@@ -10,15 +10,15 @@ use flying_microwave_smoke::{Progress, lines_of, meshes_drawn};
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-    INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP, MOUSEEVENTF_LEFTDOWN,
-    MOUSEEVENTF_LEFTUP, MOUSEINPUT, SendInput, VK_SPACE,
+    INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, IsWindowEnabled, KEYBDINPUT, KEYEVENTF_KEYUP,
+    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEINPUT, SendInput, VK_SPACE,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, EnumWindows, GA_ROOT,
-    GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow, GetSystemMetrics, GetWindowRect,
-    GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible, MSG, PM_REMOVE, PeekMessageW,
-    PostMessageW, RegisterClassW, SM_CXSCREEN, SM_CYSCREEN, SetCursorPos, TranslateMessage,
-    WM_CLOSE, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE, WindowFromPoint,
+    GW_OWNER, GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow, GetSystemMetrics,
+    GetWindow, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible, MSG,
+    PM_REMOVE, PeekMessageW, PostMessageW, RegisterClassW, SM_CXSCREEN, SM_CYSCREEN, SetCursorPos,
+    TranslateMessage, WM_CLOSE, WNDCLASSW, WS_OVERLAPPEDWINDOW, WS_VISIBLE, WindowFromPoint,
 };
 
 /// Limit for the first frame. GPU setup itself gives up after 15 seconds
@@ -40,6 +40,10 @@ const EXIT_AFTER_PARENT_GONE: Duration = Duration::from_secs(2);
 /// longer wait would only hide a hang (plan 0005, D-1).
 const SETTINGS_LIMIT: Duration = Duration::from_secs(30);
 const EXIT_AFTER_CLOSE: Duration = Duration::from_secs(10);
+/// Limit from the settings window being found to its owner being disabled:
+/// the window may be shown before the app is made and the owner attached
+/// (crates/app/src/settings.rs, `attach_owner`).
+const OWNER_DISABLED_LIMIT: Duration = Duration::from_secs(2);
 const POLL: Duration = Duration::from_millis(2);
 
 /// The title of the settings window (crates/app/src/settings.rs).
@@ -65,7 +69,7 @@ struct Env<'a> {
 
 /// Runs every case and returns the process exit code (0 when all passed).
 pub fn run(exe: &Path) -> i32 {
-    let cases: [Case; 4] = [
+    let cases: [Case; 5] = [
         ("F-01 /s ends on user input", screensaver_ends_on_input),
         ("F-02 /p ends with its parent", preview_ends_with_parent),
         (
@@ -75,6 +79,10 @@ pub fn run(exe: &Path) -> i32 {
         (
             "F-01 /s ends on user input with a broken settings file",
             screensaver_runs_with_a_broken_settings_file,
+        ),
+        (
+            "F-03 /c:<HWND> disables its owner until the settings window closes",
+            settings_disables_its_owner,
         ),
     ];
     let log_dir =
@@ -445,56 +453,118 @@ fn preview_ends_with_parent(env: &Env) -> Result<(), String> {
 
 fn unknown_argument_shows_settings(env: &Env) -> Result<(), String> {
     with_target(env, &["/x"], None, |target| {
+        let window = wait_settings_window(target)?;
+        expect_config(&target.progress(), "file not found")?;
+        close_settings(target, window)
+    })
+}
+
+/// Plan 0005, task 12 (plan 0001, Phase 3, task 8): with `/c:<HWND>`, the
+/// settings window is owned by that window (F-04 of plan 0001), which is
+/// disabled while it is open and enabled again when it closes.
+fn settings_disables_its_owner(env: &Env) -> Result<(), String> {
+    let owner = ParentWindow::new()?;
+    let owner_arg = format!("/c:{}", owner.0 as usize);
+    with_target(env, &[&owner_arg], None, |target| {
+        let window = wait_settings_window(target)?;
         let start = Instant::now();
-        let window = loop {
-            let windows = windows_of(target.pid());
-            if let Some(full) = windows.iter().find(|w| w.covers_screen) {
-                return Err(format!("made a full-screen window ({})", full.class));
-            }
-            if let Some(settings) = windows.iter().find(|w| w.title == SETTINGS_TITLE) {
-                break settings.hwnd;
-            }
-            // The message box that tells the settings window could not open
-            // (plan 0004, E-4 and D-17). Both cases end with exit code 7, so
-            // the log line tells a reached limit apart (plan 0005, D-1).
-            if let Some(dialog) = windows.iter().find(|w| w.class == "#32770") {
-                // SAFETY: as for the settings window below.
-                unsafe { PostMessageW(dialog.hwnd, WM_CLOSE, 0, 0) };
+        // SAFETY: the handle is only read; a window that is gone makes the
+        // call return 0.
+        while unsafe { IsWindowEnabled(owner.0) } != 0 {
+            if start.elapsed() > OWNER_DISABLED_LIMIT {
                 return Err(format!(
-                    "a message box (\"{}\") was shown instead of the settings window{}",
-                    dialog.title,
-                    timed_out(target)
+                    "the owner is still enabled {} ms after the settings window was found",
+                    OWNER_DISABLED_LIMIT.as_millis()
                 ));
             }
-            if let Some(code) = target.exited()? {
-                return Err(format!(
-                    "ended (exit code {code}) without a settings window{}",
-                    timed_out(target)
-                ));
-            }
-            if start.elapsed() > SETTINGS_LIMIT {
-                return Err(format!(
-                    "no settings window within {} s",
-                    SETTINGS_LIMIT.as_secs()
-                ));
-            }
-            std::thread::sleep(Duration::from_millis(50));
-        };
+            // The owner's thread answers the messages that disabling sends.
+            pump_messages();
+            std::thread::sleep(POLL);
+        }
         println!(
-            "  settings window shown after {} ms",
+            "  owner disabled {} ms after the settings window was found",
             start.elapsed().as_millis()
         );
-        expect_config(&target.progress(), "file not found")?;
-        // SAFETY: posting a message to a window handle is safe even if the
-        // window is gone by now; the call then just fails.
-        unsafe { PostMessageW(window, WM_CLOSE, 0, 0) };
-        let (code, elapsed) = target.wait_exit(EXIT_AFTER_CLOSE)?;
-        println!("  close to process exit: {} ms", elapsed.as_millis());
-        if code != 0 {
-            return Err(format!("exit code {code}"));
+        // The app sets the owner right before disabling it
+        // (crates/app/src/settings.rs, `attach_owner`), so it is set by now.
+        // SAFETY: both handles are only read; a window that is gone makes
+        // the call return null, which fails the check.
+        let owned_by = unsafe { GetWindow(window, GW_OWNER) };
+        if owned_by != owner.0 {
+            return Err(format!(
+                "the settings window is owned by {owned_by:?}, not by {:?}",
+                owner.0
+            ));
         }
+        close_settings(target, window)?;
+        // SAFETY: as for the wait above.
+        if unsafe { IsWindowEnabled(owner.0) } == 0 {
+            return Err("the owner is still disabled after the settings window closed".to_owned());
+        }
+        println!("  owner enabled again after the settings window closed");
         Ok(())
     })
+}
+
+/// Waits for the settings window of `target` and returns it. Fails on a
+/// full-screen window, a message box, an early exit or the time limit.
+fn wait_settings_window(target: &mut Target) -> Result<HWND, String> {
+    let start = Instant::now();
+    let window = loop {
+        let windows = windows_of(target.pid());
+        if let Some(full) = windows.iter().find(|w| w.covers_screen) {
+            return Err(format!("made a full-screen window ({})", full.class));
+        }
+        if let Some(settings) = windows.iter().find(|w| w.title == SETTINGS_TITLE) {
+            break settings.hwnd;
+        }
+        // The message box that tells the settings window could not open
+        // (plan 0004, E-4 and D-17). Both cases end with exit code 7, so
+        // the log line tells a reached limit apart (plan 0005, D-1).
+        if let Some(dialog) = windows.iter().find(|w| w.class == "#32770") {
+            // SAFETY: as for the settings window below.
+            unsafe { PostMessageW(dialog.hwnd, WM_CLOSE, 0, 0) };
+            return Err(format!(
+                "a message box (\"{}\") was shown instead of the settings window{}",
+                dialog.title,
+                timed_out(target)
+            ));
+        }
+        if let Some(code) = target.exited()? {
+            return Err(format!(
+                "ended (exit code {code}) without a settings window{}",
+                timed_out(target)
+            ));
+        }
+        if start.elapsed() > SETTINGS_LIMIT {
+            return Err(format!(
+                "no settings window within {} s",
+                SETTINGS_LIMIT.as_secs()
+            ));
+        }
+        // A window owned by this thread (with `/c:<HWND>`) must answer the
+        // messages the settings window sends it while it is set up.
+        pump_messages();
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    println!(
+        "  settings window shown after {} ms",
+        start.elapsed().as_millis()
+    );
+    Ok(window)
+}
+
+/// Closes the settings window and expects the process to end with code 0.
+fn close_settings(target: &mut Target, window: HWND) -> Result<(), String> {
+    // SAFETY: posting a message to a window handle is safe even if the
+    // window is gone by now; the call then just fails.
+    unsafe { PostMessageW(window, WM_CLOSE, 0, 0) };
+    let (code, elapsed) = target.wait_exit(EXIT_AFTER_CLOSE)?;
+    println!("  close to process exit: {} ms", elapsed.as_millis());
+    if code != 0 {
+        return Err(format!("exit code {code}"));
+    }
+    Ok(())
 }
 
 /// Says so when the GPU initialization limit was reached.
