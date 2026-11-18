@@ -40,9 +40,11 @@ const EXIT_AFTER_PARENT_GONE: Duration = Duration::from_secs(2);
 /// longer wait would only hide a hang (plan 0005, D-1).
 const SETTINGS_LIMIT: Duration = Duration::from_secs(30);
 const EXIT_AFTER_CLOSE: Duration = Duration::from_secs(10);
-/// Limit from the settings window being found to its owner being disabled:
-/// the window may be shown before the app is made and the owner attached
-/// (crates/app/src/settings.rs, `attach_owner`).
+/// Limit from the settings window being found to its owner being disabled.
+/// eframe 0.37 keeps the window hidden until its first frame, after the app
+/// is made and the owner attached (crates/app/src/settings.rs,
+/// `attach_owner`), so the owner should be disabled when it is found; the
+/// limit leaves room in case disabling moves after the first frame.
 const OWNER_DISABLED_LIMIT: Duration = Duration::from_secs(2);
 const POLL: Duration = Duration::from_millis(2);
 
@@ -460,7 +462,7 @@ fn unknown_argument_shows_settings(env: &Env) -> Result<(), String> {
 }
 
 /// Plan 0005, task 12 (plan 0001, Phase 3, task 8): with `/c:<HWND>`, the
-/// settings window is owned by that window (F-04 of plan 0001), which is
+/// settings window is owned by that window (F-03 of plan 0004), which is
 /// disabled while it is open and enabled again when it closes.
 fn settings_disables_its_owner(env: &Env) -> Result<(), String> {
     let owner = ParentWindow::new()?;
