@@ -27,7 +27,7 @@
 | クローンした人の環境で動くもの | Claude Codeの文書(permissionsの「What runs before you trust a folder」、hooksの「Workspace trust」)、追跡しているファイルの一覧 | `.claude/settings.json`のフック(PreToolUse 4件、Stop、SubagentStop)は、対話のセッションでは、フォルダを信頼する前には動かない。`claude -p`では、信頼の確認なしで動く。`permissions.allow`、`env`、`apiKeyHelper`、`.mcp.json`、サブエージェント、プラグイン、スキルの`allowed-tools`はない。フックは、拒否や確認を返すほかは状態ファイルを書くだけで、ネットワークにつながない(5つのスクリプトを全文読んだ)。`CLAUDE.md`が信頼の前に読み込まれるかは、文書に記述がなく確かめられなかった | 問題なし |
 | 日本語を求めるフックと外部の貢献者 | `require-japanese-description.sh`の29〜34行、`require-japanese-note.sh`の79行、`require-japanese-reply.sh`の62〜86行、`block-dangerous-git.sh`の22〜24行 | 英語で書く外部の貢献者の説明文と返答を拒む。jqのない環境では、Bashを呼ぶたびに確認を求める。安全性の問題ではない | 要判断(J-14) |
 | フックが外部の入力をどう扱うか | 5つのスクリプトを全文読み、登録したとおりの起動で試験の入力(コマンドの置き換えを含む)を与えた | 値はjqの`--arg`か`printf '%s'`で扱い、`eval`も引用符のない展開もない。ファイル名に使う値は使える文字を絞り、状態のフォルダは持ち主とリンクを確かめて700にしている。試験の入力でファイルは作られなかった | 問題なし |
-| `main`へのプッシュを止めるフックの迂回 | 同じ試験 | `git`のオプションを挟んだ形、`refs/heads/`を付けた形、`+`を付けた形の`main`へのプッシュは止まらない(`block-dangerous-git.sh`の44行と62行の正規表現)。本当の防御は、GitHubの`main`のルールセットである | 要対応(K-1) |
+| `main`へのプッシュを止めるフックの迂回 | 同じ試験と、記録の軽いレビューでの登録したとおりの起動での試験 | 次の形の`main`へのプッシュは止まらない(`block-dangerous-git.sh`の44行と62行の正規表現。62行は、送り元の名前として`HEAD:`だけを許す): `git`のオプションを挟んだ形、`refs/heads/`を付けた形(`HEAD:refs/heads/main`を含む)、`+`を付けた形、`HEAD`以外の送り元を付けた形(`<ブランチ>:main`)。`main`、`HEAD:main`、`main:main`は止まる。本当の防御は、GitHubの`main`のルールセットである | 要対応(K-1) |
 | 設定ファイルを守るフックの対象 | `.claude/settings.json`の25行、Claude Codeのpermission-modesの「Protected paths」 | `protect-config.sh`は、Edit、Write、MultiEditだけが対象で、Bashでの書き込みとNotebookEditは通る。`.claude/`と`.cargo/`はClaude Codeが保護するパスだが、`.github/workflows/`、`AGENTS.md`、`CLAUDE.md`、`.agents/skills/`は対象外。AGENTS.mdには「重要な指示は本ファイルに追記する」の規則があり、注入された「指示」が規則のファイルに残るおそれがある | 要判断(J-6) |
 | 権限の設定 | `.claude/settings.json`の1〜12行、Claude Codeのpermissionsの「What Read and Edit rules cover」、settingsの文書 | `allow`はなく、`deny`は`Read`の7件だけで、広すぎない。`deny`は`grep -r`やPythonには効かない(公式の文書の警告のとおり)。`.claude/settings.local.json`が`.gitignore`にない(Claude Codeが自分で作るときは、グローバルな除外に加えるが、手で作ったときは加えない) | 要対応(K-2) |
 | そのほかの道具 | `.cargo/config.toml`、`crates/app/build.rs` | `.cargo/config.toml`は`rustflags`だけで、`runner`などはない。`build.rs`は1つ | 問題なし |
@@ -39,17 +39,18 @@
 | フォークからのPRで動くワークフロー | `ci.yml`の15〜19行、`release.yml`の21〜29行、`pull_request_target\|workflow_run\|issue_comment\|secrets.\|environment:\|self-hosted`の検索(0件)、GitHubの「Events that trigger workflows」の「Workflows in forked repositories」 | フォークのPRで動くのは`ci.yml`(`pull_request`)だけ。フォークからの実行には、`GITHUB_TOKEN`以外のシークレットは渡されず、`GITHUB_TOKEN`は読み取りだけになる(DependabotのPRも同じ) | 問題なし |
 | トークンの権限 | `ci.yml`の21〜22行、`release.yml`の31〜32、147〜149、319〜320、360〜362行 | 書き込みの権限は、リリースのpublishのジョブ(`gh`と`sha256sum`だけを使う)にだけある。チェックアウトは6か所とも`persist-credentials: false` | 問題なし(既定の権限はS-3) |
 | キャッシュの汚染 | `ci.yml`の74〜76、128〜131行、`release.yml`の181行のコメント、GitHubの「Dependency caching reference」の「Restrictions for accessing a cache」と「Cache access for low-trust workflow triggers」、[ADR-0017](../adr/0017-ci-build-cache-and-x64-spike-builds.md) | フォークのPRは`main`のキャッシュを読めるが、書き換えられない。リリースのワークフローはキャッシュを復元しない。ADR-0017の記述は、いまの公式の文書と一致していた | 問題なし |
-| 成果物とログ | GitHubの「Downloading workflow artifacts」、「Setting repository visibility」、`ci.yml`の213〜218行 | 公開すると、誰でも、過去を含むすべての実行のログを読み、成果物をダウンロードできる。フォークのPRのCIも、同じ名前の成果物(外部の人のコードからのビルド)を作る。過去のログの中身は確かめていない | 要判断(J-9)、要対応(K-5) |
+| 成果物とログ | GitHubの「Downloading workflow artifacts」、「Setting repository visibility」、`ci.yml`の8行と213〜218行、`docs/development/onboarding.md`の417行 | 公開すると、誰でも、過去を含むすべての実行のログを読み、成果物をダウンロードできる。フォークのPRのCIも、同じ名前の成果物(外部の人のコードからのビルド)を作る。いまの手順では、実行のたびの成果物を、実機での確認に使ってよい(onboardingの417行、`ci.yml`の8行のコメント)。過去のログの中身は確かめていない | 要判断(J-9、J-16) |
 | リリースのワークフローの起動の条件 | `release.yml`の5〜7、21〜23、79〜82行、`docs/development/onboarding.md`の9.1(435〜441行)、`scripts/prepare_release.py`の28〜33行、GitHubの「Available rules for rulesets」、MCPで読んだ共同作業者の一覧とリリースの実行の一覧 | タグのプッシュでは、タグを付けたコミットにある`release.yml`が動く。「タグが`main`の上にあるか」の検査もそのファイルの中にあるため、実際の防御はタグのルールセット`release-tags`である。共同作業者は所有者の1件(admin)だけ | 問題なし(ルールセットが有効かはS-1) |
 | 手動実行の権限 | GitHubの「Manually running a workflow」(書き込みの権限が要る)、`release.yml`の73〜76行 | 外部の人が起動する経路はない | 問題なし(共同作業者を加えるときは見直す) |
 | 初めての貢献者のワークフローの承認 | GitHubの「Managing GitHub Actions settings for a repository」の「Controlling changes from forks to workflows in public repositories」 | 既定では、初めての貢献者だけ承認が要る。一度マージされた人は承認なしで動き、誤字の修正のマージでこの条件を満たせる(同じ節の警告)。承認なしで動くと、外部の人が書き換えた`ci.yml`が動き、ログに好きな文を出せる。エージェントはCIのログを読むことがある(上のA) | 要判断(J-3) |
 | アクションの固定とDependabot | `git ls-remote`での確認、`.github/dependabot.yml`の12〜27行、GitHubの「Secure use reference」の「Using third-party actions」 | `actions/checkout`(v7.0.1)、`actions/upload-artifact`(v7.0.2)、`Swatinem/rust-cache`(v2.9.3)の3つとも、固定したSHAがタグと一致した。Dependabotの`cooldown`は7日 | 問題なし(任意の強化はJ-10) |
-| スクリプトの注入 | `grep -n '\${{' .github/workflows/*.yml`(`ci.yml` 15件、`release.yml` 24件)、GitHubの「Secure use reference」の「Use an intermediate environment variable」 | `run:`に直接埋め込むのは`matrix.target`(固定の値)だけ。`github.event.*`は使っていない。タグの名前は環境変数で渡している | 問題なし |
+| スクリプトの注入 | `grep -n '\${{' .github/workflows/*.yml`(`grep -c`で、`ci.yml`は15行、`release.yml`は28行)、GitHubの「Secure use reference」の「Use an intermediate environment variable」 | `run:`に直接埋め込むのは`matrix.target`(固定の値)だけ。`github.event.*`は使っていない。タグの名前は環境変数で渡している | 問題なし |
 | 必須のステータスチェックの名前 | GitHubの「Available rules for rulesets」の「Require status checks to pass before merging」、onboardingの9.1 | 外部の人のPRが`ci.yml`を書き換えると、同じ名前のジョブを中身なしで成功させられる。マージできるのはメンテナーだけなので、被害は「検査が通ったように見える」ことに限られる | 要対応(K-4) |
 | ブランチとタグのルールセット | onboardingの9.1、MCPの`list_branches`、GitHubの「Setting repository visibility」 | 記録上のルールセットは、`main`と`release-tags`の2つ。公開で無効になる「プッシュのルールセット」は、記録上ない | 問題なし(値はS-1) |
 | Dependabot | `.github/dependabot.yml`の9〜57行、GitHubの「Dependabot options reference」の`cooldown` | 設定は妥当。`cooldown`はセキュリティの更新には効かない。`rust-toolchain.toml`は対象に入っていない。`dependabot.yml`が指定するラベル`dependencies`が、リポジトリにない(PR #83のDependabotの通知) | 要判断(J-11)、要対応(K-6) |
 | シークレットのスキャンとプッシュの保護 | GitHubの「Secret scanning」、「Push protection」、「Setting repository visibility」 | 個人のアカウントの非公開のリポジトリでは使えない。公開したら、手で有効にする必要がある。前回の点検では、履歴の秘密情報は0件だった(0004の20行) | 要判断(J-4) |
 | `SECURITY.md`、脆弱性の非公開の報告、CODEOWNERS | `ls`(どれもない)、GitHubの「Configuring private vulnerability reporting for a repository」、「Adding a security policy to your repository」、「About code owners」 | 脆弱性を非公開で報告する窓口がない。CODEOWNERSは、必要な承認の数が0で、PRはすべてメンテナーのアカウントで作られる(自分のPRは承認できない)ため、置いても効果は小さい | 要判断(J-5、J-12) |
+| 変更できないリリース | GitHubの「Immutable releases」(`/en/code-security/concepts/supply-chain-security/immutable-releases`)と「Preventing changes to your releases」 | 有効にすると、公開したリリースのタグと添付のファイルが固定され、リリースの証明(attestation)が作られる。公開したリリースのタグは動かせず、消したあとも同じ名前を使えない。有効にしたあとのリリースにだけ効く。いまの「下書きを作り、メンテナーが公開する」流れは、公式の文書が勧める手順と同じである | 要判断(J-13) |
 | 公開で変わる設定 | GitHubの「Setting repository visibility」の「Making a repository public」 | 誰でも読めてフォークでき、プッシュのルールセットが無効になり、Actionsの履歴とログを誰でも見られ、スターとウォッチャーが消え、Advanced Securityの機能が使えるようになり、フォークのPRの承認の設定が使われるようになる | 要判断(J-13) |
 
 ### C. 前回の点検の残り
@@ -65,7 +66,7 @@
 | 履歴の差分の個人を特定できる情報 | `git log --all -p`の追加行を、メールアドレスとパスの形で検索 | メールアドレスはツールのものだけ。パスは、前回の記録の本文と、伏せた書き方の注意書きと、テスト用の値だけ | 問題なし |
 | コミットメッセージ | `git log --all --format=%B`と`%s`を検索 | 本文のメールアドレスは、`Co-Authored-By:`のツールのもの717件と、Dependabotの`Signed-off-by:`のbotのもの1件だけ。メンテナーのアカウント名は、マージの件名(`Merge pull request #N from <所有者>/<ブランチ>`)の77件だけ | 問題なし(2026-11-09の判断で公開してよい) |
 | 秘密情報 | 全体の差分の追加行で、トークンと鍵の形(`gh[opsu]_`、`github_pat_`、`AKIA`、秘密鍵の見出し、`sk-ant-`、`xox?-`、`AIza`、JWTなど)と代入の形を検索し、40桁以上の16進の並び(632件)を分類 | 鍵とトークンの形は0件。16進の並びは、Cargoのチェックサム607件、Actionsの固定のSHA 18件、配布物のSHA-256 3件、コミットのSHA 2件、テスト用のダミー2件 | 問題なし(検索の形にない鍵は確かめていない。GitHubのsecret scanningは実行していない) |
-| 仮の値 | `git grep`で`TODO(project)`、`<project URL>`、`example.com`、`CHANGEME`、`FIXME`などを検索 | `dependabot.yml`の`TODO(project)`はなくなった(PR #58)。`AGENTS.md`の92行に、テンプレート由来の`TODO(project)`のHTMLのコメント(言語の表を上書きする場合の注意)が残る。`f467cb7`から入っていて、前回の記録は見落としていた | 要判断(J-15) |
+| 仮の値 | `git grep`で`TODO(project)`、`<project URL>`、`example.com`、`CHANGEME`、`FIXME`などを検索 | `dependabot.yml`の`TODO(project)`はなくなった(PR #58)。`AGENTS.md`の92行に、テンプレート由来の`TODO(project)`のHTMLのコメント(言語の表を上書きする場合の注意)が残る。`f467cb7`から入っている。0004の21行は`AGENTS.md`の`TODO(project)`をテンプレートの使い方の説明として扱っており、92行のコメントを含めたかどうかは、記録がなく分からない | 要判断(J-15) |
 | `Claude-Session:`のトレーラー | `git log <範囲> --format=%B`で`^Claude-Session:`の行を数え、IDは種類の数と件数だけを出した | 全体717件(増えた分231件)。すべて`Claude-Session: https://claude.ai/code/session_<ID>`の形。IDは3種類 | 要判断(J-7) |
 | 所有者以外がセッションのURLを開いたときに見えるもの | Claude Codeの文書(`llms.txt`、claude-code-on-the-webの「Share sessions」、cloud-environmentsの「Link output back to the session」、settings-referenceの`attribution.sessionUrl`)を取得して検索 | 共有するには公開範囲を切り替える。公開範囲は、Team・EnterpriseではPrivateとTeam、Pro・Max・UltraではPrivateとPublicで、Publicはclaude.aiにログインしたすべての利用者に見える。`attribution.sessionUrl`を`false`にすると、トレーラーとPRの本文のリンクを付けなくなる(既定は`true`)。Privateのセッションを所有者以外が開いたときに何が見えるかは、文書に記述がなかった。既定の公開範囲がPrivateであるとも、明文では書かれていない | 要判断(J-7) |
 | Issueの本文とコメント | MCPで8件すべて(#2、#3、#28、#29、#44、#47、#50、#59)と、コメント4件すべてを読んだ | 個人を特定できる値、秘密情報、会話の引用はない | 問題なし |
@@ -88,6 +89,7 @@
 | J-6 | medium | `AGENTS.md`、`CLAUDE.md`、`.agents/skills/`を、承認が要るセキュリティ設定と、設定ファイルを守るフックの対象に加えるか | 加える。外部の文から入った「指示」が、規則のファイルに残るのを防ぐため |
 | J-7 | medium | セッションのURL(コミットのトレーラー717件、PRの本文77件)の扱い | これからの分は、`attribution.sessionUrl: false`で止める(`.claude/settings.json`の変更)。過去の分は、J-8の移行で消す。それまでに、3つのセッションがPrivateであることを、メンテナーが確かめる。あわせて、アカウントのプランを教えていただく(公開範囲の選択肢がプランで違うため) |
 | J-8 | medium | テンプレートの作者のアカウント名(差分の5件)の置き換えの方法 | 2026-11-09の判断の軸のとおり、書き換えた履歴を新しい公開用のリポジトリに移す。同じリポジトリで書き換えても、PRの参照(`refs/pull/*/head`)から古いコミットが辿れるおそれがあるため。`refs/pull`の扱いを公式の文書で確かめる作業を、作業15に登録する |
+| J-16 | low | 実機での確認に使ってよい成果物の範囲(いまは、CIの実行のたびの成果物を使ってよい。onboardingの417行) | 外部の人のPRの実行の成果物は、実機での確認に使わない、と手順に書く(手順の変更)。メンテナーとエージェントのPR、手動実行、リリースの成果物は、これまでどおり使ってよい |
 | J-9 | low | 過去のActionsのログと成果物の公開 | J-8で新しいリポジトリに移すなら、Actionsの履歴は移らないため、決めなくてよい。今のリポジトリを公開する場合は、公開の前に決める |
 | J-10 | low | アクションのSHAでの固定を強制する設定 | Settingsの「Require actions to be pinned to a full-length commit SHA」を有効にし、使えるアクションを3つの持ち主に限る。ロックファイル(`gh actions-lock`)は依存が増えるため、いまは採らない |
 | J-11 | low | Dependabotのアラートとセキュリティの更新、`rust-toolchain` | アラートだけを有効にし、セキュリティの更新は無効のままにする(公開から7日たっていない版のPRが来るため)。`rust-toolchain`は、いまは加えない |
@@ -102,11 +104,10 @@
 
 | 番号 | 内容 | 承認 |
 | --- | --- | --- |
-| K-1 | `block-dangerous-git.sh`の正規表現を広げ、`git`のオプション、`refs/heads/`、`+`の形の`main`へのプッシュも止める。サンプル入力を`scripts/check_hooks.py`に加える | 要(`.claude/hooks/`の変更) |
+| K-1 | `block-dangerous-git.sh`の正規表現を広げ、`git`のオプション、`refs/heads/`、`+`、`HEAD`以外の送り元(`<ブランチ>:main`)の形の`main`へのプッシュも止める。サンプル入力を`scripts/check_hooks.py`に加える | 要(`.claude/hooks/`の変更) |
 | K-2 | `.gitignore`に`/.claude/settings.local.json`を加える | 不要 |
 | K-3 | AGENTS.mdの外部由来の例の並びを、「外部の人が書けるもの全般」という原則の文に変え、コミットメッセージ、ブランチ名、PRのタイトル、差分の中のコメント、DependabotのPRの本文を例に足す | 要(規則の変更) |
 | K-4 | レビューの手順の文書に、外部の人のPRで`.github/workflows/`が変わっているときは、チェックの成功を検査が通った根拠にしない、と書く | 要(規則の変更) |
-| K-5 | 実機で確かめる成果物は、手動実行とリリースの成果物に限る、と文書に書く(ADR-0017の決定2のとおり) | 不要(記録の明確化) |
 | K-6 | `dependabot.yml`が指定するラベル`dependencies`を、リポジトリに作る(GitHubの操作)か、`dependabot.yml`からラベルの指定を外す | 要(どちらもメンテナーの判断。後者はセキュリティ設定の変更) |
 
 ## 画面で確かめる項目
