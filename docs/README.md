@@ -119,3 +119,4 @@
 | [0030](incidents/0030-push-checked-check-runs-not-workflow-runs.md) | プッシュの前にPRのチェックだけを見て、待ち行列のCIの実行に気づかずにプッシュした |
 | [0031](incidents/0031-requested-publishing-an-already-published-release.md) | 公開済みのリリースの公開を依頼し続け、確かめていない前提で判断を仰いだ |
 | [0032](incidents/0032-committed-after-a-failing-check.md) | 検証のコマンドの失敗を見ずに、同じ呼び出しの中でコミットした |
+| [0033](incidents/0033-exit-time-near-limit-unnoticed.md) | スモークテストの終了の時間が上限の近くまで延びたことに8日間気づかず、1回の実行の失敗を、値を比べずに案の不採用の根拠にした |
