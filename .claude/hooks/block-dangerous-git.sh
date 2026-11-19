@@ -68,7 +68,7 @@ fi
 # The destination main in these refspec forms: main, +main, HEAD:main,
 # <branch>:main, refs/heads/main (docs/reviews/0005, K-1). A branch whose
 # name only contains main (fix/main, main-fix) is not matched. Quoted names,
-# line continuations and option values with spaces are not matched
+# line continuations, option values with spaces and git.exe are not matched
 # (docs/development/onboarding.md, section 6.3); the ruleset of main is the
 # real defense.
 if has "$git_push"'[^|;&]*[[:space:]]\+?([^[:space:]|;&:]*:)?(refs/heads/)?(main|master)([^[:alnum:]_/.-]|$)'; then
