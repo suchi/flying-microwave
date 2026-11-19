@@ -121,3 +121,4 @@
 | [0032](incidents/0032-committed-after-a-failing-check.md) | 検証のコマンドの失敗を見ずに、同じ呼び出しの中でコミットした |
 | [0033](incidents/0033-exit-time-near-limit-unnoticed.md) | スモークテストの終了の時間が上限の近くまで延びたことに8日間気づかず、1回の実行の失敗を、値を比べずに案の不採用の根拠にした |
 | [0034](incidents/0034-incident-list-test-skipped.md) | incidentを記録したコミットで、手順が求める一覧のテストを実行しなかった |
+| [0035](incidents/0035-key-to-screen-gone-failed-after-adr-0028.md) | ADR-0028の直し方のあとも、F-01のキーから画面が消えるまでが上限を超えた |
