@@ -65,9 +65,12 @@ if [ "$force_push" = true ] && [ "$touches_main" = true ]; then
   emit deny "main・masterへのforce pushは禁止です(AGENTS.mdの開発フロー)。"
 fi
 
-# The destination main in any refspec form: main, +main, HEAD:main,
+# The destination main in these refspec forms: main, +main, HEAD:main,
 # <branch>:main, refs/heads/main (docs/reviews/0005, K-1). A branch whose
-# name only contains main (fix/main, main-fix) is not matched.
+# name only contains main (fix/main, main-fix) is not matched. Quoted names,
+# line continuations and option values with spaces are not matched
+# (docs/development/onboarding.md, section 6.3); the ruleset of main is the
+# real defense.
 if has "$git_push"'[^|;&]*[[:space:]]\+?([^[:space:]|;&:]*:)?(refs/heads/)?(main|master)([^[:alnum:]_/.-]|$)'; then
   emit deny "main・masterへの直接のプッシュは禁止です。フィーチャーブランチとPRを使ってください(AGENTS.md)。"
 fi
