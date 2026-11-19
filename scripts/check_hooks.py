@@ -53,6 +53,11 @@ SAMPLES = {
     ".claude/hooks/protect-config.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "crates/app/src/main.rs"}}, None),
+        # docs/reviews/0005, J-6: the rule files.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "AGENTS.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": "CLAUDE.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".agents/skills/adr/SKILL.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "docs/README.md"}}, None),
     ],
     ".claude/hooks/require-japanese-description.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}}, "deny"),
