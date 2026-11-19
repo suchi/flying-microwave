@@ -20,6 +20,7 @@
 | --- | --- |
 | [README.md](../README.md) | リポジトリを見る人 |
 | [packaging/windows/README.md](../packaging/windows/README.md) | 配布物の利用者(リリースのzipに`README.md`として同梱する) |
+| [SECURITY.md](../SECURITY.md) | 脆弱性を報告する人(対象の版と、非公開の報告の方法) |
 | [AGENTS.md](../AGENTS.md) | 開発に参加する人とAIコーディングエージェント(指示とルールの単一ソース) |
 
 ## 計画
