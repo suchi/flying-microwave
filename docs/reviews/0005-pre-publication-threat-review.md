@@ -91,7 +91,7 @@
 | J-8 | medium | テンプレートの作者のアカウント名(差分の5件)の置き換えの方法 | 2026-11-09の判断の軸のとおり、書き換えた履歴を新しい公開用のリポジトリに移す。同じリポジトリで書き換えても、PRの参照(`refs/pull/*/head`)から古いコミットが辿れるおそれがあるため。`refs/pull`の扱いを公式の文書で確かめる作業を、作業15に登録する |
 | J-16 | low | 実機での確認に使ってよい成果物の範囲(いまは、CIの実行のたびの成果物を使ってよい。onboardingの417行) | 外部の人のPRの実行の成果物は、実機での確認に使わない、と手順に書く(手順の変更)。メンテナーとエージェントのPR、手動実行、リリースの成果物は、これまでどおり使ってよい |
 | J-9 | low | 過去のActionsのログと成果物の公開 | J-8で新しいリポジトリに移すなら、Actionsの履歴は移らないため、決めなくてよい。今のリポジトリを公開する場合は、公開の前に決める |
-| J-10 | low | アクションのSHAでの固定を強制する設定 | Settingsの「Require actions to be pinned to a full-length commit SHA」を有効にし、使えるアクションを3つの持ち主に限る。ロックファイル(`gh actions-lock`)は依存が増えるため、いまは採らない |
+| J-10 | low | アクションのSHAでの固定を強制する設定 | Settingsの「Require actions to be pinned to a full-length commit SHA」を有効にし、使えるアクションを、ワークフローが使う3つ(`actions/checkout`、`actions/upload-artifact`、`Swatinem/rust-cache`)に限る。ロックファイル(`gh actions-lock`)は依存が増えるため、いまは採らない。訂正(2026-11-19): はじめは「3つの持ち主に限る」と書いたが、持ち主は2つ(`actions`、`Swatinem`)で、3つはアクションの数だった(`.github/workflows/`の`uses:`の行) |
 | J-11 | low | Dependabotのアラートとセキュリティの更新、`rust-toolchain` | アラートだけを有効にし、セキュリティの更新は無効のままにする(公開から7日たっていない版のPRが来るため)。`rust-toolchain`は、いまは加えない |
 | J-12 | low | CODEOWNERS | いまは置かない |
 | J-13 | low | 変更できないリリースと、ワークフローのコードのスキャン | 変更できないリリース(Settings → General → Releases → 「Enable release immutability」)は、`v0.3.0`の正式なリリースの前に有効にする。公開したリリースのタグは動かせなくなる。CodeQLは、いまは使わない |
@@ -160,7 +160,7 @@
 | J-7 | これからの分は`attribution.sessionUrl: false`で止め、コミットメッセージ、PRの本文、GitHubのコメントに、セッションのURLを書かない。過去の分は、J-8の移行で消す | `.claude/settings.json`、`AGENTS.md`の「コミットメッセージ」 | 3つのセッションがPrivateであることのメンテナーの確認(S-17)と、アカウントのプランの答え |
 | J-8 | 書き換えた履歴を、新しい公開用のリポジトリに移す | 計画0005の作業15の2 | `refs/pull`の扱いを公式の文書で確かめること、移行の手順の案と、その承認 |
 | J-9 | J-8で新しいリポジトリに移すため、決めない | なし | なし |
-| J-10 | 「Require actions to be pinned to a full-length commit SHA」を有効にし、使えるアクションを3つの持ち主に限る。ロックファイルは使わない | 計画0005の作業15の2 | メンテナーの画面での設定 |
+| J-10 | 「Require actions to be pinned to a full-length commit SHA」を有効にし、使えるアクションを、ワークフローが使う3つのアクションに限る。ロックファイルは使わない | 計画0005の作業15の2 | メンテナーの画面での設定 |
 | J-11 | Dependabotのアラートだけを有効にし、セキュリティの更新は無効のままにする。`rust-toolchain`は加えない | 計画0005の作業15の2 | メンテナーの画面での設定 |
 | J-12 | CODEOWNERSは置かない | なし | なし |
 | J-13 | 変更できないリリースを`v0.3.0`の正式なリリースの前に有効にする。CodeQLは使わない | 計画0005の作業15の2 | メンテナーの画面での設定 |
