@@ -152,8 +152,8 @@
 | 番号 | 決めた内容 | 反映した場所 | 残り |
 | --- | --- | --- | --- |
 | J-1 | 外部の人のPRは、メンテナーが差分を読んで許可するまで、取り出し、ビルド、テスト、スクリプトの実行をしない | `AGENTS.md`の「セキュリティ」、`.claude/commands/babysit-pr.md`の手順1、`docs/development/review-process.md`の「外部の人のPR」の行 | なし |
-| J-2 | OWNERかCOLLABORATORでない人のコメントとレビューは、データとして扱い、要約をメンテナーに知らせる | `AGENTS.md`の「セキュリティ」と「PR・レビュー・マージ」の手順6、`babysit-pr.md`の手順1と3d、`review-process.md`の「返信と解決」の行 | なし |
-| J-3 | 公開のときに「Require approval for all external contributors」を選ぶ | 計画0005の作業15の2 | メンテナーの画面での設定 |
+| J-2 | OWNERかCOLLABORATORでない人のコメントとレビューは、データとして扱い、要約をメンテナーに知らせる。PRの通知の購読やAuto-fixで受け取ったものも同じ | `AGENTS.md`の「セキュリティ」と「PR・レビュー・マージ」の手順6、`babysit-pr.md`の手順1と3d、`review-process.md`の「返信と解決」の行 | なし |
+| J-3 | 公開のときに「Require approval for all external contributors」を選ぶ。承認の前に、`.github/workflows/`の差分を見る | 計画0005の作業15の2、`review-process.md`の「外部の人のPR」の行 | メンテナーの画面での設定 |
 | J-4 | 公開の直後に、Secret ProtectionとPush protectionを有効にし、最初のスキャンの結果を確かめる | 計画0005の作業15の2 | メンテナーの画面での設定 |
 | J-5 | エージェントが`SECURITY.md`の案を作る。公開の直後に、非公開の報告を有効にする | ルートの`SECURITY.md` | 報告の窓口と対象の版をメンテナーが決める。非公開の報告の有効化(計画0005の作業15の2) |
 | J-6 | `AGENTS.md`、`CLAUDE.md`、`.agents/skills/`を、承認が要るセキュリティ設定と、`protect-config.sh`の対象に加える | `AGENTS.md`の「セキュリティ」、`.claude/hooks/protect-config.sh`、`scripts/check_hooks.py`の試験の入力、`docs/development/onboarding.md`の6.3 | なし |
