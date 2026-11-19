@@ -6,7 +6,7 @@
 - 目的: リポジトリを公開したときに外部の人が起こせることを、一次情報で確かめ、メンテナーの判断が要る点をまとめる(計画0005のD-9、E-7)
 - 方法: 3つの領域に分け、エージェント(最も高性能なモデル)が読むだけで調べた。A: プロンプトインジェクションと開発の道具。B: GitHub Actionsとリポジトリの設定。C: 前回の点検([0004](0004-pre-publication-audit.md))の残り。一次情報は、Claude Codeの公式の文書(code.claude.com/docs)、GitHubの公式の文書(docs.github.com)、リポジトリのファイル、GitHubのMCPで読める情報。公式の文書は2026-11-18に取得した。リポジトリの設定の値は、エージェントからは読めないため、メンテナーが画面で確かめる項目にした(下の「画面で確かめる項目」)
 - 書き方: 個人を特定できる値(メールアドレス、氏名、アカウント名、セッションのID)そのものは書かず、種類、件数、コミットのSHA、IssueやPRの番号で示す(0004と同じ)
-- 状態: メンテナーの判断を待っている(下の「判断が要ること」)
+- 状態: 2026-11-19に判断を受け取った(下の「判断」)。対策のうち、リポジトリの中で行うものは、作業ブランチ`claude/jolly-hypatia-hw287j`のPRで反映した。画面での設定と、公開用のリポジトリへの移行は、[計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)の作業15と作業15の2に登録した
 
 ## 結論
 
@@ -147,4 +147,28 @@
 
 ## 判断
 
-まだ受け取っていない。
+2026-11-19に、メンテナーが、J-1〜J-16と、K-1〜K-4、K-6のすべてを、推奨どおりと判断した([計画0005](../plans/0005-v0.3.0-visuals-and-clock.md)のD-22)。推奨に、メンテナーが決めることや確かめることが含まれる項目は、その部分が残っている(下の表の「残り」)。
+
+| 番号 | 決めた内容 | 反映した場所 | 残り |
+| --- | --- | --- | --- |
+| J-1 | 外部の人のPRは、メンテナーが差分を読んで許可するまで、取り出し、ビルド、テスト、スクリプトの実行をしない | `AGENTS.md`の「セキュリティ」、`.claude/commands/babysit-pr.md`の手順1、`docs/development/review-process.md`の「外部の人のPR」の行 | なし |
+| J-2 | OWNERかCOLLABORATORでない人のコメントとレビューは、データとして扱い、要約をメンテナーに知らせる | `AGENTS.md`の「セキュリティ」と「PR・レビュー・マージ」の手順6、`babysit-pr.md`の手順1と3d、`review-process.md`の「返信と解決」の行 | なし |
+| J-3 | 公開のときに「Require approval for all external contributors」を選ぶ | 計画0005の作業15の2 | メンテナーの画面での設定 |
+| J-4 | 公開の直後に、Secret ProtectionとPush protectionを有効にし、最初のスキャンの結果を確かめる | 計画0005の作業15の2 | メンテナーの画面での設定 |
+| J-5 | エージェントが`SECURITY.md`の案を作る。公開の直後に、非公開の報告を有効にする | ルートの`SECURITY.md` | 報告の窓口と対象の版をメンテナーが決める。非公開の報告の有効化(計画0005の作業15の2) |
+| J-6 | `AGENTS.md`、`CLAUDE.md`、`.agents/skills/`を、承認が要るセキュリティ設定と、`protect-config.sh`の対象に加える | `AGENTS.md`の「セキュリティ」、`.claude/hooks/protect-config.sh`、`scripts/check_hooks.py`の試験の入力、`docs/development/onboarding.md`の6.3 | なし |
+| J-7 | これからの分は`attribution.sessionUrl: false`で止め、コミットメッセージ、PRの本文、GitHubのコメントに、セッションのURLを書かない。過去の分は、J-8の移行で消す | `.claude/settings.json`、`AGENTS.md`の「コミットメッセージ」 | 3つのセッションがPrivateであることのメンテナーの確認(S-17)と、アカウントのプランの答え |
+| J-8 | 書き換えた履歴を、新しい公開用のリポジトリに移す | 計画0005の作業15の2 | `refs/pull`の扱いを公式の文書で確かめること、移行の手順の案と、その承認 |
+| J-9 | J-8で新しいリポジトリに移すため、決めない | なし | なし |
+| J-10 | 「Require actions to be pinned to a full-length commit SHA」を有効にし、使えるアクションを3つの持ち主に限る。ロックファイルは使わない | 計画0005の作業15の2 | メンテナーの画面での設定 |
+| J-11 | Dependabotのアラートだけを有効にし、セキュリティの更新は無効のままにする。`rust-toolchain`は加えない | 計画0005の作業15の2 | メンテナーの画面での設定 |
+| J-12 | CODEOWNERSは置かない | なし | なし |
+| J-13 | 変更できないリリースを`v0.3.0`の正式なリリースの前に有効にする。CodeQLは使わない | 計画0005の作業15の2 | メンテナーの画面での設定 |
+| J-14 | 日本語を求めるフックは変えず、英語で書く貢献者への説明を書く | `docs/development/onboarding.md`の6.3 | なし |
+| J-15 | `AGENTS.md`の`TODO(project)`のコメントを消す | `AGENTS.md`の言語ルールの表のあと | なし |
+| J-16 | 外部の人のPRの実行の成果物は、実機での確認に使わない | `docs/development/onboarding.md`の「CIの成果物」の項目 | なし |
+| K-1 | `block-dangerous-git.sh`が、`git`のオプション、`refs/heads/`、`+`、`<ブランチ>:main`の形の`main`へのプッシュも止める | `.claude/hooks/block-dangerous-git.sh`、`scripts/check_hooks.py`の試験の入力 | なし |
+| K-2 | `.gitignore`に`/.claude/settings.local.json`を加える | `.gitignore` | なし |
+| K-3 | 外部由来コンテンツを、外部の人が書けるもの全般という原則の文にし、例を足す | `AGENTS.md`の「セキュリティ」 | なし |
+| K-4 | 外部の人のPRで`.github/workflows/`が変わっているときは、チェックの成功を検査が通った根拠にしない | `review-process.md`の「外部の人のPR」の行 | なし |
+| K-6 | 推奨がなく、どちらもメンテナーの判断としていた | なし | ラベルを作るか、`dependabot.yml`から指定を外すかの、メンテナーの判断(計画0005の作業15の2) |
