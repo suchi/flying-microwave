@@ -40,18 +40,24 @@ has() {
   printf '%s' "$cmd" | grep -Eq "$1"
 }
 
+# "git push", also with git options before push (git -C dir push,
+# git -c key=value push; docs/reviews/0005, K-1). Only words that start
+# with "-", each with an optional argument, may come between git and push,
+# so that "git commit -m '... push ... main'" is not taken for a push.
+git_push='git([[:space:]]+-[^[:space:]|;&]+([[:space:]]+[^-[:space:]|;&][^[:space:]|;&]*)?)*[[:space:]]+push'
+
 is_push=false
-if has 'git[[:space:]]+push'; then is_push=true; fi
+if has "$git_push"'([[:space:]]|$)'; then is_push=true; fi
 
 force_push=false
 if [ "$is_push" = true ]; then
-  if has 'git[[:space:]]+push[^|;&]*--force' || has 'git[[:space:]]+push[^|;&]*[[:space:]]-f([[:space:]]|$)'; then
+  if has "$git_push"'[^|;&]*--force' || has "$git_push"'[^|;&]*[[:space:]]-f([[:space:]]|$)'; then
     force_push=true
   fi
 fi
 
 touches_main=false
-if has '[[:space:]:](main|master)([^[:alnum:]_-]|$)'; then touches_main=true; fi
+if has '[[:space:]:+](main|master)([^[:alnum:]_-]|$)'; then touches_main=true; fi
 
 # --- Never allowed ------------------------------------------------------
 
@@ -59,7 +65,10 @@ if [ "$force_push" = true ] && [ "$touches_main" = true ]; then
   emit deny "main・masterへのforce pushは禁止です(AGENTS.mdの開発フロー)。"
 fi
 
-if has 'git[[:space:]]+push[^|;&]*[[:space:]](HEAD:)?(main|master)([^[:alnum:]_/-]|$)'; then
+# The destination main in any refspec form: main, +main, HEAD:main,
+# <branch>:main, refs/heads/main (docs/reviews/0005, K-1). A branch whose
+# name only contains main (fix/main, main-fix) is not matched.
+if has "$git_push"'[^|;&]*[[:space:]]\+?([^[:space:]|;&:]*:)?(refs/heads/)?(main|master)([^[:alnum:]_/.-]|$)'; then
   emit deny "main・masterへの直接のプッシュは禁止です。フィーチャーブランチとPRを使ってください(AGENTS.md)。"
 fi
 
