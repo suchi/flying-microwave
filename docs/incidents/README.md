@@ -67,3 +67,4 @@
 | [0035](0035-key-to-screen-gone-failed-after-adr-0028.md) | ADR-0028の直し方のあとも、F-01のキーから画面が消えるまでが上限を超えた | 2026-11-19 |
 | [0036](0036-session-link-in-pr-body.md) | PRの本文に、セッションのリンクが入ったまま、マージの直前まで気づかなかった | 2026-11-20 |
 | [0037](0037-english-note-missing-from-transcript.md) | 合間の英語の文が会話の記録に残らず、日本語を求めるフックが止めなかった | 2026-11-20 |
+| [0038](0038-release-notes-not-updated-after-hardware-check.md) | 公開したプレリリースの実機での確認の結果を、CHANGELOGとリリースノートに反映しなかった | 2026-11-20 |
