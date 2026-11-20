@@ -44,7 +44,11 @@ import tempfile
 COMMAND_PATTERN = re.compile(r'"\$CLAUDE_PROJECT_DIR/(\.claude/hooks/[A-Za-z0-9_-]+\.sh)"')
 
 # Sample inputs per hook: (input, expected decision). None means the hook
-# must let the input through (exit 0 and no decision).
+# must let the input through (exit 0 and no decision). Hooks start in a
+# temporary git repository on the branch named by "_branch" (removed from the
+# input; check-hooks by default), so the branch checked out where this script
+# runs does not change the result: the CI on main once failed only there
+# (docs/incidents/0039).
 SAMPLES = {
     ".claude/hooks/block-dangerous-git.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin main"}}, "deny"),
@@ -68,6 +72,9 @@ SAMPLES = {
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -an -m a"}}, "deny"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit --amend -m a"}}, None),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push -n -u origin fix/x"}}, None),
+        # A commit on main is asked about (the samples above run on a feature
+        # branch; docs/incidents/0039).
+        ({"_branch": "main", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, "ask"),
     ],
     ".claude/hooks/protect-config.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),
@@ -260,10 +267,17 @@ def run_problems(commands, samples, root):
                 for index, (sample, expected) in enumerate(samples[path]):
                     if (path, index) in failed:
                         continue
+                    sample = dict(sample)
+                    cwd = branch_repo(temp, sample.pop("_branch", "check-hooks"))
+                    # Paths in the samples are relative to the repository root,
+                    # but the hooks start in the temporary repository.
+                    transcript = sample.get("transcript_path")
+                    if transcript and not os.path.isabs(transcript):
+                        sample["transcript_path"] = str(pathlib.Path(root, transcript))
                     # Why sh -c: on Linux and macOS, Claude Code passes the command
                     # string to sh -c (Hooks reference), so this is how it starts.
                     result = subprocess.run(
-                        ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
+                        ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=cwd, env=env
                     )
                     got = decision(result.stdout)
                     if result.returncode != 0 or got != expected:
@@ -273,6 +287,15 @@ def run_problems(commands, samples, root):
                             f"{path}{label}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}"
                         )
     return problems
+
+
+def branch_repo(temp, branch):
+    """An empty git repository under temp whose current branch is branch,
+    made on first use."""
+    path = pathlib.Path(temp, "repo-" + branch)
+    if not path.exists():
+        subprocess.run(["git", "init", "-q", "-b", branch, str(path)], check=True, capture_output=True)
+    return path
 
 
 def use_utf8_output():
