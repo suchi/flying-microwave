@@ -125,3 +125,4 @@
 | [0036](incidents/0036-session-link-in-pr-body.md) | PRの本文に、セッションのリンクが入ったまま、マージの直前まで気づかなかった |
 | [0037](incidents/0037-english-note-missing-from-transcript.md) | 合間の英語の文が会話の記録に残らず、日本語を求めるフックが止めなかった |
 | [0038](incidents/0038-release-notes-not-updated-after-hardware-check.md) | 公開したプレリリースの実機での確認の結果を、CHANGELOGとリリースノートに反映しなかった |
+| [0039](incidents/0039-main-ci-failed-unnoticed-after-merge.md) | マージのあとのmainのCIが2回続けて失敗し、気づかなかった |
