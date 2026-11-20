@@ -71,6 +71,10 @@ SAMPLES = {
         ({"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": "CLAUDE.md"}}, "ask"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".agents/skills/adr/SKILL.md"}}, "ask"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "docs/README.md"}}, None),
+        # Plan 0005, D-24: the commands and the skills of Claude Code.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/commands/merge-pr.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": ".claude/skills/adr/SKILL.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "docs/development/commands.md"}}, None),
     ],
     ".claude/hooks/require-japanese-description.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}}, "deny"),
