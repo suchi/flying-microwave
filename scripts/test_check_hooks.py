@@ -69,6 +69,13 @@ class DecisionTest(unittest.TestCase):
     def test_stop_decisions(self):
         self.assertEqual(ch.decision('{"decision":"block","reason":"x"}'), "block")
 
+    def test_context_without_a_decision(self):
+        out = '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"x"}}'
+        self.assertEqual(ch.decision(out), "context")
+        # A decision wins over the context passed with it.
+        out = '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","additionalContext":"x"}}'
+        self.assertEqual(ch.decision(out), "deny")
+
     def test_no_output_is_no_decision(self):
         self.assertIsNone(ch.decision(""))
         self.assertIsNone(ch.decision("not json"))

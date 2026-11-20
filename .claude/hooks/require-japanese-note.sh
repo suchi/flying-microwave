@@ -19,6 +19,12 @@
 # written late is reported at the next call; one already written is
 # reported at once. Replies without a tool call are left to the Stop hook.
 #
+# A note shown to the maintainer was once missing from the transcript, and
+# only the thinking of the same message held it (docs/incidents/0037). So a
+# message with a tool call, no text and English-only thinking is reported
+# too, once, through additionalContext and without stopping the call:
+# English thinking itself is allowed (AGENTS.md, language rules).
+#
 # Subagent calls (agent_id set) pass: their messages are not in the main
 # transcript, and the main agent's text must not stop them. Their reports
 # are checked by the SubagentStop hook.
@@ -67,8 +73,9 @@ found=$(tail -n 200 "$transcript" 2>/dev/null | jq -Rnr '
   reduce (inputs | fromjson? | select(type == "object" and .type == "assistant" and (.message | type) == "object" and (.message.id | type) == "string")) as $x
     ({order: [], m: {}};
      $x.message.id as $id
-     | (if .m[$id] == null then .order += [$id] | .m[$id] = {text: [], tool: false} else . end)
+     | (if .m[$id] == null then .order += [$id] | .m[$id] = {text: [], think: [], tool: false} else . end)
      | .m[$id].text += [$x.message.content[]? | select(type == "object" and .type == "text") | .text | strings]
+     | .m[$id].think += [$x.message.content[]? | select(type == "object" and .type == "thinking") | .thinking | strings]
      | .m[$id].tool = (.m[$id].tool or any($x.message.content[]?; type == "object" and .type == "tool_use")))
   | . as $s
   | $s.order[]
@@ -76,21 +83,35 @@ found=$(tail -n 200 "$transcript" 2>/dev/null | jq -Rnr '
   | $s.m[$id]
   | select(.tool)
   | (.text | join("\n")) as $t
-  | select(($t | test("[A-Za-z]")) and ($t | test("[\\p{Hiragana}\\p{Katakana}\\p{Han}]") | not))
-  | [$id, ($t | gsub("\\s+"; " ") | .[0:80])]
+  | (.think | join("\n")) as $k
+  | def english: test("[A-Za-z]") and (test("[\\p{Hiragana}\\p{Katakana}\\p{Han}]") | not);
+    if ($t | length) > 0 then
+      select($t | english) | [$id, "text", ($t | gsub("\\s+"; " ") | .[0:80])]
+    else
+      # docs/incidents/0037: a note shown to the maintainer was missing from
+      # the transcript, and only the thinking of the same message held it.
+      select($k | english) | [$id, "thinking", ($k | gsub("\\s+"; " ") | .[0:80])]
+    end
   | @tsv' 2>/dev/null) || exit 0
 found=$(printf '%s' "$found" | tr -d '\r')
 [ -n "$found" ] || exit 0
 
 tab=$(printf '\t')
-printf '%s\n' "$found" | while IFS="$tab" read -r id snippet; do
+printf '%s\n' "$found" | while IFS="$tab" read -r id kind snippet; do
   id=$(printf '%s' "$id" | tr -cd 'A-Za-z0-9_-')
   [ -n "$id" ] || continue
   grep -Fxq -- "$id" "$state" 2>/dev/null && continue
   # Without the record the same message would be reported at every call.
   { printf '%s\n' "$id" >> "$state"; } 2>/dev/null || break
-  jq -cn --arg reason "ツールを呼ぶ前に書いた文「${snippet}」に日本語が含まれていません。この文はメンテナーに表示されたため、同じ内容を日本語で書き直してから、もう一度呼び出してください。この文について書き直しを求めるのは、この1回だけです(AGENTS.mdの言語ルールの原則。docs/incidents/0018、0022)。" \
-    '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
+  if [ "$kind" = thinking ]; then
+    # English thinking is allowed (AGENTS.md, language rules), so the call
+    # is not stopped: the agent is only asked to check what it showed.
+    jq -cn --arg context "ツールを呼んだメッセージ(${id})は、会話の記録に文の塊がなく、考える過程が英語だけでした(「${snippet}」)。この呼び出しの前に、画面に表示される文を英語で書いていたら、同じ内容を日本語で書き直してください。書いていなければ、何もしなくて構いません。知らせるのは、このメッセージについて1回だけです(docs/incidents/0037)。" \
+      '{hookSpecificOutput: {hookEventName: "PreToolUse", additionalContext: $context}}'
+  else
+    jq -cn --arg reason "ツールを呼ぶ前に書いた文「${snippet}」に日本語が含まれていません。この文はメンテナーに表示されたため、同じ内容を日本語で書き直してから、もう一度呼び出してください。この文について書き直しを求めるのは、この1回だけです(AGENTS.mdの言語ルールの原則。docs/incidents/0018、0022)。" \
+      '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
+  fi
   break
 done
 exit 0

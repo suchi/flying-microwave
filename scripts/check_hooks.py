@@ -105,6 +105,10 @@ SAMPLES = {
         # Only Japanese text, or no transcript.
         ({"hook_event_name": "PreToolUse", "session_id": "check-note-ja", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript-ja.jsonl", "tool_use_id": "toolu_new"}, None),
         ({"hook_event_name": "PreToolUse", "session_id": "check-note-missing", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/missing.jsonl", "tool_use_id": "toolu_new"}, None),
+        # docs/incidents/0037: a message with no text and English-only thinking
+        # is reported once, without stopping the call.
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note-think", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript-thinking.jsonl", "tool_use_id": "toolu_new"}, "context"),
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note-think", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript-thinking.jsonl", "tool_use_id": "toolu_new2"}, None),
     ],
     ".claude/hooks/require-japanese-reply.sh": [
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
@@ -156,7 +160,8 @@ def index_modes(ls_files_text):
 
 
 def decision(output):
-    """The decision a hook printed (deny, ask, block), or None."""
+    """The decision a hook printed (deny, ask, block), "context" for text
+    passed to Claude without a decision, or None."""
     try:
         data = json.loads(output)
     except ValueError:
@@ -166,6 +171,8 @@ def decision(output):
     specific = data.get("hookSpecificOutput")
     if isinstance(specific, dict) and specific.get("permissionDecision"):
         return specific["permissionDecision"]
+    if isinstance(specific, dict) and specific.get("additionalContext") and not data.get("decision"):
+        return "context"
     return data.get("decision")
 
 

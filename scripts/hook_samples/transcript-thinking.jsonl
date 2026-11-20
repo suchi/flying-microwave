@@ -1,0 +1,8 @@
+{"type":"user","message":{"role":"user","content":"作業を始めてください。"}}
+{"type":"assistant","message":{"id":"msg_think_ja","content":[{"type":"thinking","thinking":"次に版を上げる。","signature":"x"}]}}
+{"type":"assistant","message":{"id":"msg_think_ja","content":[{"type":"tool_use","id":"toolu_think_ja","name":"Bash","input":{}}]}}
+{"type":"assistant","message":{"id":"msg_text_ja","content":[{"type":"thinking","thinking":"Check the CI runs first.","signature":"x"}]}}
+{"type":"assistant","message":{"id":"msg_text_ja","content":[{"type":"text","text":"CIの実行を確かめます。"}]}}
+{"type":"assistant","message":{"id":"msg_text_ja","content":[{"type":"tool_use","id":"toolu_text_ja","name":"Bash","input":{}}]}}
+{"type":"assistant","message":{"id":"msg_think_en","content":[{"type":"thinking","thinking":"The trigger is pull_request only, so I'm merging next.","signature":"x"}]}}
+{"type":"assistant","message":{"id":"msg_think_en","content":[{"type":"tool_use","id":"toolu_think_en","name":"Bash","input":{}}]}}
