@@ -1,7 +1,7 @@
 # 0034: incidentを記録したコミットで、手順が求める一覧のテストを実行しなかった
 
 - 日付: 2026-11-19
-- ステータス: 対策中(対策の案は、メンテナーの判断を待っている)
+- ステータス: 対策中(2026-11-20に、メンテナーが対策の(1)〜(3)を推奨どおりと判断した。計画0005のD-23)
 - 関連: [0026](0026-incident-row-placed-in-procedure.md)(一覧のテストを手順に加えたincident)、[0033](0033-exit-time-near-limit-unnoticed.md)(この異常が起きた記録の作業)
 
 ## 起きたこと
@@ -34,7 +34,9 @@
 
 ## 対策
 
-案(メンテナーの判断を待っている):
+2026-11-20に、メンテナーが(1)〜(3)を推奨どおりと判断した(計画0005のD-23)。(1)と(3)は、2026-11-20の記録の変更で、AGENTS.md(検証の節と表、「情報源」の節)と`.claude/commands/commit.md`に加えた。`docs/development/onboarding.md`と`.claude/commands/babysit-pr.md`の同じ説明への書き添えと、(2)のフックは、計画0005の作業10の5で行う。
+
+案:
 
 1. 規則: AGENTS.mdの「検証コマンド」の節の「ドキュメントだけの変更…では不要とする」に、「ただし、`docs/incidents/`と`docs/README.md`を変えるときは、スクリプトのテストを実行する(`docs/incidents/README.md`の手順5)」と書き添える。
 2. 仕組み: `block-dangerous-git.sh`で、`git commit`のときに、ステージした変更に`docs/incidents/`か`docs/README.md`が含まれていれば、一覧のテスト(`python3 -I -m unittest scripts/test_incident_lists.py`の形)を実行し、失敗したらコミットを止める。フックの変更なので、承認が要る。フックが重くなりすぎないかは、試して確かめる。
