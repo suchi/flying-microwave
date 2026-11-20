@@ -20,6 +20,7 @@
 | --- | --- |
 | [README.md](../README.md) | リポジトリを見る人 |
 | [packaging/windows/README.md](../packaging/windows/README.md) | 配布物の利用者(リリースのzipに`README.md`として同梱する) |
+| [SECURITY.md](../SECURITY.md) | 脆弱性を報告する人(対象の版と、非公開の報告の方法) |
 | [AGENTS.md](../AGENTS.md) | 開発に参加する人とAIコーディングエージェント(指示とルールの単一ソース) |
 
 ## 計画
@@ -80,7 +81,7 @@
 | [0002](reviews/0002-decision-round-review.md) | 決定事項の反映(ADR、運用ルール、READMEなど) |
 | [0003](reviews/0003-roadmap-concerns-to-v1.md) | v1.0.0までの懸念事項の確認(メンテナーの判断を含む) |
 | [0004](reviews/0004-pre-publication-audit.md) | 公開の前の点検(Issue #3) |
-| [0005](reviews/0005-pre-publication-threat-review.md) | 公開の前の脅威の点検(計画0005の作業15。メンテナーの判断を待っている) |
+| [0005](reviews/0005-pre-publication-threat-review.md) | 公開の前の脅威の点検(計画0005の作業15。2026-11-19に判断を受け取った。残りは作業15の2) |
 
 ## 異常の記録
 
@@ -118,3 +119,6 @@
 | [0030](incidents/0030-push-checked-check-runs-not-workflow-runs.md) | プッシュの前にPRのチェックだけを見て、待ち行列のCIの実行に気づかずにプッシュした |
 | [0031](incidents/0031-requested-publishing-an-already-published-release.md) | 公開済みのリリースの公開を依頼し続け、確かめていない前提で判断を仰いだ |
 | [0032](incidents/0032-committed-after-a-failing-check.md) | 検証のコマンドの失敗を見ずに、同じ呼び出しの中でコミットした |
+| [0033](incidents/0033-exit-time-near-limit-unnoticed.md) | スモークテストの終了の時間が上限の近くまで延びたことに8日間気づかず、1回の実行の失敗を、値を比べずに案の不採用の根拠にした |
+| [0034](incidents/0034-incident-list-test-skipped.md) | incidentを記録したコミットで、手順が求める一覧のテストを実行しなかった |
+| [0035](incidents/0035-key-to-screen-gone-failed-after-adr-0028.md) | ADR-0028の直し方のあとも、F-01のキーから画面が消えるまでが上限を超えた |

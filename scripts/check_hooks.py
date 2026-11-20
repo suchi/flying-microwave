@@ -49,10 +49,28 @@ SAMPLES = {
     ".claude/hooks/block-dangerous-git.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin main"}}, "deny"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push -u origin fix/x"}}, None),
+        # docs/reviews/0005, K-1: other ways of pushing to main.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git -C . push origin main"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin HEAD:refs/heads/main"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin +HEAD:main"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin fix/x:main"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin +main"}}, "deny"),
+        # Branches whose names only start or end with main are not main.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push -u origin main-fix"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin fix/main"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin HEAD:feature/main.v2"}}, None),
+        # Options before push are accepted; other words before it are not a push.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git -c core.pager=cat push origin main"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m 'block pushing to main'"}}, None),
     ],
     ".claude/hooks/protect-config.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "crates/app/src/main.rs"}}, None),
+        # docs/reviews/0005, J-6: the rule files.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "AGENTS.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": "CLAUDE.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".agents/skills/adr/SKILL.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "docs/README.md"}}, None),
     ],
     ".claude/hooks/require-japanese-description.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}}, "deny"),

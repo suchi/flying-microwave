@@ -27,7 +27,7 @@
 
 ## 利用者の方へ
 
-リリースは、GitHubのReleasesで公開する。インストールの手順は、配布するzipに同梱する[利用者向けREADME](packaging/windows/README.md)に書く。既知の制限は、リリースノートとその説明書に書く。
+リリースは、GitHubのReleasesで公開する。インストールの手順は、配布するzipに同梱する[利用者向けREADME](packaging/windows/README.md)に書く。既知の制限は、リリースノートとその説明書に書く。脆弱性の報告の方法は、[セキュリティポリシー](SECURITY.md)にある。
 
 ## ドキュメント
 

@@ -16,5 +16,9 @@ _work
 # Temporary worktrees of Claude Code subagents (docs/development/review-process.md)
 /.claude/worktrees/
 
+# Personal Claude Code settings for this project (docs/reviews/0005, K-2):
+# Claude Code keeps it out of git only when it creates the file itself.
+/.claude/settings.local.json
+
 # Python bytecode caches
 __pycache__/

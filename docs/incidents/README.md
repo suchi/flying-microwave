@@ -62,3 +62,6 @@
 | [0030](0030-push-checked-check-runs-not-workflow-runs.md) | プッシュの前にPRのチェックだけを見て、待ち行列のCIの実行に気づかずにプッシュした | 2026-11-14 |
 | [0031](0031-requested-publishing-an-already-published-release.md) | 公開済みのリリースの公開を依頼し続け、確かめていない前提で判断を仰いだ | 2026-11-18 |
 | [0032](0032-committed-after-a-failing-check.md) | 検証のコマンドの失敗を見ずに、同じ呼び出しの中でコミットした | 2026-11-18 |
+| [0033](0033-exit-time-near-limit-unnoticed.md) | スモークテストの終了の時間が上限の近くまで延びたことに8日間気づかず、1回の実行の失敗を、値を比べずに案の不採用の根拠にした | 2026-11-19 |
+| [0034](0034-incident-list-test-skipped.md) | incidentを記録したコミットで、手順が求める一覧のテストを実行しなかった | 2026-11-19 |
+| [0035](0035-key-to-screen-gone-failed-after-adr-0028.md) | ADR-0028の直し方のあとも、F-01のキーから画面が消えるまでが上限を超えた | 2026-11-19 |
