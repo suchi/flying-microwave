@@ -62,6 +62,12 @@ SAMPLES = {
         # Options before push are accepted; other words before it are not a push.
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git -c core.pager=cat push origin main"}}, "deny"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m 'block pushing to main'"}}, None),
+        # Plan 0005, D-24: skipping the hooks also with git options or with -n.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git -C . commit --" + "no-verify -m a"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -n -m a"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -an -m a"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit --amend -m a"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push -n -u origin fix/x"}}, None),
     ],
     ".claude/hooks/protect-config.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),

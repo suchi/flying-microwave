@@ -40,11 +40,14 @@ has() {
   printf '%s' "$cmd" | grep -Eq "$1"
 }
 
-# "git push", also with git options before push (git -C dir push,
-# git -c key=value push; docs/reviews/0005, K-1). Only words that start
-# with "-", each with an optional argument, may come between git and push,
-# so that "git commit -m '... push ... main'" is not taken for a push.
-git_push='git([[:space:]]+-[^[:space:]|;&]+([[:space:]]+[^-[:space:]|;&][^[:space:]|;&]*)?)*[[:space:]]+push'
+# "git <subcommand>", also with git options before it (git -C dir push,
+# git -c key=value commit; docs/reviews/0005, K-1; plan 0005, D-24). Only
+# words that start with "-", each with an optional argument, may come
+# between git and the subcommand, so that "git commit -m '... push ...
+# main'" is not taken for a push.
+git_opts='git([[:space:]]+-[^[:space:]|;&]+([[:space:]]+[^-[:space:]|;&][^[:space:]|;&]*)?)*[[:space:]]+'
+git_push="${git_opts}push"
+git_commit="${git_opts}commit"
 
 is_push=false
 if has "$git_push"'([[:space:]]|$)'; then is_push=true; fi
@@ -75,8 +78,27 @@ if has "$git_push"'[^|;&]*[[:space:]]\+?([^[:space:]|;&:]*:)?(refs/heads/)?(main
   emit deny "main・masterへの直接のプッシュは禁止です。フィーチャーブランチとPRを使ってください(AGENTS.md)。"
 fi
 
-if has 'git[[:space:]]+(commit|push)[^|;&]*--no-verify'; then
-  emit deny "--no-verifyはフックと検査を飛ばすため、禁止です。"
+# Also with git options before the subcommand, and the short form -n of
+# git commit (a cluster such as -an too; plan 0005, D-24). git push -n is
+# --dry-run, so only commit is checked for -n.
+if has "${git_opts}"'(commit|push)[^|;&]*--no-verify' ||
+  has "$git_commit"'[^|;&]*[[:space:]]-[[:alnum:]]*n[[:alnum:]]*([[:space:]]|$)'; then
+  emit deny "--no-verify(git commitの-nを含む)はフックと検査を飛ばすため、禁止です。"
+fi
+
+# docs/incidents/0034: a commit that changes the incident lists runs their
+# test first. The working tree is looked at, not only the index, because
+# "git add ... && git commit" stages the files after this hook has run. A
+# missing Python stops nothing.
+if has "$git_commit"; then
+  root=${CLAUDE_PROJECT_DIR:-.}
+  if git -C "$root" status --porcelain -- docs/incidents docs/README.md 2>/dev/null | grep -q .; then
+    py=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)
+    if [ -n "$py" ] && [ -f "$root/scripts/test_incident_lists.py" ] &&
+      ! (cd "$root" && "$py" -I -m unittest discover -s scripts -p test_incident_lists.py >/dev/null 2>&1); then
+      emit deny "incidentの一覧のテスト(scripts/test_incident_lists.py)が通りません。docs/incidents/README.mdとdocs/README.mdの一覧を直してから、コミットしてください(docs/incidents/0034)。"
+    fi
+  fi
 fi
 
 if has '(^|[;&|[:space:]"])rm[[:space:]]+-[[:alnum:]]*r[[:alnum:]]*[[:space:]]+(/|~/?)([[:space:]"]|$)'; then
