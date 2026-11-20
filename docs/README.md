@@ -122,3 +122,5 @@
 | [0033](incidents/0033-exit-time-near-limit-unnoticed.md) | スモークテストの終了の時間が上限の近くまで延びたことに8日間気づかず、1回の実行の失敗を、値を比べずに案の不採用の根拠にした |
 | [0034](incidents/0034-incident-list-test-skipped.md) | incidentを記録したコミットで、手順が求める一覧のテストを実行しなかった |
 | [0035](incidents/0035-key-to-screen-gone-failed-after-adr-0028.md) | ADR-0028の直し方のあとも、F-01のキーから画面が消えるまでが上限を超えた |
+| [0036](incidents/0036-session-link-in-pr-body.md) | PRの本文に、セッションのリンクが入ったまま、マージの直前まで気づかなかった |
+| [0037](incidents/0037-english-note-missing-from-transcript.md) | 合間の英語の文が会話の記録に残らず、日本語を求めるフックが止めなかった |
