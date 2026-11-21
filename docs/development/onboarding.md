@@ -52,7 +52,7 @@ flowchart LR
 
 | 順 | ドキュメント | 読んで分かること |
 | --- | --- | --- |
-| 1 | [README.md](../../README.md) | 何のプロジェクトか、現在の状況 |
+| 1 | [README.md](../../README.md) | 何のプロジェクトか(リリースの状況は[CHANGELOG](../../CHANGELOG.md)) |
 | 2 | [AGENTS.md](../../AGENTS.md) | AIエージェントを含む全員が従う指示とルールの単一ソース(進め方、開発フロー、コミット規約、言語ルール、セキュリティ) |
 | 3 | [docs/README.md](../README.md) | ドキュメントの地図。どこに何があるか |
 | 4 | [実装計画](../plans/0001-initial-implementation-plan.md) | スコープ、要件、フェーズ、テスト戦略、リリース手順、リスク |
