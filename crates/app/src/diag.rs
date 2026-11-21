@@ -80,9 +80,23 @@ pub struct FrameStats {
     longest_wait: Duration,
     longest_present: Duration,
     longest_draw: Duration,
+    /// How many slow `get_current_texture` calls of this window were logged.
+    slow_acquires_logged: u32,
 }
 
 impl FrameStats {
+    /// Whether a `get_current_texture` call that took `took` is logged, and
+    /// counts it when it is. Counted by the window, not by its surface
+    /// target, which is made again when the window is shown again (plan
+    /// 0005, D-24 (6): the first five per window).
+    pub fn slow_acquire(&mut self, took: Duration) -> bool {
+        let logged = log_slow_acquire(took, self.slow_acquires_logged);
+        if logged {
+            self.slow_acquires_logged += 1;
+        }
+        logged
+    }
+
     /// Records an attempt to draw. Returns how many have been made. Every
     /// attempt ends as exactly one of drawn, paced, blank or skipped.
     pub fn attempted(&mut self) -> u64 {
@@ -194,6 +208,19 @@ mod tests {
         assert!(log_slow_acquire(slow, 4));
         assert!(!log_slow_acquire(slow, 5));
         assert!(!log_slow_acquire(slow, u32::MAX));
+    }
+
+    #[test]
+    fn a_window_logs_its_first_five_slow_surface_texture_calls() {
+        // Review: counted by the window, so that a new surface target (the
+        // window is hidden and shown again) does not start the count again.
+        let mut stats = FrameStats::default();
+        let slow = Duration::from_millis(150);
+        assert!(!stats.slow_acquire(Duration::from_millis(100)));
+        for _ in 0..SLOW_ACQUIRE_LOGGED {
+            assert!(stats.slow_acquire(slow));
+        }
+        assert!(!stats.slow_acquire(slow));
     }
 
     #[test]

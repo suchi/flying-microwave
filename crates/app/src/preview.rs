@@ -71,6 +71,8 @@ struct PreviewApp {
     next_parent_check: Instant,
     retry_at: Option<Instant>,
     frames: u64,
+    /// Draw attempts and the slow surface texture calls already logged.
+    stats: diag::FrameStats,
     exiting: bool,
     /// When `finish` decided to end, for the cleanup line.
     exit_decided: Option<Instant>,
@@ -123,6 +125,7 @@ pub fn run(parent: u64) -> i32 {
         next_parent_check: Instant::now() + PARENT_CHECK_INTERVAL,
         retry_at: None,
         frames: 0,
+        stats: diag::FrameStats::default(),
         exiting: false,
         exit_decided: None,
         exit_code: EXIT_OK,
@@ -200,7 +203,7 @@ impl PreviewApp {
             let instance = render::create_instance();
             let surface = render::create_surface(&instance, &window)?;
             let gpu = render::request_gpu(&instance, &surface)?;
-            let target = Target::new(&gpu, surface, inner, "preview".to_owned())?;
+            let target = Target::new(&gpu, surface, inner)?;
             Ok((gpu, target))
         })?;
         self.window = Some(window);
@@ -258,7 +261,21 @@ impl PreviewApp {
             Some(pacer) => pacer.frame_period(),
             None => FramePacer::new(self.max_fps, None).frame_period(),
         };
-        match target.draw(gpu, &world.instances(), led, signal_wait) {
+        let attempts = self.stats.attempted();
+        let frame = target.draw(gpu, &world.instances(), led, signal_wait);
+        // Incident 0035, plan 0005, D-24 (6): counted by the app, which
+        // outlives the surface target.
+        if let Some(took) = target
+            .timings()
+            .acquire
+            .filter(|&took| self.stats.slow_acquire(took))
+        {
+            log!(
+                "preview: surface texture took {:.0} ms (draw attempt #{attempts})",
+                diag::ms(took)
+            );
+        }
+        match frame {
             Frame::Presented => {
                 self.frames += 1;
                 if self.frames == 1 {

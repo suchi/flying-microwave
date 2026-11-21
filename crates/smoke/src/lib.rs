@@ -36,7 +36,7 @@ pub struct Progress {
     /// The first `preview cleanup:` line without its prefix (`/p`).
     pub preview_cleanup: Option<String>,
     /// Each line that tells a `get_current_texture` call took long (for
-    /// example `window 0: surface texture took 312 ms (draw attempt 7)`).
+    /// example `window 0: surface texture took 312 ms (draw attempt #7)`).
     pub slow_surface_textures: Vec<String>,
 }
 
@@ -538,12 +538,12 @@ mod tests {
     #[test]
     fn the_exit_lines_are_read_for_the_report_of_a_failure() {
         let log = "\
-+500ms pid=1 window 0: surface texture took 312 ms (draw attempt 7)
++500ms pid=1 window 0: surface texture took 312 ms (draw attempt #7)
 +900ms pid=1 exit: KeyPressed { synthetic: false }
 +901ms pid=1 windows hidden in 4.2 ms
 +950ms pid=1 exit cleanup: 5.1 ms after the exit decision; summaries 0.1 ms, windows and surfaces 30.0 ms, GPU 12.5 ms, instance 1.0 ms
 +960ms pid=2 preview cleanup: 0.2 ms after the exit decision; surface 1.0 ms, GPU 2.0 ms, window 3.0 ms
-+970ms pid=2 preview: surface texture took 150 ms (draw attempt 2)
++970ms pid=2 preview: surface texture took 150 ms (draw attempt #2)
 +980ms pid=3 exit cleanup: no exit decision; summaries 0.1 ms, windows and surfaces 0.1 ms, GPU 0.1 ms, instance 0.1 ms
 ";
         let p = Progress::read(log, 1);
@@ -558,14 +558,14 @@ mod tests {
         assert_eq!(p.preview_cleanup, None);
         assert_eq!(
             p.slow_surface_textures,
-            vec!["window 0: surface texture took 312 ms (draw attempt 7)"]
+            vec!["window 0: surface texture took 312 ms (draw attempt #7)"]
         );
         assert_eq!(p.exit_diagnostics().len(), 3);
         let preview = Progress::read(log, 2);
         assert!(preview.preview_cleanup.is_some());
         assert_eq!(
             preview.slow_surface_textures,
-            vec!["preview: surface texture took 150 ms (draw attempt 2)"]
+            vec!["preview: surface texture took 150 ms (draw attempt #2)"]
         );
         assert!(
             Progress::read(log, 3)

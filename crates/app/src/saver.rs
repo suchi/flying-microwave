@@ -469,12 +469,7 @@ impl SaverApp {
         log!("window {index}: setting up the surface");
         let result = render::guarded("surface setup", || {
             let surface = render::create_surface(instance, &w.window)?;
-            Target::new(
-                gpu,
-                surface,
-                w.window.inner_size(),
-                format!("window {index}"),
-            )
+            Target::new(gpu, surface, w.window.inner_size())
         });
         match result {
             Ok(target) => self.windows[position].target = Some(target),
@@ -745,12 +740,7 @@ impl SaverApp {
                     // window, and with several monitors the log must tell
                     // which window they belong to (Issue #50).
                     log!("window {}: setting up the surface", w.index);
-                    match Target::new(
-                        &gpu,
-                        surface,
-                        w.window.inner_size(),
-                        format!("window {}", w.index),
-                    ) {
+                    match Target::new(&gpu, surface, w.window.inner_size()) {
                         Ok(target) => w.target = Some(target),
                         Err(e) => log!("window {}: surface setup failed: {e}", w.index),
                     }
@@ -873,6 +863,15 @@ impl SaverApp {
         let frame = target.draw(gpu, &w.world.instances(), led, w.pacer.frame_period());
         let timings = target.timings();
         w.stats.timed(timings.wait, timings.present, timings.total);
+        // Incident 0035, plan 0005, D-24 (6): the attempt number is that of
+        // the `draw attempted (#N)` lines.
+        if let Some(took) = timings.acquire.filter(|&took| w.stats.slow_acquire(took)) {
+            log!(
+                "window {}: surface texture took {:.0} ms (draw attempt #{attempts})",
+                w.index,
+                diag::ms(took)
+            );
+        }
         if let Frame::Skipped(skip) = frame {
             if diag::first_few(w.stats.skipped(skip)) {
                 log!("window {}: frame skipped: {skip:?}", w.index);
