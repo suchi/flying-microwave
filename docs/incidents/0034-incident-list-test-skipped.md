@@ -36,6 +36,11 @@
 
 2026-11-20に、メンテナーが(1)〜(3)を推奨どおりと判断した(計画0005のD-23)。(1)と(3)は、2026-11-20の記録の変更で、AGENTS.md(検証の節と表、「情報源」の節)と`.claude/commands/commit.md`に加えた。`docs/development/onboarding.md`と`.claude/commands/babysit-pr.md`の同じ説明への書き添えと、(2)のフックは、計画0005の作業10の5で行う。
 
+行ったこと(計画0005の作業10の5):
+
+- (2): `block-dangerous-git.sh`は、`git commit`のときに、`docs/incidents/`か`docs/README.md`に変更があれば、一覧のテストを実行し、失敗したらコミットを止める。Pythonが動かない環境では止めない。`scripts/check_hooks.py`に、一覧にない記録があるときに止まり、ないときは通ることを試す入力を加えた。変更があるかどうかは、承認された案(ステージした変更)と違い、作業ツリー全体で見ている。この違いを確かめずに実装したため、[0040](0040-hook-implemented-against-reported-design.md)に記録し、どちらにするかをメンテナーに確かめている。
+- `docs/development/onboarding.md`と`.claude/commands/babysit-pr.md`への書き添えは、作業10の5で行った。
+
 案:
 
 1. 規則: AGENTS.mdの「検証コマンド」の節の「ドキュメントだけの変更…では不要とする」に、「ただし、`docs/incidents/`と`docs/README.md`を変えるときは、スクリプトのテストを実行する(`docs/incidents/README.md`の手順5)」と書き添える。

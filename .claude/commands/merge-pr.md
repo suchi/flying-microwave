@@ -9,6 +9,7 @@ $ARGUMENTS の第1引数で指定されたPRを、最終チェックのうえマ
 
 1. レビュー完了: 未解決スレッドがなく、`docs/development/review-process.md`の「レビュー完了の判定」を満たす(`git fetch origin`のあと、PRの情報から取得したhead SHAで確かめる。ローカルの`HEAD`は使わない)。
 2. CIの全ジョブがグリーン。
+2の2. PRの本文に`claude.ai/code/session_`のリンクがない(PRの情報を読んで確かめる。docs/incidents/0036)。
 3. ユーザー承認(ユーザーによるこのコマンドの実行は承認とみなす)。
 
 手順:

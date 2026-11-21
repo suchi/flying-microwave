@@ -44,7 +44,11 @@ import tempfile
 COMMAND_PATTERN = re.compile(r'"\$CLAUDE_PROJECT_DIR/(\.claude/hooks/[A-Za-z0-9_-]+\.sh)"')
 
 # Sample inputs per hook: (input, expected decision). None means the hook
-# must let the input through (exit 0 and no decision).
+# must let the input through (exit 0 and no decision). Hooks start in a
+# temporary git repository on the branch named by "_branch" (removed from the
+# input; check-hooks by default), so the branch checked out where this script
+# runs does not change the result: the CI on main once failed only there
+# (docs/incidents/0039).
 SAMPLES = {
     ".claude/hooks/block-dangerous-git.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin main"}}, "deny"),
@@ -62,6 +66,20 @@ SAMPLES = {
         # Options before push are accepted; other words before it are not a push.
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git -c core.pager=cat push origin main"}}, "deny"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m 'block pushing to main'"}}, None),
+        # Plan 0005, D-24: skipping the hooks also with git options or with -n.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git -C . commit --" + "no-verify -m a"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -n -m a"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -an -m a"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit --amend -m a"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push -n -u origin fix/x"}}, None),
+        # A commit on main is asked about (the samples above run on a feature
+        # branch; docs/incidents/0039).
+        ({"_branch": "main", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, "ask"),
+        # docs/incidents/0034: a commit with changed incident records runs the
+        # list test, in a copy of the project ("_project"), and stops when the
+        # test fails (a record missing from the lists).
+        ({"_project": "unlisted", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, "deny"),
+        ({"_project": "listed", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, None),
     ],
     ".claude/hooks/protect-config.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),
@@ -71,6 +89,10 @@ SAMPLES = {
         ({"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": "CLAUDE.md"}}, "ask"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".agents/skills/adr/SKILL.md"}}, "ask"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "docs/README.md"}}, None),
+        # Plan 0005, D-24: the commands and the skills of Claude Code.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/commands/merge-pr.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": ".claude/skills/adr/SKILL.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "docs/development/commands.md"}}, None),
     ],
     ".claude/hooks/require-japanese-description.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}}, "deny"),
@@ -95,6 +117,10 @@ SAMPLES = {
         # Only Japanese text, or no transcript.
         ({"hook_event_name": "PreToolUse", "session_id": "check-note-ja", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript-ja.jsonl", "tool_use_id": "toolu_new"}, None),
         ({"hook_event_name": "PreToolUse", "session_id": "check-note-missing", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/missing.jsonl", "tool_use_id": "toolu_new"}, None),
+        # docs/incidents/0037: a message with no text and English-only thinking
+        # is reported once, without stopping the call.
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note-think", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript-thinking.jsonl", "tool_use_id": "toolu_new"}, "context"),
+        ({"hook_event_name": "PreToolUse", "session_id": "check-note-think", "tool_name": "Bash", "tool_input": {}, "transcript_path": "scripts/hook_samples/transcript-thinking.jsonl", "tool_use_id": "toolu_new2"}, None),
     ],
     ".claude/hooks/require-japanese-reply.sh": [
         ({"hook_event_name": "Stop", "stop_hook_active": False, "last_assistant_message": "Done."}, "block"),
@@ -146,7 +172,8 @@ def index_modes(ls_files_text):
 
 
 def decision(output):
-    """The decision a hook printed (deny, ask, block), or None."""
+    """The decision a hook printed (deny, ask, block), "context" for text
+    passed to Claude without a decision, or None."""
     try:
         data = json.loads(output)
     except ValueError:
@@ -156,6 +183,8 @@ def decision(output):
     specific = data.get("hookSpecificOutput")
     if isinstance(specific, dict) and specific.get("permissionDecision"):
         return specific["permissionDecision"]
+    if isinstance(specific, dict) and specific.get("additionalContext") and not data.get("decision"):
+        return "context"
     return data.get("decision")
 
 
@@ -243,10 +272,25 @@ def run_problems(commands, samples, root):
                 for index, (sample, expected) in enumerate(samples[path]):
                     if (path, index) in failed:
                         continue
+                    sample = dict(sample)
+                    cwd = branch_repo(temp, sample.pop("_branch", "check-hooks"))
+                    # Why a copy: block-dangerous-git.sh looks at the working
+                    # tree of CLAUDE_PROJECT_DIR, and a changed record in root
+                    # must not change the result (docs/incidents/0039).
+                    run_env = dict(env, CLAUDE_PROJECT_DIR=str(copy_project(temp, root, "clean")))
+                    project = sample.pop("_project", None)
+                    if project is not None:
+                        cwd = copy_project(temp, root, project)
+                        run_env = dict(env, CLAUDE_PROJECT_DIR=str(cwd))
+                    # Paths in the samples are relative to the repository root,
+                    # but the hooks start in the temporary repository.
+                    transcript = sample.get("transcript_path")
+                    if transcript and not os.path.isabs(transcript):
+                        sample["transcript_path"] = str(pathlib.Path(root, transcript))
                     # Why sh -c: on Linux and macOS, Claude Code passes the command
                     # string to sh -c (Hooks reference), so this is how it starts.
                     result = subprocess.run(
-                        ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=root, env=env
+                        ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=cwd, env=run_env
                     )
                     got = decision(result.stdout)
                     if result.returncode != 0 or got != expected:
@@ -256,6 +300,56 @@ def run_problems(commands, samples, root):
                             f"{path}{label}: 終了コード{result.returncode}、判断{got!r}(期待は{expected!r}) {detail}"
                         )
     return problems
+
+
+def branch_repo(temp, branch):
+    """An empty git repository under temp whose current branch is branch,
+    made on first use."""
+    path = pathlib.Path(temp, "repo-" + branch)
+    if not path.exists():
+        subprocess.run(["git", "init", "-q", "-b", branch, str(path)], check=True, capture_output=True)
+    return path
+
+
+def copy_project(temp, root, name):
+    """A copy of the hooks, the list test and the incident lists in a new git
+    repository. "clean" commits everything, so no record counts as changed
+    whatever the working tree of root holds. Otherwise nothing is committed,
+    so every copied record counts as changed, and "unlisted" adds a record
+    that no list names."""
+    path = pathlib.Path(temp, "project-" + name)
+    if path.exists():
+        return path
+    subprocess.run(["git", "init", "-q", "-b", "check-hooks", str(path)], check=True, capture_output=True)
+    # The hooks come from the working tree, so a hook can be checked before it
+    # is committed. The records and lists come from HEAD, so a record being
+    # written in root does not change the result.
+    hooks = pathlib.Path(root, ".claude", "hooks")
+    # A root without some of these (the tests of this script) is copied as
+    # far as it goes.
+    for name_ in [str(p.relative_to(root)) for p in sorted(hooks.glob("*.sh"))] + ["scripts/test_incident_lists.py"]:
+        if not pathlib.Path(root, name_).is_file():
+            continue
+        target = path / name_
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(pathlib.Path(root, name_), target)
+    tree = subprocess.run(
+        ["git", "-C", str(root), "ls-tree", "-r", "--name-only", "HEAD", "--", "docs/README.md", "docs/incidents"],
+        capture_output=True, text=True,
+    )
+    listed = tree.stdout.split() if tree.returncode == 0 else []
+    for name_ in [n for n in listed if n.endswith(".md")]:
+        target = path / name_
+        target.parent.mkdir(parents=True, exist_ok=True)
+        content = subprocess.run(["git", "-C", str(root), "show", "HEAD:" + name_], check=True, capture_output=True).stdout
+        target.write_bytes(content)
+    if name == "unlisted":
+        (path / "docs" / "incidents" / "9999-unlisted.md").write_text("# 9999: unlisted\n", encoding="utf-8")
+    if name == "clean":
+        git = ["git", "-C", str(path), "-c", "user.name=check-hooks", "-c", "user.email=check-hooks@example.invalid"]
+        subprocess.run(git + ["add", "-A"], check=True, capture_output=True)
+        subprocess.run(git + ["commit", "-q", "--no-gpg-sign", "-m", "copy"], check=True, capture_output=True)
+    return path
 
 
 def use_utf8_output():

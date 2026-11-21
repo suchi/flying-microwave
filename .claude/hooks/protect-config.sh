@@ -45,9 +45,10 @@ case "$path" in
 esac
 
 case "$path" in
-  # AGENTS.md, CLAUDE.md and the skills hold the rules, where an instruction
-  # from external content could otherwise stay (docs/reviews/0005, J-6).
-  */.claude/settings.json|*/.claude/settings.local.json|*/.claude/hooks/*|*/.github/workflows/*|*/.github/dependabot.yml|*/AGENTS.md|*/CLAUDE.md|*/.agents/skills/*)
+  # AGENTS.md, CLAUDE.md, the skills and the commands hold the rules, where
+  # an instruction from external content could otherwise stay
+  # (docs/reviews/0005, J-6; plan 0005, D-24).
+  */.claude/settings.json|*/.claude/settings.local.json|*/.claude/hooks/*|*/.claude/commands/*|*/.claude/skills/*|*/.github/workflows/*|*/.github/dependabot.yml|*/AGENTS.md|*/CLAUDE.md|*/.agents/skills/*)
     ask "セキュリティに関わる設定を変更しようとしています: $path。ユーザーの承認が必要です(AGENTS.mdのセキュリティ)。"
     ;;
 esac
