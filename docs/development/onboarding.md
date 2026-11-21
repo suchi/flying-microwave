@@ -173,7 +173,7 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
    cargo build --release --locked --target x86_64-pc-windows-msvc
    ```
 
-   ビルドのあとに、CIと同じスモークテスト(計画0003)を実行できる。ビルドした実行ファイルを`/s`、`/p`、認識できない引数で起動し、起動と終了を確かめる。テストの間は全画面になり、キー入力かマウスのクリックが送られる。テストの前に、マウスのカーソルが画面の中央に動く。テストの間は、ほかの操作をしない。テストする実行ファイルのログは、一時フォルダの下の`flying-microwave-smoke-<番号>`のフォルダに書かれ、ふだんの`%TEMP%\flying-microwave.log`は変えない。この手順は、エージェントが実行できないWindowsの手順のため、メンテナーが実行して確かめるまで未確認である。
+   ビルドのあとに、CIと同じスモークテスト(計画0003)を実行できる。ビルドした実行ファイルを`/s`、`/p`、認識できない引数で起動し、起動と終了を確かめる。テストの間は全画面になり、キー入力かマウスのクリックが送られる。テストの前に、マウスのカーソルが画面の中央に動く。テストの間は、ほかの操作をしない。テストする実行ファイルのログは、一時フォルダの下の`flying-microwave-smoke-<番号>`のフォルダに書かれ、ふだんの`%TEMP%\flying-microwave.log`は変えない。時間の検査(起動、終了、設定画面など)は、測った値を、通る・失敗するの判定とは別に記録する。値が上限の半分を超えると`::warning::`の行を出し、最後の`N passed, M failed`の行の前に、すべての値と上限を`timing:`の行で出す。失敗したケースでは、その製品のログに加えて、終了の各段の時間の行(`windows hidden in`、`exit cleanup:`、`preview cleanup:`と、サーフェスのテクスチャの取得が100msを超えた行)も出す(計画0005のD-24の(6))。この手順は、エージェントが実行できないWindowsの手順のため、メンテナーが実行して確かめるまで未確認である。
 
    ```powershell
    target\x86_64-pc-windows-msvc\release\flying-microwave-smoke.exe target\x86_64-pc-windows-msvc\release\flying-microwave.exe
@@ -230,7 +230,7 @@ python3 -I scripts/check_hooks.py
 ### 5.3 ログとデバッグ
 
 - コンソールはない。スクリーンセーバーなので、デバッグのビルドでもコンソールを開かない(`main.rs`の`windows_subsystem = "windows"`)。`println!`や`eprintln!`の出力は見えない。
-- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`。正確には`std::env::temp_dir()`の場所で、Windowsでは環境変数`TMP`を`TEMP`より先に見る。通常は同じ場所である)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
+- ログ: 診断の情報は`%TEMP%\flying-microwave.log`に書く(`crates/app/src/log.rs`。正確には`std::env::temp_dir()`の場所で、Windowsでは環境変数`TMP`を`TEMP`より先に見る。通常は同じ場所である)。起動の情報、モニタとウィンドウの位置・大きさ・拡大率、GPUの名前とドライバ、描画の警告とエラー、終了の理由、終了の各段(窓を隠す、後始末)の時間、サーフェスのテクスチャの取得に100msより長くかかったとき(窓ごとに最初の5回)を記録する。依存のcrateの`log`の警告とエラーも、このファイルに転送する。ファイルが1MBを超えると、最初から書き直す。不具合を報告するときは、このファイルを添える。PowerShell で末尾を表示するには、次のようにする。
 
   ```powershell
   Get-Content $env:TEMP\flying-microwave.log -Tail 50
