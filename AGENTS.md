@@ -167,6 +167,15 @@ GitHub Actionsは、必要な実行(PRのCI、成果物を作る手動実行)は
 - セキュリティ設定のファイルは、EditとWriteのツールで編集する。Bashのコマンドやスクリプト(`sed -i`など)では編集しない。設定ファイルを守るフック(`protect-config.sh`)は、EditとWriteのツールにだけかかるため(計画0005のD-24)。
 - `.github/dependabot.yml`の`cooldown`はサプライチェーン攻撃対策。レビューツールに「無効なキー」等と指摘されても、公式ドキュメントで仕様を確認して修正で追従し、ユーザーの承認なしに削除・無効化しない。
 
+## 規則の写し
+
+次の規則は、読む人に合わせて、複数の文書に同じ内容を書いている。規則を変えるときは、表のすべての文書を同じ変更で直し、スクリプトのテストを実行する。`scripts/test_rule_copies.py`は、この表を読み、決まった語が、写しを置く文書のすべてにあるかを確かめる。写しを持つ規則を加えたときは、この表に行を加える([docs/incidents/0042](docs/incidents/0042-rule-change-not-reflected-in-other-docs.md)、計画0005のD-29の(3)とD-30の(6))。
+
+| 規則 | 決まった語 | 写しを置く文書 |
+| --- | --- | --- |
+| スクリプトのテストの条件 | `docs/incidents/`、`docs/README.md`、`CHANGELOG.md`、`docs/development/hardware-check-*.md` | `AGENTS.md`、`.claude/commands/commit.md`、`.claude/commands/babysit-pr.md`、`docs/development/onboarding.md` |
+| 個人情報の規則 | `作成者個人の事情` | `AGENTS.md`、`docs/adr/README.md`、`.agents/skills/adr/SKILL.md`、`docs/development/onboarding.md`、`docs/README.md` |
+
 ## エージェント別の設定ファイル
 
 | ツール         | 読み込み                              | 補足                                                                                                                                                      |
