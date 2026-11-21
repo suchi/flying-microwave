@@ -659,6 +659,12 @@ pub struct Target {
     /// Whether the last draw presented a frame without the swap chain
     /// signal.
     without_signal: bool,
+    /// Names the window in the log (`window 0`, `preview`).
+    label: String,
+    /// How many times `get_current_texture` was called.
+    acquires: u64,
+    /// How many slow calls of it were logged (`diag::log_slow_acquire`).
+    slow_logged: u32,
 }
 
 /// How long one `Target::draw` waited for the surface texture, took to
@@ -672,11 +678,13 @@ pub struct Timings {
 }
 
 impl Target {
-    /// Configures `surface` for the window size.
+    /// Configures `surface` for the window size. `label` names the window
+    /// in the log lines of `draw` (`window 0`, `preview`).
     pub fn new(
         gpu: &Gpu,
         surface: wgpu::Surface<'static>,
         size: PhysicalSize<u32>,
+        label: String,
     ) -> Result<Self, String> {
         if size.width == 0 || size.height == 0 {
             return Err(format!("window size is {size:?}"));
@@ -745,6 +753,9 @@ impl Target {
             timings: Timings::default(),
             presented_at: None,
             without_signal: false,
+            label,
+            acquires: 0,
+            slow_logged: 0,
         })
     }
 
@@ -861,8 +872,20 @@ impl Target {
             return Frame::Skipped(diag::Skip::NotReady);
         }
 
+        let acquiring = Instant::now();
         let acquired = self.surface.get_current_texture();
+        let took = acquiring.elapsed();
         self.timings.wait = waited.elapsed();
+        self.acquires += 1;
+        if diag::log_slow_acquire(took, self.slow_logged) {
+            self.slow_logged += 1;
+            log!(
+                "{}: surface texture took {:.0} ms (draw attempt {})",
+                self.label,
+                diag::ms(took),
+                self.acquires
+            );
+        }
         let (texture, suboptimal) = match acquired {
             Acquired::Success(texture) => (texture, false),
             // Usable now; reconfigured after presenting (wgpu panics if the

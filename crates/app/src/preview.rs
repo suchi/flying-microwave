@@ -30,6 +30,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use winit::window::{Window, WindowId};
 
+use crate::diag;
 use crate::log::log;
 use crate::render::{self, Frame, Gpu, Target};
 use crate::saver::{aspect_of, retry_delay, seed};
@@ -71,6 +72,8 @@ struct PreviewApp {
     retry_at: Option<Instant>,
     frames: u64,
     exiting: bool,
+    /// When `finish` decided to end, for the cleanup line.
+    exit_decided: Option<Instant>,
     exit_code: i32,
 }
 
@@ -121,6 +124,7 @@ pub fn run(parent: u64) -> i32 {
         retry_at: None,
         frames: 0,
         exiting: false,
+        exit_decided: None,
         exit_code: EXIT_OK,
     };
     if let Err(e) = event_loop.run_app(&mut app) {
@@ -143,6 +147,7 @@ impl PreviewApp {
             return;
         }
         self.exiting = true;
+        self.exit_decided = Some(Instant::now());
         self.exit_code = code;
         log!("preview exit: {reason} (exit code {code})");
         event_loop.exit();
@@ -195,7 +200,7 @@ impl PreviewApp {
             let instance = render::create_instance();
             let surface = render::create_surface(&instance, &window)?;
             let gpu = render::request_gpu(&instance, &surface)?;
-            let target = Target::new(&gpu, surface, inner)?;
+            let target = Target::new(&gpu, surface, inner, "preview".to_owned())?;
             Ok((gpu, target))
         })?;
         self.window = Some(window);
@@ -341,9 +346,23 @@ impl ApplicationHandler for PreviewApp {
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        let after_decision = diag::after_exit_decision(self.exit_decided.map(|t| t.elapsed()));
         // Drop the surface before the window it draws into.
+        let stage = Instant::now();
         self.target = None;
+        let surface = stage.elapsed();
+        let stage = Instant::now();
         self.gpu = None;
+        let gpu = stage.elapsed();
+        let stage = Instant::now();
         self.window = None;
+        let window = stage.elapsed();
+        // Why: as in `/s` (incident 0033 and 0035).
+        log!(
+            "preview cleanup: {after_decision}; surface {:.1} ms, GPU {:.1} ms, window {:.1} ms",
+            diag::ms(surface),
+            diag::ms(gpu),
+            diag::ms(window)
+        );
     }
 }
