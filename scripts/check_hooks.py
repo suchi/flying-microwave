@@ -274,7 +274,10 @@ def run_problems(commands, samples, root):
                         continue
                     sample = dict(sample)
                     cwd = branch_repo(temp, sample.pop("_branch", "check-hooks"))
-                    run_env = env
+                    # Why a copy: block-dangerous-git.sh looks at the working
+                    # tree of CLAUDE_PROJECT_DIR, and a changed record in root
+                    # must not change the result (docs/incidents/0039).
+                    run_env = dict(env, CLAUDE_PROJECT_DIR=str(copy_project(temp, root, "clean")))
                     project = sample.pop("_project", None)
                     if project is not None:
                         cwd = copy_project(temp, root, project)
@@ -309,21 +312,43 @@ def branch_repo(temp, branch):
 
 
 def copy_project(temp, root, name):
-    """A copy of the hook, the list test and the incident lists in a new git
-    repository with nothing committed, so every copied record counts as
-    changed. "unlisted" adds a record that no list names."""
+    """A copy of the hooks, the list test and the incident lists in a new git
+    repository. "clean" commits everything, so no record counts as changed
+    whatever the working tree of root holds. Otherwise nothing is committed,
+    so every copied record counts as changed, and "unlisted" adds a record
+    that no list names."""
     path = pathlib.Path(temp, "project-" + name)
     if path.exists():
         return path
     subprocess.run(["git", "init", "-q", "-b", "check-hooks", str(path)], check=True, capture_output=True)
-    files = [".claude/hooks/block-dangerous-git.sh", "scripts/test_incident_lists.py", "docs/README.md"]
-    files += [str(p.relative_to(root)) for p in sorted(pathlib.Path(root, "docs", "incidents").glob("*.md"))]
-    for name_ in files:
+    # The hooks come from the working tree, so a hook can be checked before it
+    # is committed. The records and lists come from HEAD, so a record being
+    # written in root does not change the result.
+    hooks = pathlib.Path(root, ".claude", "hooks")
+    # A root without some of these (the tests of this script) is copied as
+    # far as it goes.
+    for name_ in [str(p.relative_to(root)) for p in sorted(hooks.glob("*.sh"))] + ["scripts/test_incident_lists.py"]:
+        if not pathlib.Path(root, name_).is_file():
+            continue
         target = path / name_
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(pathlib.Path(root, name_), target)
+    tree = subprocess.run(
+        ["git", "-C", str(root), "ls-tree", "-r", "--name-only", "HEAD", "--", "docs/README.md", "docs/incidents"],
+        capture_output=True, text=True,
+    )
+    listed = tree.stdout.split() if tree.returncode == 0 else []
+    for name_ in [n for n in listed if n.endswith(".md")]:
+        target = path / name_
+        target.parent.mkdir(parents=True, exist_ok=True)
+        content = subprocess.run(["git", "-C", str(root), "show", "HEAD:" + name_], check=True, capture_output=True).stdout
+        target.write_bytes(content)
     if name == "unlisted":
         (path / "docs" / "incidents" / "9999-unlisted.md").write_text("# 9999: unlisted\n", encoding="utf-8")
+    if name == "clean":
+        git = ["git", "-C", str(path), "-c", "user.name=check-hooks", "-c", "user.email=check-hooks@example.invalid"]
+        subprocess.run(git + ["add", "-A"], check=True, capture_output=True)
+        subprocess.run(git + ["commit", "-q", "--no-gpg-sign", "-m", "copy"], check=True, capture_output=True)
     return path
 
 
