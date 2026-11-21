@@ -441,11 +441,12 @@ fn screensaver_ends_on_input_with(
         let start = Instant::now();
         while shown() {
             if start.elapsed() > EXIT_AFTER_INPUT {
-                target.recorder.record(
-                    "input to screen gone (process limit)",
-                    start.elapsed(),
-                    EXIT_AFTER_INPUT,
-                );
+                // Review: under the same name and limit as a pass, so that
+                // the worst run is not missing when runs are compared
+                // (incident 0033).
+                target
+                    .recorder
+                    .record("input to screen gone", start.elapsed(), GONE_AFTER_INPUT);
                 return Err(format!(
                     "the screen is still shown {} ms after the {}",
                     EXIT_AFTER_INPUT.as_millis(),
