@@ -75,6 +75,11 @@ SAMPLES = {
         # A commit on main is asked about (the samples above run on a feature
         # branch; docs/incidents/0039).
         ({"_branch": "main", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, "ask"),
+        # docs/incidents/0034: a commit with changed incident records runs the
+        # list test, in a copy of the project ("_project"), and stops when the
+        # test fails (a record missing from the lists).
+        ({"_project": "unlisted", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, "deny"),
+        ({"_project": "listed", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, None),
     ],
     ".claude/hooks/protect-config.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),
@@ -269,6 +274,11 @@ def run_problems(commands, samples, root):
                         continue
                     sample = dict(sample)
                     cwd = branch_repo(temp, sample.pop("_branch", "check-hooks"))
+                    run_env = env
+                    project = sample.pop("_project", None)
+                    if project is not None:
+                        cwd = copy_project(temp, root, project)
+                        run_env = dict(env, CLAUDE_PROJECT_DIR=str(cwd))
                     # Paths in the samples are relative to the repository root,
                     # but the hooks start in the temporary repository.
                     transcript = sample.get("transcript_path")
@@ -277,7 +287,7 @@ def run_problems(commands, samples, root):
                     # Why sh -c: on Linux and macOS, Claude Code passes the command
                     # string to sh -c (Hooks reference), so this is how it starts.
                     result = subprocess.run(
-                        ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=cwd, env=env
+                        ["sh", "-c", command], input=json.dumps(sample), capture_output=True, text=True, cwd=cwd, env=run_env
                     )
                     got = decision(result.stdout)
                     if result.returncode != 0 or got != expected:
@@ -295,6 +305,25 @@ def branch_repo(temp, branch):
     path = pathlib.Path(temp, "repo-" + branch)
     if not path.exists():
         subprocess.run(["git", "init", "-q", "-b", branch, str(path)], check=True, capture_output=True)
+    return path
+
+
+def copy_project(temp, root, name):
+    """A copy of the hook, the list test and the incident lists in a new git
+    repository with nothing committed, so every copied record counts as
+    changed. "unlisted" adds a record that no list names."""
+    path = pathlib.Path(temp, "project-" + name)
+    if path.exists():
+        return path
+    subprocess.run(["git", "init", "-q", "-b", "check-hooks", str(path)], check=True, capture_output=True)
+    files = [".claude/hooks/block-dangerous-git.sh", "scripts/test_incident_lists.py", "docs/README.md"]
+    files += [str(p.relative_to(root)) for p in sorted(pathlib.Path(root, "docs", "incidents").glob("*.md"))]
+    for name_ in files:
+        target = path / name_
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(pathlib.Path(root, name_), target)
+    if name == "unlisted":
+        (path / "docs" / "incidents" / "9999-unlisted.md").write_text("# 9999: unlisted\n", encoding="utf-8")
     return path
 
 
