@@ -125,7 +125,7 @@ Phase 0で整えた構成である。変わったら本節とAGENTS.mdの検証�
 | 手動確認 | Windows 11が必要。エージェントの開発環境はLinuxなので、Windowsの画面を伴う動作は確認できない([8. Windows実機での確認](#8-windows実機での確認)) |
 | 検証コマンド | AGENTS.mdの「検証コマンド」の表に従う(fmt・clippy・テスト・型チェック・ビルド)。どれもLinuxでも実行できる |
 
-ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では、テストとリントは必要ない。ただし、`docs/incidents/`、`docs/README.md`、`CHANGELOG.md`、`docs/development/hardware-check-*.md`のどれかを変えたときは、`python3 -I -m unittest discover -s scripts`(一覧のテストと、CHANGELOGと実機での確認の結果を照らし合わせるテストを含む)を実行する(incident 0034、0038)。代わりに、リンク切れや記載の食い違いがないかを`/consistency-check`で確認する。
+ドキュメントだけの変更(Rustのコード・Cargoの設定・ワークフローを変えないもの)では、テストとリントは必要ない。ただし、`docs/incidents/`、`docs/README.md`、`CHANGELOG.md`、`docs/development/hardware-check-*.md`、AGENTS.mdの「規則の写し」の表の文書のどれかを変えたときは、`python3 -I -m unittest discover -s scripts`(一覧のテスト、CHANGELOGと実機での確認の結果を照らし合わせるテスト、規則の写しを照らし合わせるテストを含む)を実行する(incident 0034、0038、0042)。代わりに、リンク切れや記載の食い違いがないかを`/consistency-check`で確認する。
 
 ### 5.1 ローカルでのビルドとテスト
 
