@@ -49,6 +49,11 @@ const EXIT_AFTER_CLOSE: Duration = Duration::from_secs(10);
 /// limit leaves room in case disabling moves after the first frame.
 const OWNER_DISABLED_LIMIT: Duration = Duration::from_secs(2);
 const POLL: Duration = Duration::from_millis(2);
+/// How long a process that still runs after a failed case may take to end
+/// before its log is printed and it is stopped (plan 0005, D-33 (1)): about
+/// 2.5 times the longest exit of the runs that passed (1994 ms, incident
+/// 0033). Not a limit of any check.
+const WAIT_AFTER_FAILURE: Duration = Duration::from_secs(5);
 
 /// The title of the settings window (crates/app/src/settings.rs).
 const SETTINGS_TITLE: &str = "Flying Microwave Settings";
@@ -241,6 +246,23 @@ impl Target {
         }
     }
 
+    /// After a failure, gives a process that still runs up to
+    /// [`WAIT_AFTER_FAILURE`] to end before its log is printed, so that the
+    /// lines it writes while it ends (the cleanup) are in the report. Does
+    /// not change the result of the case.
+    fn wait_after_failure(&mut self) {
+        if !matches!(self.exited(), Ok(None)) {
+            return;
+        }
+        match self.wait_exit(WAIT_AFTER_FAILURE) {
+            Ok((code, waited)) => println!(
+                "  the process ended {} ms after the failure (exit code {code})",
+                waited.as_millis()
+            ),
+            Err(e) => println!("  after the failure, {e}; it is stopped"),
+        }
+    }
+
     /// `wait_exit`, and records the time since `since` against `limit`
     /// under `name`, also when the wait fails. `wait` is how long to wait.
     fn wait_exit_timed(
@@ -324,7 +346,14 @@ fn with_target(
     let mut target = Target::start(env, args, settings)?;
     let result = body(&mut target);
     if result.is_err() {
+        target.wait_after_failure();
         target.print_log();
+    } else {
+        // Plan 0005, D-33 (2): also when the case passes, so that runs that
+        // pass near a limit can be compared (CI keeps no log folder).
+        for line in target.progress().exit_diagnostics() {
+            println!("  {line}");
+        }
     }
     result
 }
