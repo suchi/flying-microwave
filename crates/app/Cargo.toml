@@ -26,7 +26,7 @@ pollster = "=1.0.1"
 # Why: the face images of the microwave are SVG files rasterized at startup
 # (ADR-0026). Default features are off: the images use no text and no
 # embedded images, so the font database and the image decoders are left out.
-resvg = { version = "=0.49.0", default-features = false }
+resvg = { version = "=0.50.0", default-features = false }
 # Why: wgpu reports the reason of a failed swap chain call (the HRESULT) only
 # through the log crate (wgpu-hal dx12 `configure`), so warnings and errors
 # are forwarded to the diagnostic log. Already in Cargo.lock through wgpu.
