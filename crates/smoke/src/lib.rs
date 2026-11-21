@@ -31,6 +31,9 @@ pub struct Progress {
     /// The first `windows hidden in` line without its prefix: how long
     /// hiding the windows took when the exit was decided (plan 0005, D-24).
     pub windows_hidden: Option<String>,
+    /// The first `exit cleanup started:` or `preview cleanup started:` line,
+    /// whole: the cleanup began; alone, it stopped halfway (plan 0005, D-33).
+    pub cleanup_started: Option<String>,
     /// The first `exit cleanup:` line without its prefix (`/s`).
     pub exit_cleanup: Option<String>,
     /// The first `preview cleanup:` line without its prefix (`/p`).
@@ -130,6 +133,12 @@ impl Progress {
                 progress
                     .windows_hidden
                     .get_or_insert_with(|| hidden.to_owned());
+            } else if message.starts_with("exit cleanup started: ")
+                || message.starts_with("preview cleanup started: ")
+            {
+                progress
+                    .cleanup_started
+                    .get_or_insert_with(|| message.to_owned());
             } else if let Some(cleanup) = message.strip_prefix("exit cleanup: ") {
                 progress
                     .exit_cleanup
@@ -162,6 +171,7 @@ impl Progress {
         if let Some(hidden) = &self.windows_hidden {
             lines.push(format!("windows hidden in {hidden}"));
         }
+        lines.extend(self.cleanup_started.iter().cloned());
         if let Some(cleanup) = &self.exit_cleanup {
             lines.push(format!("exit cleanup: {cleanup}"));
         }
@@ -533,6 +543,34 @@ mod tests {
         let p = Progress::read(log, 1);
         assert!(p.summaries.is_empty());
         assert_eq!(p.first_frames_ms.len(), 1);
+    }
+
+    #[test]
+    fn the_start_of_the_cleanup_is_read_even_without_its_end() {
+        // Plan 0005, D-33 (3): a cleanup that stops halfway leaves only the
+        // line of its start.
+        let log = "\
++900ms pid=1 exit: KeyPressed { synthetic: false }
++901ms pid=1 windows hidden in 4.2 ms
++905ms pid=1 exit cleanup started: 4.0 ms after the exit decision
++960ms pid=2 preview cleanup started: 0.1 ms after the exit decision
++990ms pid=2 preview cleanup: 0.1 ms after the exit decision; surface 1.0 ms, GPU 2.0 ms, window 3.0 ms
+";
+        assert_eq!(
+            Progress::read(log, 1).exit_diagnostics(),
+            vec![
+                "windows hidden in 4.2 ms",
+                "exit cleanup started: 4.0 ms after the exit decision",
+            ]
+        );
+        assert_eq!(
+            Progress::read(log, 2).exit_diagnostics(),
+            vec![
+                "preview cleanup started: 0.1 ms after the exit decision",
+                "preview cleanup: 0.1 ms after the exit decision; surface 1.0 ms, GPU 2.0 ms, \
+                 window 3.0 ms",
+            ]
+        );
     }
 
     #[test]

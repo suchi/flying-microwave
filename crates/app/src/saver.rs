@@ -1032,8 +1032,11 @@ impl ApplicationHandler for SaverApp {
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        let started = Instant::now();
         let after_decision = diag::after_exit_decision(self.exit_decided.map(|t| t.elapsed()));
+        // Plan 0005, D-33 (3): alone, this line tells that the cleanup
+        // stopped halfway.
+        log!("exit cleanup started: {after_decision}");
+        let started = Instant::now();
         // Why here: winit calls this before `run_app` returns, and the
         // windows are dropped below, so the summary cannot be written later.
         for w in &self.windows {

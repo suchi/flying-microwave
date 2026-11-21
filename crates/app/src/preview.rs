@@ -364,6 +364,9 @@ impl ApplicationHandler for PreviewApp {
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
         let after_decision = diag::after_exit_decision(self.exit_decided.map(|t| t.elapsed()));
+        // Plan 0005, D-33 (3): alone, this line tells that the cleanup
+        // stopped halfway.
+        log!("preview cleanup started: {after_decision}");
         // Drop the surface before the window it draws into.
         let stage = Instant::now();
         self.target = None;
