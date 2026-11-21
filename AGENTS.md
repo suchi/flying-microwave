@@ -169,11 +169,11 @@ GitHub Actionsは、必要な実行(PRのCI、成果物を作る手動実行)は
 
 ## 規則の写し
 
-次の規則は、読む人に合わせて、複数の文書に同じ内容を書いている。規則を変えるときは、表のすべての文書を同じ変更で直し、スクリプトのテストを実行する。`scripts/test_rule_copies.py`は、この表を読み、決まった語が、写しを置く文書のすべてにあるかを確かめる。写しを持つ規則を加えたときは、この表に行を加える([docs/incidents/0042](docs/incidents/0042-rule-change-not-reflected-in-other-docs.md)、計画0005のD-29の(3)とD-30の(6))。
+次の規則は、読む人に合わせて、複数の文書に同じ内容を書いている。規則を変えるときは、表のすべての文書を同じ変更で直し、スクリプトのテストを実行する。規則の決まった語に当たる部分(条件のパスなど)を加えたり変えたりしたときは、表の決まった語も同じ変更で直す。`scripts/test_rule_copies.py`は、この表を読み、写しを置く文書のそれぞれに、決まった語がすべてそろった行があるかを確かめる(この節は除いて探す。同じ文書を2回書いたときは、そろった行が2つ要る)。決まった語にない部分の違い(ある文書にだけ足したパスなど)は見つけない。写しを持つ規則を加えたときは、この表に行を加える([docs/incidents/0042](docs/incidents/0042-rule-change-not-reflected-in-other-docs.md)、計画0005のD-29の(3)、D-30の(6)、D-31)。
 
 | 規則 | 決まった語 | 写しを置く文書 |
 | --- | --- | --- |
-| スクリプトのテストの条件 | `docs/incidents/`、`docs/README.md`、`CHANGELOG.md`、`docs/development/hardware-check-*.md`、`規則の写し` | `AGENTS.md`、`.claude/commands/commit.md`、`.claude/commands/babysit-pr.md`、`docs/development/onboarding.md` |
+| スクリプトのテストの条件 | `docs/incidents/`、`docs/README.md`、`CHANGELOG.md`、`docs/development/hardware-check-*.md`、`規則の写し` | `AGENTS.md`、`AGENTS.md`、`.claude/commands/commit.md`、`.claude/commands/babysit-pr.md`、`docs/development/onboarding.md` |
 | 個人情報の規則 | `作成者個人の事情` | `AGENTS.md`、`docs/adr/README.md`、`.agents/skills/adr/SKILL.md`、`docs/development/onboarding.md`、`docs/README.md`、`docs/development/review-process.md` |
 
 ## エージェント別の設定ファイル

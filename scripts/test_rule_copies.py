@@ -55,7 +55,8 @@ def rules(agents):
     if bounds is None:
         return [], [f"no section {HEADING}"]
     found, problems = [], []
-    rows = [line for line in agents[bounds[0] : bounds[1]].splitlines() if line.startswith("|")]
+    # Why lstrip: leading spaces do not change how Markdown shows a table row.
+    rows = [line.strip() for line in agents[bounds[0] : bounds[1]].splitlines() if line.lstrip().startswith("|")]
     for index, line in enumerate(rows):
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         if index == 0 or set(line) <= set("|-: "):
@@ -70,18 +71,22 @@ def rules(agents):
 
 
 def errors(root, table):
-    """What is missing: a listed document with no line that holds all the
-    fixed words of its rule, or a listed document that does not exist."""
+    """What is missing: a listed document with fewer lines holding all the
+    fixed words of its rule than the times it is listed (a document that
+    copies a rule twice, such as AGENTS.md, is listed twice, so that one copy
+    cannot stand in for the other), or a listed document that does not exist."""
     found = []
     for name, words, documents in table:
-        for document in documents:
+        for document in dict.fromkeys(documents):
             path = pathlib.Path(root, document)
             if not path.is_file():
                 found.append(f"{name}: {document} does not exist")
                 continue
             text = without_section(path.read_text(encoding="utf-8"))
-            if not any(all(word in line for word in words) for line in text.splitlines()):
-                found.append(f"{name}: no line of {document} holds all of {words}")
+            lines = sum(1 for line in text.splitlines() if all(word in line for word in words))
+            wanted = documents.count(document)
+            if lines < wanted:
+                found.append(f"{name}: {document} has {lines} of {wanted} lines that hold all of {words}")
     return found
 
 
@@ -134,6 +139,20 @@ class FunctionTest(unittest.TestCase):
             self.write(d, "AGENTS.md", self.AGENTS)
             self.write(d, "b.md", "alpha here\nbeta elsewhere\n")
             self.assertEqual(len(errors(d, rules(self.AGENTS)[0])), 1)
+
+    def test_a_document_listed_twice_needs_two_lines(self):
+        import tempfile
+
+        agents = self.AGENTS.replace("`AGENTS.md`、`b.md`", "`b.md`、`b.md`")
+        with tempfile.TemporaryDirectory() as d:
+            self.write(d, "b.md", "alpha with beta\nnothing here\n")
+            self.assertEqual(len(errors(d, rules(agents)[0])), 1)
+            self.write(d, "b.md", "alpha with beta\nbeta and alpha again\n")
+            self.assertEqual(errors(d, rules(agents)[0]), [])
+
+    def test_an_indented_row_is_read(self):
+        indented = self.AGENTS.replace("| 例 |", "  | 例 |")
+        self.assertEqual(len(rules(indented)[0]), 1)
 
     def test_a_missing_document_fails(self):
         import tempfile
