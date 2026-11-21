@@ -560,12 +560,24 @@ mod tests {
             p.slow_surface_textures,
             vec!["window 0: surface texture took 312 ms (draw attempt #7)"]
         );
-        assert_eq!(p.exit_diagnostics().len(), 3);
-        let preview = Progress::read(log, 2);
-        assert!(preview.preview_cleanup.is_some());
+        // Review: the whole report, not only how many lines it has.
         assert_eq!(
-            preview.slow_surface_textures,
-            vec!["preview: surface texture took 150 ms (draw attempt #2)"]
+            p.exit_diagnostics(),
+            vec![
+                "windows hidden in 4.2 ms",
+                "exit cleanup: 5.1 ms after the exit decision; summaries 0.1 ms, windows and \
+                 surfaces 30.0 ms, GPU 12.5 ms, instance 1.0 ms",
+                "window 0: surface texture took 312 ms (draw attempt #7)",
+            ]
+        );
+        let preview = Progress::read(log, 2);
+        assert_eq!(
+            preview.exit_diagnostics(),
+            vec![
+                "preview cleanup: 0.2 ms after the exit decision; surface 1.0 ms, GPU 2.0 ms, \
+                 window 3.0 ms",
+                "preview: surface texture took 150 ms (draw attempt #2)",
+            ]
         );
         assert!(
             Progress::read(log, 3)
