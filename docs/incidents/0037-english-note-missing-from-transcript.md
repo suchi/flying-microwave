@@ -46,7 +46,7 @@ AGENTS.mdの「言語ルール」は、合間の文も日本語で書くと定�
 行ったこと:
 
 - (1): `require-japanese-note.sh`は、ツールを呼んだメッセージに文の塊がなく、考える過程の塊がラテン文字だけで日本語を含まないとき、呼び出しを止めずに、PreToolUseの出力の`additionalContext`で1回だけ知らせる。知らせたメッセージのidは、拒否したときと同じ状態ファイルに残す。文の塊があるメッセージは、これまでどおり文の塊だけで判定する。`scripts/check_hooks.py`に試験の入力(`scripts/hook_samples/transcript-thinking.jsonl`)を加え、onboardingの6.3の説明を直した。
-- (2): 2026-11-20に調べた。条件は確かめられなかった。
+- (2): 2026-11-21に調べた。条件は確かめられなかった。
   - 公式の文書: 文の塊が会話の記録に残らない条件の説明はない(文書の写し`llms-full.txt`(2026-11-18に取得)を、`grep -n -i "transcript"`と`grep -n -i "thinking"`で検索し、記録・JSONL・要約に触れる行を読んだ)。変更履歴にある、記録からメッセージが落ちる不具合の修正は、`CLAUDE_CODE_TRANSCRIPT_LOCAL_GC`を有効にしたときのもので、このセッションのClaude Codeのプロセスの環境には、この変数がなかった(`/proc/<pid>/environ`で確かめた)。
   - 会話の記録の値: マージを呼んだメッセージの2行は、どちらも`model`が`claude-opus-5-5`、`version`が`2.1.329`だった。
   - 公式リポジトリ(anthropics/claude-code)のissue: 似た報告が複数ある(`gh api -X GET search/issues`で`is:issue repo:anthropics/claude-code transcript text block missing`などを検索した)。どれも利用者の報告(`author_association`が`NONE`)で、メンテナーが原因を示したものは、検索の結果の本文からは見つからなかった(コメントは読んでいない)。#94251は、2.1.270から、ツールを呼ぶ前の文の塊の多くが記録に書かれない(画面には表示される)という報告。#94336は、ツールの呼び出しのあいだの文の塊が記録に残らず、その位置に文の要約が考える過程の塊として残ったという報告(別のモデルでの報告で、Opusでは見られなかったとある)。#97504は、利用者に向けた文を、モデルが文の塊ではなく考える過程の塊に書くことがある(利用者には表示されない)という報告。

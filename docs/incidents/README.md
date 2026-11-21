@@ -67,6 +67,7 @@
 | [0035](0035-key-to-screen-gone-failed-after-adr-0028.md) | ADR-0028の直し方のあとも、F-01のキーから画面が消えるまでが上限を超えた | 2026-11-19 |
 | [0036](0036-session-link-in-pr-body.md) | PRの本文に、セッションのリンクが入ったまま、マージの直前まで気づかなかった | 2026-11-20 |
 | [0037](0037-english-note-missing-from-transcript.md) | 合間の英語の文が会話の記録に残らず、日本語を求めるフックが止めなかった | 2026-11-20 |
-| [0038](0038-release-notes-not-updated-after-hardware-check.md) | 公開したプレリリースの実機での確認の結果を、CHANGELOGとリリースノートに反映しなかった | 2026-11-20 |
-| [0039](0039-main-ci-failed-unnoticed-after-merge.md) | マージのあとのmainのCIが2回続けて失敗し、気づかなかった | 2026-11-20 |
+| [0038](0038-release-notes-not-updated-after-hardware-check.md) | 公開したプレリリースの実機での確認の結果を、CHANGELOGとリリースノートに反映しなかった | 2026-11-21 |
+| [0039](0039-main-ci-failed-unnoticed-after-merge.md) | マージのあとのmainのCIが2回続けて失敗し、気づかなかった | 2026-11-21 |
 | [0040](0040-hook-implemented-against-reported-design.md) | 承認された設計と違う方式で、フックを確認なしに実装した | 2026-11-21 |
+| [0041](0041-dates-written-in-utc.md) | 記録の日付を、JSTに直さずにUTCの日付で書いた | 2026-11-21 |
