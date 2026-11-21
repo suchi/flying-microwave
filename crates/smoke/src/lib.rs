@@ -28,6 +28,19 @@ pub struct Progress {
     /// Whether the limit on GPU initialization was reached (a line that
     /// starts with `GPU initialization timed out`).
     pub gpu_init_timed_out: bool,
+    /// The first `windows hidden in` line without its prefix: how long
+    /// hiding the windows took when the exit was decided (plan 0005, D-24).
+    pub windows_hidden: Option<String>,
+    /// The first `exit cleanup started:` or `preview cleanup started:` line,
+    /// whole: the cleanup began; alone, it stopped halfway (plan 0005, D-33).
+    pub cleanup_started: Option<String>,
+    /// The first `exit cleanup:` line without its prefix (`/s`).
+    pub exit_cleanup: Option<String>,
+    /// The first `preview cleanup:` line without its prefix (`/p`).
+    pub preview_cleanup: Option<String>,
+    /// Each line that tells a `get_current_texture` call took long (for
+    /// example `window 0: surface texture took 312 ms (draw attempt #7)`).
+    pub slow_surface_textures: Vec<String>,
 }
 
 /// The counts of one window from its summary line
@@ -116,6 +129,26 @@ impl Progress {
                 progress.adapter.get_or_insert_with(|| adapter.to_owned());
             } else if message.starts_with("GPU initialization timed out") {
                 progress.gpu_init_timed_out = true;
+            } else if let Some(hidden) = message.strip_prefix("windows hidden in ") {
+                progress
+                    .windows_hidden
+                    .get_or_insert_with(|| hidden.to_owned());
+            } else if message.starts_with("exit cleanup started: ")
+                || message.starts_with("preview cleanup started: ")
+            {
+                progress
+                    .cleanup_started
+                    .get_or_insert_with(|| message.to_owned());
+            } else if let Some(cleanup) = message.strip_prefix("exit cleanup: ") {
+                progress
+                    .exit_cleanup
+                    .get_or_insert_with(|| cleanup.to_owned());
+            } else if let Some(cleanup) = message.strip_prefix("preview cleanup: ") {
+                progress
+                    .preview_cleanup
+                    .get_or_insert_with(|| cleanup.to_owned());
+            } else if message.contains(": surface texture took ") {
+                progress.slow_surface_textures.push(message.to_owned());
             } else if let Some(config) = message.strip_prefix("config: ") {
                 progress.config.get_or_insert_with(|| config.to_owned());
             } else if let Some(reason) = message
@@ -128,6 +161,25 @@ impl Progress {
             }
         }
         progress
+    }
+
+    /// The lines that show where the time of an exit went, for the report of
+    /// a failed case: the time to hide the windows, the cleanup and the slow
+    /// surface texture calls. Only what the log has.
+    pub fn exit_diagnostics(&self) -> Vec<String> {
+        let mut lines = Vec::new();
+        if let Some(hidden) = &self.windows_hidden {
+            lines.push(format!("windows hidden in {hidden}"));
+        }
+        lines.extend(self.cleanup_started.iter().cloned());
+        if let Some(cleanup) = &self.exit_cleanup {
+            lines.push(format!("exit cleanup: {cleanup}"));
+        }
+        if let Some(cleanup) = &self.preview_cleanup {
+            lines.push(format!("preview cleanup: {cleanup}"));
+        }
+        lines.extend(self.slow_surface_textures.iter().cloned());
+        lines
     }
 
     /// The summary of window `window`, if its line was logged.
@@ -151,6 +203,46 @@ impl Progress {
     /// measure of N-01 in plan 0001).
     pub fn startup_ms(&self) -> Option<u64> {
         Some(self.first_frames_ms.iter().max()? - self.started_ms?)
+    }
+}
+
+/// One time that a case measured against a limit of the smoke test.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Timing {
+    /// The name of the case (`run`'s `cases`).
+    pub case: &'static str,
+    /// What was measured.
+    pub name: &'static str,
+    pub value_ms: u64,
+    pub limit_ms: u64,
+}
+
+impl Timing {
+    /// Whether the value is over half of the limit. Why half (decision of
+    /// the maintainer, plan 0005, D-23 (1)): a check that passes near its
+    /// limit fails some other time (incidents 0033 and 0035). The check
+    /// itself still fails only over the limit.
+    pub fn is_over_half(&self) -> bool {
+        self.value_ms.saturating_mul(2) > self.limit_ms
+    }
+
+    /// The GitHub Actions warning line, when the value is over half of the
+    /// limit.
+    pub fn warning_line(&self) -> Option<String> {
+        self.is_over_half().then(|| {
+            format!(
+                "::warning::{}: {} {} ms is over half of the limit {} ms",
+                self.case, self.name, self.value_ms, self.limit_ms
+            )
+        })
+    }
+
+    /// The line that every recorded time gets at the end of the run.
+    pub fn line(&self) -> String {
+        format!(
+            "timing: {}: {} {} ms (limit {} ms)",
+            self.case, self.name, self.value_ms, self.limit_ms
+        )
     }
 }
 
@@ -451,6 +543,122 @@ mod tests {
         let p = Progress::read(log, 1);
         assert!(p.summaries.is_empty());
         assert_eq!(p.first_frames_ms.len(), 1);
+    }
+
+    #[test]
+    fn the_start_of_the_cleanup_is_read_even_without_its_end() {
+        // Plan 0005, D-33 (3): a cleanup that stops halfway leaves only the
+        // line of its start.
+        let log = "\
++900ms pid=1 exit: KeyPressed { synthetic: false }
++901ms pid=1 windows hidden in 4.2 ms
++905ms pid=1 exit cleanup started: 4.0 ms after the exit decision
++960ms pid=2 preview cleanup started: 0.1 ms after the exit decision
++990ms pid=2 preview cleanup: 0.1 ms after the exit decision; surface 1.0 ms, GPU 2.0 ms, window 3.0 ms
+";
+        assert_eq!(
+            Progress::read(log, 1).exit_diagnostics(),
+            vec![
+                "windows hidden in 4.2 ms",
+                "exit cleanup started: 4.0 ms after the exit decision",
+            ]
+        );
+        assert_eq!(
+            Progress::read(log, 2).exit_diagnostics(),
+            vec![
+                "preview cleanup started: 0.1 ms after the exit decision",
+                "preview cleanup: 0.1 ms after the exit decision; surface 1.0 ms, GPU 2.0 ms, \
+                 window 3.0 ms",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_exit_lines_are_read_for_the_report_of_a_failure() {
+        let log = "\
++500ms pid=1 window 0: surface texture took 312 ms (draw attempt #7)
++900ms pid=1 exit: KeyPressed { synthetic: false }
++901ms pid=1 windows hidden in 4.2 ms
++950ms pid=1 exit cleanup: 5.1 ms after the exit decision; summaries 0.1 ms, windows and surfaces 30.0 ms, GPU 12.5 ms, instance 1.0 ms
++960ms pid=2 preview cleanup: 0.2 ms after the exit decision; surface 1.0 ms, GPU 2.0 ms, window 3.0 ms
++970ms pid=2 preview: surface texture took 150 ms (draw attempt #2)
++980ms pid=3 exit cleanup: no exit decision; summaries 0.1 ms, windows and surfaces 0.1 ms, GPU 0.1 ms, instance 0.1 ms
+";
+        let p = Progress::read(log, 1);
+        assert_eq!(p.windows_hidden.as_deref(), Some("4.2 ms"));
+        assert_eq!(
+            p.exit_cleanup.as_deref(),
+            Some(
+                "5.1 ms after the exit decision; summaries 0.1 ms, windows and surfaces 30.0 ms, \
+                 GPU 12.5 ms, instance 1.0 ms"
+            )
+        );
+        assert_eq!(p.preview_cleanup, None);
+        assert_eq!(
+            p.slow_surface_textures,
+            vec!["window 0: surface texture took 312 ms (draw attempt #7)"]
+        );
+        // Review: the whole report, not only how many lines it has.
+        assert_eq!(
+            p.exit_diagnostics(),
+            vec![
+                "windows hidden in 4.2 ms",
+                "exit cleanup: 5.1 ms after the exit decision; summaries 0.1 ms, windows and \
+                 surfaces 30.0 ms, GPU 12.5 ms, instance 1.0 ms",
+                "window 0: surface texture took 312 ms (draw attempt #7)",
+            ]
+        );
+        let preview = Progress::read(log, 2);
+        assert_eq!(
+            preview.exit_diagnostics(),
+            vec![
+                "preview cleanup: 0.2 ms after the exit decision; surface 1.0 ms, GPU 2.0 ms, \
+                 window 3.0 ms",
+                "preview: surface texture took 150 ms (draw attempt #2)",
+            ]
+        );
+        assert!(
+            Progress::read(log, 3)
+                .exit_cleanup
+                .is_some_and(|c| c.starts_with("no exit decision"))
+        );
+        assert!(Progress::read(log, 4).exit_diagnostics().is_empty());
+    }
+
+    #[test]
+    fn a_time_over_half_of_its_limit_is_warned_about() {
+        let timing = |value_ms| Timing {
+            case: "F-01 /s ends on user input",
+            name: "input to screen gone",
+            value_ms,
+            limit_ms: 200,
+        };
+        assert!(!timing(100).is_over_half());
+        assert!(timing(101).is_over_half());
+        assert_eq!(timing(100).warning_line(), None);
+        assert_eq!(
+            timing(150).warning_line().as_deref(),
+            Some(
+                "::warning::F-01 /s ends on user input: input to screen gone 150 ms \
+                 is over half of the limit 200 ms"
+            )
+        );
+        // Over the limit is also over half.
+        assert!(timing(500).warning_line().is_some());
+    }
+
+    #[test]
+    fn every_time_gets_a_timing_line() {
+        let timing = Timing {
+            case: "F-02 /p ends with its parent",
+            name: "parent destroyed to exit",
+            value_ms: 40,
+            limit_ms: 2000,
+        };
+        assert_eq!(
+            timing.line(),
+            "timing: F-02 /p ends with its parent: parent destroyed to exit 40 ms (limit 2000 ms)"
+        );
     }
 
     #[test]

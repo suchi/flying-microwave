@@ -129,3 +129,4 @@
 | [0040](incidents/0040-hook-implemented-against-reported-design.md) | 承認された設計と違う方式で、フックを確認なしに実装した |
 | [0041](incidents/0041-dates-written-in-utc.md) | 記録の日付を、JSTに直さずにUTCの日付で書いた |
 | [0042](incidents/0042-rule-change-not-reflected-in-other-docs.md) | 規則を変えたときに、同じ説明を書いたほかの文書を直し漏らした(再発) |
+| [0043](incidents/0043-delegated-implementation-skipped-tdd-red.md) | 実装を任せたサブエージェントが、先に失敗するテストを書かなかった |

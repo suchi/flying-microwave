@@ -2,11 +2,13 @@
 //! input, making a parent window for the preview and finding the settings
 //! window.
 
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use flying_microwave_smoke::{Progress, lines_of, meshes_drawn};
+use flying_microwave_smoke::{Progress, Timing, lines_of, meshes_drawn};
 use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -47,6 +49,11 @@ const EXIT_AFTER_CLOSE: Duration = Duration::from_secs(10);
 /// limit leaves room in case disabling moves after the first frame.
 const OWNER_DISABLED_LIMIT: Duration = Duration::from_secs(2);
 const POLL: Duration = Duration::from_millis(2);
+/// How long a process that still runs after a failed case may take to end
+/// before its log is printed and it is stopped (plan 0005, D-33 (1)): about
+/// 2.5 times the longest exit of the runs that passed (1994 ms, incident
+/// 0033). Not a limit of any check.
+const WAIT_AFTER_FAILURE: Duration = Duration::from_secs(5);
 
 /// The title of the settings window (crates/app/src/settings.rs).
 const SETTINGS_TITLE: &str = "Flying Microwave Settings";
@@ -67,6 +74,34 @@ struct Env<'a> {
     /// The tested processes get this folder as [`CONFIG_DIR_ENV`], so that
     /// they never read or write the user's own settings (plan 0004, E-1).
     config_dir: &'a Path,
+    /// Records the times of this case (plan 0005, D-24 (6)).
+    recorder: Recorder,
+}
+
+/// Collects the times that the cases measure against their limits, to warn
+/// about those over half of a limit and to list them all at the end.
+#[derive(Clone)]
+struct Recorder {
+    case: &'static str,
+    timings: Rc<RefCell<Vec<Timing>>>,
+}
+
+impl Recorder {
+    /// Records `value` against `limit`, and prints the GitHub Actions
+    /// warning when it is over half of the limit. Does not decide pass or
+    /// fail.
+    fn record(&self, name: &'static str, value: Duration, limit: Duration) {
+        let timing = Timing {
+            case: self.case,
+            name,
+            value_ms: u64::try_from(value.as_millis()).unwrap_or(u64::MAX),
+            limit_ms: u64::try_from(limit.as_millis()).unwrap_or(u64::MAX),
+        };
+        if let Some(warning) = timing.warning_line() {
+            println!("{warning}");
+        }
+        self.timings.borrow_mut().push(timing);
+    }
 }
 
 /// Runs every case and returns the process exit code (0 when all passed).
@@ -96,11 +131,16 @@ pub fn run(exe: &Path) -> i32 {
     println!("log folder of the tested processes: {}", log_dir.display());
     let config_dir = log_dir.join("config");
     let mut failed = 0;
+    let timings = Rc::new(RefCell::new(Vec::new()));
     for (name, case) in cases {
         match case(&Env {
             exe,
             log_dir: &log_dir,
             config_dir: &config_dir,
+            recorder: Recorder {
+                case: name,
+                timings: Rc::clone(&timings),
+            },
         }) {
             Ok(()) => println!("PASS {name}"),
             Err(e) => {
@@ -108,6 +148,11 @@ pub fn run(exe: &Path) -> i32 {
                 failed += 1;
             }
         }
+    }
+    // Every time with its limit, also of failed cases, so that runs can be
+    // compared (incidents 0033 and 0035).
+    for timing in timings.borrow().iter() {
+        println!("{}", timing.line());
     }
     println!("{} passed, {failed} failed", cases.len() - failed);
     i32::from(failed > 0)
@@ -118,6 +163,7 @@ pub fn run(exe: &Path) -> i32 {
 struct Target {
     child: Child,
     log: PathBuf,
+    recorder: Recorder,
 }
 
 impl Target {
@@ -144,7 +190,11 @@ impl Target {
             .env(CONFIG_DIR_ENV, env.config_dir)
             .spawn()
             .map_err(|e| format!("could not start {}: {e}", env.exe.display()))?;
-        Ok(Target { child, log })
+        Ok(Target {
+            child,
+            log,
+            recorder: env.recorder.clone(),
+        })
     }
 
     fn log_text(&self) -> String {
@@ -157,6 +207,11 @@ impl Target {
         println!("  log of process {}:", self.pid());
         for line in lines_of(&text, self.pid()) {
             println!("    {line}");
+        }
+        // The lines that show where the time of the exit went (plan 0005,
+        // D-24 (6)), read again from the log.
+        for line in Progress::read(&text, self.pid()).exit_diagnostics() {
+            println!("  {line}");
         }
     }
 
@@ -191,12 +246,45 @@ impl Target {
         }
     }
 
+    /// After a failure, gives a process that still runs up to
+    /// [`WAIT_AFTER_FAILURE`] to end before its log is printed, so that the
+    /// lines it writes while it ends (the cleanup) are in the report. Does
+    /// not change the result of the case.
+    fn wait_after_failure(&mut self) {
+        if !matches!(self.exited(), Ok(None)) {
+            return;
+        }
+        match self.wait_exit(WAIT_AFTER_FAILURE) {
+            Ok((code, waited)) => println!(
+                "  the process ended {} ms after the failure (exit code {code})",
+                waited.as_millis()
+            ),
+            Err(e) => println!("  after the failure, {e}; it is stopped"),
+        }
+    }
+
+    /// `wait_exit`, and records the time since `since` against `limit`
+    /// under `name`, also when the wait fails. `wait` is how long to wait.
+    fn wait_exit_timed(
+        &mut self,
+        name: &'static str,
+        wait: Duration,
+        since: Instant,
+        limit: Duration,
+    ) -> Result<(i32, Duration), String> {
+        let result = self.wait_exit(wait);
+        self.recorder.record(name, since.elapsed(), limit);
+        result
+    }
+
     /// Waits until `ready` holds for the log, failing if the process ends first.
     fn wait_ready(&mut self, ready: fn(&Progress) -> bool) -> Result<Progress, String> {
         let start = Instant::now();
         loop {
             let progress = self.progress();
             if ready(&progress) {
+                self.recorder
+                    .record("first frame wait", start.elapsed(), READY_LIMIT);
                 return Ok(progress);
             }
             if let Some(code) = self.exited()? {
@@ -205,6 +293,8 @@ impl Target {
                 ));
             }
             if start.elapsed() > READY_LIMIT {
+                self.recorder
+                    .record("first frame wait", start.elapsed(), READY_LIMIT);
                 return Err(format!(
                     "no first frame within {} s: {progress:?}",
                     READY_LIMIT.as_secs()
@@ -256,7 +346,14 @@ fn with_target(
     let mut target = Target::start(env, args, settings)?;
     let result = body(&mut target);
     if result.is_err() {
+        target.wait_after_failure();
         target.print_log();
+    } else {
+        // Plan 0005, D-33 (2): also when the case passes, so that runs that
+        // pass near a limit can be compared (CI keeps no log folder).
+        for line in target.progress().exit_diagnostics() {
+            println!("  {line}");
+        }
     }
     result
 }
@@ -373,6 +470,12 @@ fn screensaver_ends_on_input_with(
         let start = Instant::now();
         while shown() {
             if start.elapsed() > EXIT_AFTER_INPUT {
+                // Review: under the same name and limit as a pass, so that
+                // the worst run is not missing when runs are compared
+                // (incident 0033).
+                target
+                    .recorder
+                    .record("input to screen gone", start.elapsed(), GONE_AFTER_INPUT);
                 return Err(format!(
                     "the screen is still shown {} ms after the {}",
                     EXIT_AFTER_INPUT.as_millis(),
@@ -382,7 +485,15 @@ fn screensaver_ends_on_input_with(
             std::thread::sleep(POLL);
         }
         let gone = start.elapsed();
-        let (code, _) = target.wait_exit(EXIT_AFTER_INPUT.saturating_sub(gone))?;
+        target
+            .recorder
+            .record("input to screen gone", gone, GONE_AFTER_INPUT);
+        let (code, _) = target.wait_exit_timed(
+            "input to process exit",
+            EXIT_AFTER_INPUT.saturating_sub(gone),
+            start,
+            EXIT_AFTER_INPUT,
+        )?;
         println!(
             "  input to screen gone: {} ms; to process exit: {} ms",
             gone.as_millis(),
@@ -443,7 +554,12 @@ fn preview_ends_with_parent(env: &Env) -> Result<(), String> {
         report(&progress);
         expect_meshes(target)?;
         drop(parent.take());
-        let (code, elapsed) = target.wait_exit(EXIT_AFTER_PARENT_GONE)?;
+        let (code, elapsed) = target.wait_exit_timed(
+            "parent destroyed to exit",
+            EXIT_AFTER_PARENT_GONE,
+            Instant::now(),
+            EXIT_AFTER_PARENT_GONE,
+        )?;
         println!("  parent destroyed to exit: {} ms", elapsed.as_millis());
         let reason = expect_reason(&target.progress(), &["WindowDestroyed", "ParentGone"]);
         if code != 0 {
@@ -474,6 +590,9 @@ fn settings_disables_its_owner(env: &Env) -> Result<(), String> {
         // call return 0.
         while unsafe { IsWindowEnabled(owner.0) } != 0 {
             if start.elapsed() > OWNER_DISABLED_LIMIT {
+                target
+                    .recorder
+                    .record("owner disabled", start.elapsed(), OWNER_DISABLED_LIMIT);
                 return Err(format!(
                     "the owner is still enabled {} ms after the settings window was found",
                     OWNER_DISABLED_LIMIT.as_millis()
@@ -483,6 +602,9 @@ fn settings_disables_its_owner(env: &Env) -> Result<(), String> {
             pump_messages();
             std::thread::sleep(POLL);
         }
+        target
+            .recorder
+            .record("owner disabled", start.elapsed(), OWNER_DISABLED_LIMIT);
         println!(
             "  owner disabled {} ms after the settings window was found",
             start.elapsed().as_millis()
@@ -539,6 +661,9 @@ fn wait_settings_window(target: &mut Target) -> Result<HWND, String> {
             ));
         }
         if start.elapsed() > SETTINGS_LIMIT {
+            target
+                .recorder
+                .record("settings window wait", start.elapsed(), SETTINGS_LIMIT);
             return Err(format!(
                 "no settings window within {} s",
                 SETTINGS_LIMIT.as_secs()
@@ -549,6 +674,9 @@ fn wait_settings_window(target: &mut Target) -> Result<HWND, String> {
         pump_messages();
         std::thread::sleep(Duration::from_millis(50));
     };
+    target
+        .recorder
+        .record("settings window wait", start.elapsed(), SETTINGS_LIMIT);
     println!(
         "  settings window shown after {} ms",
         start.elapsed().as_millis()
@@ -561,7 +689,12 @@ fn close_settings(target: &mut Target, window: HWND) -> Result<(), String> {
     // SAFETY: posting a message to a window handle is safe even if the
     // window is gone by now; the call then just fails.
     unsafe { PostMessageW(window, WM_CLOSE, 0, 0) };
-    let (code, elapsed) = target.wait_exit(EXIT_AFTER_CLOSE)?;
+    let (code, elapsed) = target.wait_exit_timed(
+        "close to process exit",
+        EXIT_AFTER_CLOSE,
+        Instant::now(),
+        EXIT_AFTER_CLOSE,
+    )?;
     println!("  close to process exit: {} ms", elapsed.as_millis());
     if code != 0 {
         return Err(format!("exit code {code}"));

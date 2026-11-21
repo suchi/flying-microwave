@@ -669,6 +669,11 @@ pub struct Timings {
     pub wait: Duration,
     pub present: Duration,
     pub total: Duration,
+    /// How long the `get_current_texture` call itself took, without the
+    /// wait for the swap chain before it; `None` when it was not called.
+    /// The caller decides whether to log it, so that the count is kept per
+    /// window (plan 0005, D-24 (6)).
+    pub acquire: Option<Duration>,
 }
 
 impl Target {
@@ -861,7 +866,9 @@ impl Target {
             return Frame::Skipped(diag::Skip::NotReady);
         }
 
+        let acquiring = Instant::now();
         let acquired = self.surface.get_current_texture();
+        self.timings.acquire = Some(acquiring.elapsed());
         self.timings.wait = waited.elapsed();
         let (texture, suboptimal) = match acquired {
             Acquired::Success(texture) => (texture, false),

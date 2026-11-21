@@ -30,6 +30,7 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use winit::window::{Window, WindowId};
 
+use crate::diag;
 use crate::log::log;
 use crate::render::{self, Frame, Gpu, Target};
 use crate::saver::{aspect_of, retry_delay, seed};
@@ -70,7 +71,11 @@ struct PreviewApp {
     next_parent_check: Instant,
     retry_at: Option<Instant>,
     frames: u64,
+    /// Draw attempts and the slow surface texture calls already logged.
+    stats: diag::FrameStats,
     exiting: bool,
+    /// When `finish` decided to end, for the cleanup line.
+    exit_decided: Option<Instant>,
     exit_code: i32,
 }
 
@@ -120,7 +125,9 @@ pub fn run(parent: u64) -> i32 {
         next_parent_check: Instant::now() + PARENT_CHECK_INTERVAL,
         retry_at: None,
         frames: 0,
+        stats: diag::FrameStats::default(),
         exiting: false,
+        exit_decided: None,
         exit_code: EXIT_OK,
     };
     if let Err(e) = event_loop.run_app(&mut app) {
@@ -143,6 +150,7 @@ impl PreviewApp {
             return;
         }
         self.exiting = true;
+        self.exit_decided = Some(Instant::now());
         self.exit_code = code;
         log!("preview exit: {reason} (exit code {code})");
         event_loop.exit();
@@ -253,7 +261,21 @@ impl PreviewApp {
             Some(pacer) => pacer.frame_period(),
             None => FramePacer::new(self.max_fps, None).frame_period(),
         };
-        match target.draw(gpu, &world.instances(), led, signal_wait) {
+        let attempts = self.stats.attempted();
+        let frame = target.draw(gpu, &world.instances(), led, signal_wait);
+        // Incident 0035, plan 0005, D-24 (6): counted by the app, which
+        // outlives the surface target.
+        if let Some(took) = target
+            .timings()
+            .acquire
+            .filter(|&took| self.stats.slow_acquire(took))
+        {
+            log!(
+                "preview: surface texture took {:.0} ms (draw attempt #{attempts})",
+                diag::ms(took)
+            );
+        }
+        match frame {
             Frame::Presented => {
                 self.frames += 1;
                 if self.frames == 1 {
@@ -341,9 +363,26 @@ impl ApplicationHandler for PreviewApp {
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        let after_decision = diag::after_exit_decision(self.exit_decided.map(|t| t.elapsed()));
+        // Plan 0005, D-33 (3): alone, this line tells that the cleanup
+        // stopped halfway.
+        log!("preview cleanup started: {after_decision}");
         // Drop the surface before the window it draws into.
+        let stage = Instant::now();
         self.target = None;
+        let surface = stage.elapsed();
+        let stage = Instant::now();
         self.gpu = None;
+        let gpu = stage.elapsed();
+        let stage = Instant::now();
         self.window = None;
+        let window = stage.elapsed();
+        // Why: as in `/s` (incident 0033 and 0035).
+        log!(
+            "preview cleanup: {after_decision}; surface {:.1} ms, GPU {:.1} ms, window {:.1} ms",
+            diag::ms(surface),
+            diag::ms(gpu),
+            diag::ms(window)
+        );
     }
 }

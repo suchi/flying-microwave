@@ -11,6 +11,39 @@ pub fn first_few(count: u64) -> bool {
     (1..=LOGGED).contains(&count)
 }
 
+/// A `get_current_texture` call that takes longer than this is logged.
+///
+/// Why: incident 0035 and plan 0005, D-24 (6): the exit time of `/s` was
+/// near its limit, and the log did not show whether the surface texture
+/// call was the slow part. 100 ms is well above a frame and well below the
+/// waits that hold the input.
+pub const SLOW_ACQUIRE: Duration = Duration::from_millis(100);
+/// How many slow `get_current_texture` calls are logged per window.
+///
+/// Why: as `SLOW_ACQUIRE`; a window that is slow on every frame must not
+/// flood the log.
+pub const SLOW_ACQUIRE_LOGGED: u32 = 5;
+
+/// Whether a `get_current_texture` call that took `took` is logged, when
+/// `logged` slow calls of the window have been logged already.
+pub fn log_slow_acquire(took: Duration, logged: u32) -> bool {
+    took > SLOW_ACQUIRE && logged < SLOW_ACQUIRE_LOGGED
+}
+
+/// A time in milliseconds with one decimal, for the log.
+pub fn ms(time: Duration) -> f64 {
+    time.as_secs_f64() * 1000.0
+}
+
+/// How long after the exit decision the cleanup started, for the cleanup
+/// lines; `None` when the loop ended without an exit decision.
+pub fn after_exit_decision(since: Option<Duration>) -> String {
+    match since {
+        Some(time) => format!("{:.1} ms after the exit decision", ms(time)),
+        None => "no exit decision".to_owned(),
+    }
+}
+
 /// Why `Target::draw` did not draw (the surface texture was not available).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Skip {
@@ -47,9 +80,23 @@ pub struct FrameStats {
     longest_wait: Duration,
     longest_present: Duration,
     longest_draw: Duration,
+    /// How many slow `get_current_texture` calls of this window were logged.
+    slow_acquires_logged: u32,
 }
 
 impl FrameStats {
+    /// Whether a `get_current_texture` call that took `took` is logged, and
+    /// counts it when it is. Counted by the window, not by its surface
+    /// target, which is made again when the window is shown again (plan
+    /// 0005, D-24 (6): the first five per window).
+    pub fn slow_acquire(&mut self, took: Duration) -> bool {
+        let logged = log_slow_acquire(took, self.slow_acquires_logged);
+        if logged {
+            self.slow_acquires_logged += 1;
+        }
+        logged
+    }
+
     /// Records an attempt to draw. Returns how many have been made. Every
     /// attempt ends as exactly one of drawn, paced, blank or skipped.
     pub fn attempted(&mut self) -> u64 {
@@ -142,6 +189,53 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
+
+    #[test]
+    fn a_surface_texture_call_over_100_ms_is_logged() {
+        assert!(log_slow_acquire(Duration::from_millis(101), 0));
+        assert!(log_slow_acquire(Duration::from_millis(312), 4));
+    }
+
+    #[test]
+    fn a_surface_texture_call_of_100_ms_or_less_is_not_logged() {
+        assert!(!log_slow_acquire(Duration::from_millis(100), 0));
+        assert!(!log_slow_acquire(Duration::ZERO, 0));
+    }
+
+    #[test]
+    fn only_the_first_five_slow_surface_texture_calls_are_logged() {
+        let slow = Duration::from_secs(1);
+        assert!(log_slow_acquire(slow, 4));
+        assert!(!log_slow_acquire(slow, 5));
+        assert!(!log_slow_acquire(slow, u32::MAX));
+    }
+
+    #[test]
+    fn a_window_logs_its_first_five_slow_surface_texture_calls() {
+        // Review: counted by the window, so that a new surface target (the
+        // window is hidden and shown again) does not start the count again.
+        let mut stats = FrameStats::default();
+        let slow = Duration::from_millis(150);
+        assert!(!stats.slow_acquire(Duration::from_millis(100)));
+        for _ in 0..SLOW_ACQUIRE_LOGGED {
+            assert!(stats.slow_acquire(slow));
+        }
+        assert!(!stats.slow_acquire(slow));
+    }
+
+    #[test]
+    fn the_time_since_the_exit_decision_is_worded_for_the_cleanup_lines() {
+        assert_eq!(
+            after_exit_decision(Some(Duration::from_micros(2340))),
+            "2.3 ms after the exit decision"
+        );
+        assert_eq!(after_exit_decision(None), "no exit decision");
+    }
+
+    #[test]
+    fn times_are_given_in_milliseconds() {
+        assert!((ms(Duration::from_micros(1500)) - 1.5).abs() < 1e-9);
+    }
 
     #[test]
     fn the_first_three_events_are_logged() {

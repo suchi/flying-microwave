@@ -149,6 +149,8 @@ struct SaverApp {
     created: bool,
     exit_code: i32,
     exit_reason: Option<String>,
+    /// When the exit was decided (`decide`), for the cleanup lines.
+    exit_decided: Option<Instant>,
 }
 
 /// Runs the screensaver and returns the process exit code.
@@ -191,6 +193,7 @@ pub fn run() -> i32 {
         created: false,
         exit_code: EXIT_OK,
         exit_reason: None,
+        exit_decided: None,
     };
     if let Err(e) = event_loop.run_app(&mut app) {
         log!("event loop error: {e}");
@@ -337,6 +340,8 @@ impl SaverApp {
         if self.policy.handle(event, self.now()) == Decision::Exit && self.exit_reason.is_none() {
             log!("exit: {event:?}");
             self.exit_reason = Some(format!("{event:?}"));
+            let decided = Instant::now();
+            self.exit_decided = Some(decided);
             // Why: winit destroys the windows only after the loop has ended,
             // and the GPU is released before that, so without hiding them
             // here the screen would stay until the process ends (N-02 counts
@@ -345,6 +350,7 @@ impl SaverApp {
             for w in &self.windows {
                 w.window.set_visible(false);
             }
+            log!("windows hidden in {:.1} ms", diag::ms(decided.elapsed()));
             event_loop.exit();
         }
     }
@@ -857,6 +863,15 @@ impl SaverApp {
         let frame = target.draw(gpu, &w.world.instances(), led, w.pacer.frame_period());
         let timings = target.timings();
         w.stats.timed(timings.wait, timings.present, timings.total);
+        // Incident 0035, plan 0005, D-24 (6): the attempt number is that of
+        // the `draw attempted (#N)` lines.
+        if let Some(took) = timings.acquire.filter(|&took| w.stats.slow_acquire(took)) {
+            log!(
+                "window {}: surface texture took {:.0} ms (draw attempt #{attempts})",
+                w.index,
+                diag::ms(took)
+            );
+        }
         if let Frame::Skipped(skip) = frame {
             if diag::first_few(w.stats.skipped(skip)) {
                 log!("window {}: frame skipped: {skip:?}", w.index);
@@ -1017,14 +1032,35 @@ impl ApplicationHandler for SaverApp {
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        let after_decision = diag::after_exit_decision(self.exit_decided.map(|t| t.elapsed()));
+        // Plan 0005, D-33 (3): alone, this line tells that the cleanup
+        // stopped halfway.
+        log!("exit cleanup started: {after_decision}");
+        let started = Instant::now();
         // Why here: winit calls this before `run_app` returns, and the
         // windows are dropped below, so the summary cannot be written later.
         for w in &self.windows {
             log!("{}", w.stats.summary(w.index));
         }
+        let summaries = started.elapsed();
         // Surfaces before the device and the instance.
+        let stage = Instant::now();
         self.windows.clear();
+        let windows = stage.elapsed();
+        let stage = Instant::now();
         self.gpu = None;
+        let gpu = stage.elapsed();
+        let stage = Instant::now();
         self.instance = None;
+        let instance = stage.elapsed();
+        // Why: incident 0033 and 0035: the exit time was near its limit, and
+        // the log did not show which stage of the cleanup took the time.
+        log!(
+            "exit cleanup: {after_decision}; summaries {:.1} ms, windows and surfaces {:.1} ms, GPU {:.1} ms, instance {:.1} ms",
+            diag::ms(summaries),
+            diag::ms(windows),
+            diag::ms(gpu),
+            diag::ms(instance)
+        );
     }
 }
