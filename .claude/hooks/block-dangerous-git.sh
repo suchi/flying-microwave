@@ -93,10 +93,17 @@ fi
 if has "$git_commit"; then
   root=${CLAUDE_PROJECT_DIR:-.}
   if git -C "$root" status --porcelain -- docs/incidents docs/README.md 2>/dev/null | grep -q .; then
-    py=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)
-    # Why -c '': on Windows, an app execution alias named python3 can be
-    # found without Python installed, and it fails when run.
-    if [ -n "$py" ] && "$py" -c '' >/dev/null 2>&1 && [ -f "$root/scripts/test_incident_lists.py" ] &&
+    # The first Python that runs. Why -c '': on Windows, an app execution
+    # alias named python3 can be found without Python installed, and it
+    # fails when run, while python may work (not checked on Windows).
+    py=
+    for c in python3 python; do
+      if command -v "$c" >/dev/null 2>&1 && "$c" -c '' >/dev/null 2>&1; then
+        py=$c
+        break
+      fi
+    done
+    if [ -n "$py" ] && [ -f "$root/scripts/test_incident_lists.py" ] &&
       ! (cd "$root" && "$py" -I -m unittest discover -s scripts -p test_incident_lists.py >/dev/null 2>&1); then
       emit deny "incidentの一覧のテスト(scripts/test_incident_lists.py)が通りません。docs/incidents/README.mdとdocs/README.mdの一覧を直してから、コミットしてください(docs/incidents/0034)。"
     fi
