@@ -13,8 +13,9 @@
 //! refresh rate.
 //!
 //! The look values below are the starting values set with the spike
-//! (ADR-0026, "見た目の値"). They are not decided yet: the maintainer judges
-//! them in motion with `v0.3.0-alpha.4` (plan 0005, E-1, D-18 and D-21).
+//! (ADR-0026, "見た目の値"). The maintainer found them fine in motion with
+//! `v0.3.0-alpha.4` (plan 0005, E-1, task 10-3); the change of brightness by
+//! rotation is checked on a directly connected monitor with `v0.3.0-alpha.5`.
 
 use std::f32::consts::TAU;
 use std::time::Duration;
@@ -41,8 +42,8 @@ pub const BOUNDING_RADIUS: f32 = 1.75;
 
 // Why: the values from here to `LEVEL_ROLL_DEG` are the starting values of
 // the spike (plan 0005, E-1; ADR-0026), except the speed factor, which keeps
-// the v0.2.0 range (plan 0005, task 5). The maintainer decides them in
-// motion with `v0.3.0-alpha.4` (plan 0005, D-18 and D-21).
+// the v0.2.0 range (plan 0005, task 5). The maintainer found them fine in
+// motion with `v0.3.0-alpha.4` (plan 0005, E-1, task 10-3).
 
 /// Vertical field of view in degrees.
 const FOV_Y_DEG: f32 = 40.0;
