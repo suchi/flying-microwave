@@ -342,11 +342,13 @@ impl SaverApp {
             self.exit_reason = Some(format!("{event:?}"));
             let decided = Instant::now();
             self.exit_decided = Some(decided);
-            // Why: winit destroys the windows only after the loop has ended,
-            // and the GPU is released before that, so without hiding them
-            // here the screen would stay until the process ends (N-02 counts
-            // until the screen is gone; plan 0003, D-6). set_visible runs
-            // synchronously on the event loop thread (winit 0.30.13).
+            // Why: winit destroys a window only through a message to the
+            // event loop (winit 0.30.13 `Window::drop` posts it), which is not
+            // handled once the loop has ended, and the GPU resources are left
+            // to the process exit (ADR-0029), so without hiding them here the
+            // screen would stay until the process ends (N-02 counts until the
+            // screen is gone; plan 0003, D-6). set_visible runs synchronously
+            // on the event loop thread (winit 0.30.13).
             for w in &self.windows {
                 w.window.set_visible(false);
             }
@@ -1038,15 +1040,16 @@ impl ApplicationHandler for SaverApp {
         log!("exit cleanup started: {after_decision}");
         let started = Instant::now();
         // Why here: winit calls this before `run_app` returns, and the
-        // windows are dropped below, so the summary cannot be written later.
+        // windows are taken out below, so the summary cannot be written later.
         for w in &self.windows {
             log!("{}", w.stats.summary(w.index));
         }
         let summaries = started.elapsed();
         // Why (ADR-0029): dropping a surface waits, without a limit, until
         // the present queue is idle (wgpu-hal DX12 `unconfigure`), which took
-        // up to 2 s after the windows were hidden (incident 0033). The screen
-        // is already gone; the OS takes these back when the process ends.
+        // up to about 1 s after the windows were hidden in CI (incident 0033;
+        // up to 2 s in `/p`). The screen is already gone; the OS takes these
+        // back when the process ends.
         std::mem::forget(std::mem::take(&mut self.windows));
         std::mem::forget(self.gpu.take());
         std::mem::forget(self.instance.take());
