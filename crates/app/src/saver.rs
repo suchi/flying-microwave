@@ -342,11 +342,13 @@ impl SaverApp {
             self.exit_reason = Some(format!("{event:?}"));
             let decided = Instant::now();
             self.exit_decided = Some(decided);
-            // Why: winit destroys the windows only after the loop has ended,
-            // and the GPU is released before that, so without hiding them
-            // here the screen would stay until the process ends (N-02 counts
-            // until the screen is gone; plan 0003, D-6). set_visible runs
-            // synchronously on the event loop thread (winit 0.30.13).
+            // Why: winit destroys a window only through a message to the
+            // event loop (winit 0.30.13 `Window::drop` posts it), which is not
+            // handled once the loop has ended, and the GPU resources are left
+            // to the process exit (ADR-0029), so without hiding them here the
+            // screen would stay until the process ends (N-02 counts until the
+            // screen is gone; plan 0003, D-6). set_visible runs synchronously
+            // on the event loop thread (winit 0.30.13).
             for w in &self.windows {
                 w.window.set_visible(false);
             }
@@ -1038,29 +1040,22 @@ impl ApplicationHandler for SaverApp {
         log!("exit cleanup started: {after_decision}");
         let started = Instant::now();
         // Why here: winit calls this before `run_app` returns, and the
-        // windows are dropped below, so the summary cannot be written later.
+        // windows are taken out below, so the summary cannot be written later.
         for w in &self.windows {
             log!("{}", w.stats.summary(w.index));
         }
         let summaries = started.elapsed();
-        // Surfaces before the device and the instance.
-        let stage = Instant::now();
-        self.windows.clear();
-        let windows = stage.elapsed();
-        let stage = Instant::now();
-        self.gpu = None;
-        let gpu = stage.elapsed();
-        let stage = Instant::now();
-        self.instance = None;
-        let instance = stage.elapsed();
-        // Why: incident 0033 and 0035: the exit time was near its limit, and
-        // the log did not show which stage of the cleanup took the time.
+        // Why (ADR-0029): dropping a surface waits, without a limit, until
+        // the present queue is idle (wgpu-hal DX12 `unconfigure`), which took
+        // up to about 1 s after the windows were hidden in CI (incident 0033;
+        // up to 2 s in `/p`). The screen is already gone; the OS takes these
+        // back when the process ends.
+        std::mem::forget(std::mem::take(&mut self.windows));
+        std::mem::forget(self.gpu.take());
+        std::mem::forget(self.instance.take());
         log!(
-            "exit cleanup: {after_decision}; summaries {:.1} ms, windows and surfaces {:.1} ms, GPU {:.1} ms, instance {:.1} ms",
-            diag::ms(summaries),
-            diag::ms(windows),
-            diag::ms(gpu),
-            diag::ms(instance)
+            "exit cleanup: {after_decision}; summaries {:.1} ms; windows, surfaces, GPU and instance left to the process exit",
+            diag::ms(summaries)
         );
     }
 }

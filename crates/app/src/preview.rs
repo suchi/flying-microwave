@@ -367,22 +367,12 @@ impl ApplicationHandler for PreviewApp {
         // Plan 0005, D-33 (3): alone, this line tells that the cleanup
         // stopped halfway.
         log!("preview cleanup started: {after_decision}");
-        // Drop the surface before the window it draws into.
-        let stage = Instant::now();
-        self.target = None;
-        let surface = stage.elapsed();
-        let stage = Instant::now();
-        self.gpu = None;
-        let gpu = stage.elapsed();
-        let stage = Instant::now();
-        self.window = None;
-        let window = stage.elapsed();
-        // Why: as in `/s` (incident 0033 and 0035).
-        log!(
-            "preview cleanup: {after_decision}; surface {:.1} ms, GPU {:.1} ms, window {:.1} ms",
-            diag::ms(surface),
-            diag::ms(gpu),
-            diag::ms(window)
-        );
+        // Why (ADR-0029): as in `/s`; dropping the surface waited up to 2 s
+        // for the present queue after the parent had destroyed the window
+        // (incident 0033). The OS takes these back when the process ends.
+        std::mem::forget(self.target.take());
+        std::mem::forget(self.gpu.take());
+        std::mem::forget(self.window.take());
+        log!("preview cleanup: {after_decision}; surface, GPU and window left to the process exit");
     }
 }
