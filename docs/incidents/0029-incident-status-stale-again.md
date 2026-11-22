@@ -50,7 +50,7 @@
 
 確かめた事実:
 
-- 0039、0040、0041の対策の文(AGENTS.md、`.claude/commands/merge-pr.md`、`.claude/commands/commit.md`)は、コミット`967fa32`で入り、PR #91のマージ`f672b82`に含まれる(`git merge-base --is-ancestor`)。
+- 0039、0040、0041の対策の文は、コミット`967fa32`(AGENTS.md)、`340f468`と`c7bfd6a`(`.claude/commands/merge-pr.md`)、`8c04707`(`.claude/commands/commit.md`)、`07c784d`(`docs/development/review-process.md`)で入り、どれもPR #91のマージ`f672b82`に含まれる(`git log f672b82^1..f672b82^2`でこれらのファイルを変えたコミットを一覧にし、`git show --stat`で変えたファイルを確かめた)。
 - PR #91の差分の`docs/incidents/`の変更(`git diff --name-only f672b82^1 f672b82 -- docs/incidents/`)には、0038、0039、0041が含まれ、0040は含まれない(0040の対策は、記録のファイルではなくAGENTS.mdなどの変更だった)。
 - PR #91のマージのあとで、incidentのステータスを直したのは、コミット`cac67cd`の0038だけだった(メッセージ: 「PR #91のマージのあとの記録として、incident 0038を対策済みにした(リリースノートの差し替えを確かめた)」)。
 
