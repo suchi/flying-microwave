@@ -63,6 +63,11 @@ class ListMergeIncidentsTest(unittest.TestCase):
         diff = "+++ b/scripts/test_x.py\n+    'docs/incidents/0012-x.md'\n"
         self.assertEqual(referenced(diff), set())
 
+    def test_this_script_is_left_out(self):
+        # Re-review: its docstring and comments give examples of references.
+        diff = "+++ b/scripts/list_merge_incidents.py\n+# (docs/incidents/0005, 0015, 0018)\n"
+        self.assertEqual(referenced(diff), set())
+
     def test_a_reference_also_in_a_removed_line_of_the_file_is_kept_not_new(self):
         # Review: a rewrapped paragraph re-adds every link it had.
         diff = (

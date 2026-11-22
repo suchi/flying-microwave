@@ -26,8 +26,9 @@ PATH_REFERENCE = re.compile(r"incidents/(\d{4})(?!\d)" + FOLLOWING)
 WORD_REFERENCE = re.compile(r"[Ii]ncidents? ?(\d{4})(?!\d)" + FOLLOWING)
 # A link from one record to another: "[0028](0028-smoke.md)".
 SIBLING_LINK = re.compile(r"\]\((\d{4})-[^)]*\.md\)")
-# Why: their test data name records that the tests do not refer to.
-LEFT_OUT = re.compile(r"^scripts/test_[^/]*\.py$")
+# Why: their test data, and the examples in this script, name records that
+# they do not refer to.
+LEFT_OUT = re.compile(r"^scripts/(test_[^/]*|list_merge_incidents)\.py$")
 
 
 def changed(names):
@@ -114,7 +115,7 @@ def main(argv):
         elif number in numbers_referenced:
             how = "referenced"
         else:
-            how = "kept: in a rewritten line"
+            how = "also in a removed line"
         paths = sorted(ROOT.glob(f"docs/incidents/{number}-*.md"))
         if not paths:
             print(f"{number} ({how}): no record file")
