@@ -18,13 +18,29 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 JST = datetime.timezone(datetime.timedelta(hours=9))
-MENTION = re.compile(r"(\d{4}-\d{2}-\d{2})に、?PR #(\d+)でマージ")
+# "YYYY-MM-DDにPR #NNでマージ" (a note in parentheses may follow the number)
+# and "PR #NN(YYYY-MM-DDにマージ". Other wordings are not checked.
+MENTION = re.compile(
+    r"(\d{4}-\d{2}-\d{2})に、?PR #(\d+)(?:\([^()]*\))?でマージ"
+    r"|PR #(\d+)\((\d{4}-\d{2}-\d{2})にマージ"
+)
 MERGE = re.compile(r"^Merge pull request #(\d+) ")
 
 
 def mentions(text):
-    """The (date, pull request number) of each "YYYY-MM-DDにPR #NNでマージ"."""
-    return [(date, int(number)) for date, number in MENTION.findall(text)]
+    """The (date, pull request number) of each mention of a merge date."""
+    found = []
+    for date, number, other_number, other_date in MENTION.findall(text):
+        found.append((date or other_date, int(number or other_number)))
+    return found
+
+
+def documents():
+    """The documents whose change requires the script tests (AGENTS.md,
+    "検証コマンド"); plans and ADRs are not checked (plan 0005, D-37)."""
+    paths = sorted(ROOT.glob("docs/incidents/*.md"))
+    paths += sorted(ROOT.glob("docs/development/hardware-check-*.md"))
+    return paths + [ROOT / "docs" / "README.md", ROOT / "CHANGELOG.md"]
 
 
 def merge_dates(log):
@@ -65,6 +81,14 @@ class FunctionTest(unittest.TestCase):
         text = "(1)〜(3)は2026-11-22にPR #94でマージした。2026-11-21に、PR #93でマージした。"
         self.assertEqual(mentions(text), [("2026-11-22", 94), ("2026-11-21", 93)])
 
+    def test_mentions_with_a_note_after_the_number_are_found(self):
+        # Review: forms that the records already use for a merge date.
+        text = (
+            "2026-11-12にPR #78(`f546bd9`)でマージした。"
+            "対策はPR #91(2026-11-21にマージ)に入っていた。"
+        )
+        self.assertEqual(mentions(text), [("2026-11-12", 78), ("2026-11-21", 91)])
+
     def test_merge_dates_are_given_in_jst(self):
         # 13:43 UTC is 22:43 JST on the same day; 05:56 JST stays 11-22.
         self.assertEqual(merge_dates(self.LOG), {94: "2026-11-22", 93: "2026-11-21"})
@@ -79,6 +103,16 @@ class FunctionTest(unittest.TestCase):
     def test_the_jst_date_passes(self):
         dates = merge_dates("2026-11-21T20:56:15Z\tMerge pull request #94 from a/b\n")
         self.assertEqual(errors([("a.md", "2026-11-22にPR #94でマージした。")], dates), [])
+
+    def test_only_the_documents_of_the_script_test_condition_are_checked(self):
+        # Plan 0005, D-37: the documents whose change requires the script
+        # tests (AGENTS.md, "検証コマンド").
+        names = {str(p.relative_to(ROOT)) for p in documents()}
+        self.assertIn("CHANGELOG.md", names)
+        self.assertIn("docs/README.md", names)
+        self.assertIn("docs/incidents/0041-dates-written-in-utc.md", names)
+        self.assertTrue(any(n.startswith("docs/development/hardware-check-") for n in names))
+        self.assertNotIn("docs/plans/0005-v0.3.0-visuals-and-clock.md", names)
 
     def test_a_pull_request_not_in_the_history_is_not_checked(self):
         self.assertEqual(errors([("a.md", "2026-11-22にPR #99でマージした。")], {}), [])
@@ -107,9 +141,11 @@ class RepositoryTest(unittest.TestCase):
             encoding="utf-8",
             check=True,
         ).stdout
-        paths = sorted(ROOT.glob("docs/**/*.md")) + [ROOT / "CHANGELOG.md"]
-        texts = [(str(p.relative_to(ROOT)), p.read_text(encoding="utf-8")) for p in paths]
-        self.assertEqual(errors(texts, merge_dates(log)), [])
+        dates = merge_dates(log)
+        # Review: a broken log format must not make the check pass silently.
+        self.assertTrue(dates, "no merge commit was read from the history")
+        texts = [(str(p.relative_to(ROOT)), p.read_text(encoding="utf-8")) for p in documents()]
+        self.assertEqual(errors(texts, dates), [])
 
 
 if __name__ == "__main__":
