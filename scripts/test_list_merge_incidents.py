@@ -39,6 +39,17 @@ class ListMergeIncidentsTest(unittest.TestCase):
         )
         self.assertEqual(referenced(diff), {"0019", "0036", "0005", "0015", "0018"})
 
+    def test_numbers_listed_in_japanese_are_all_listed(self):
+        # Re-review: "incident 0034、0038、0042" and "incident 0041と0029".
+        diff = (
+            "+++ b/docs/plans/0005-x.md\n"
+            "+(incident 0034、0038、0042) and incident 0041と0029の再発\n"
+            "+(docs/incidents/0005、0015)\n"
+        )
+        self.assertEqual(
+            referenced(diff), {"0034", "0038", "0042", "0041", "0029", "0005", "0015"}
+        )
+
     def test_sibling_links_inside_the_records_are_listed(self):
         diff = (
             "+++ b/docs/incidents/0044-x.md\n"

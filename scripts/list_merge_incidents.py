@@ -19,9 +19,11 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 RECORD = re.compile(r"^docs/incidents/(\d{4})-[^/]*\.md$")
-# "incidents/0019", "(docs/incidents/0005, 0015, 0018)", "incident 0043".
-PATH_REFERENCE = re.compile(r"incidents/(\d{4})(?!\d)((?:, ?\d{4}(?!\d))*)")
-WORD_REFERENCE = re.compile(r"[Ii]ncidents? ?(\d{4})(?!\d)")
+# "incidents/0019", "(docs/incidents/0005, 0015, 0018)", "incident 0043",
+# "incident 0034、0038、0042", "incident 0041と0029".
+FOLLOWING = r"((?:(?:, ?|、|と)\d{4}(?!\d))*)"
+PATH_REFERENCE = re.compile(r"incidents/(\d{4})(?!\d)" + FOLLOWING)
+WORD_REFERENCE = re.compile(r"[Ii]ncidents? ?(\d{4})(?!\d)" + FOLLOWING)
 # A link from one record to another: "[0028](0028-smoke.md)".
 SIBLING_LINK = re.compile(r"\]\((\d{4})-[^)]*\.md\)")
 # Why: their test data name records that the tests do not refer to.
@@ -37,10 +39,10 @@ def changed(names):
 def numbers_in(line, path):
     """The incident numbers that one line of the file `path` refers to."""
     found = set()
-    for first, rest in PATH_REFERENCE.findall(line):
-        found.add(first)
-        found.update(re.findall(r"\d{4}", rest))
-    found.update(WORD_REFERENCE.findall(line))
+    for pattern in (PATH_REFERENCE, WORD_REFERENCE):
+        for first, rest in pattern.findall(line):
+            found.add(first)
+            found.update(re.findall(r"\d{4}", rest))
     if path.startswith("docs/incidents/"):
         found.update(SIBLING_LINK.findall(line))
     return found
