@@ -119,7 +119,7 @@ def main(argv):
             continue
         path = paths[0]
         status = status_of(path.read_text(encoding="utf-8"))
-        print(f"{number} ({how}): {path.relative_to(ROOT)}: {status}")
+        print(f"{number} ({how}): {path.relative_to(ROOT).as_posix()}: {status}")
     return 0
 
 

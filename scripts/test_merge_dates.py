@@ -107,7 +107,7 @@ class FunctionTest(unittest.TestCase):
     def test_only_the_documents_of_the_script_test_condition_are_checked(self):
         # Plan 0005, D-37: the documents whose change requires the script
         # tests (AGENTS.md, "検証コマンド").
-        names = {str(p.relative_to(ROOT)) for p in documents()}
+        names = {p.relative_to(ROOT).as_posix() for p in documents()}
         self.assertIn("CHANGELOG.md", names)
         self.assertIn("docs/README.md", names)
         self.assertIn("docs/incidents/0041-dates-written-in-utc.md", names)
@@ -144,7 +144,7 @@ class RepositoryTest(unittest.TestCase):
         dates = merge_dates(log)
         # Review: a broken log format must not make the check pass silently.
         self.assertTrue(dates, "no merge commit was read from the history")
-        texts = [(str(p.relative_to(ROOT)), p.read_text(encoding="utf-8")) for p in documents()]
+        texts = [(p.relative_to(ROOT).as_posix(), p.read_text(encoding="utf-8")) for p in documents()]
         self.assertEqual(errors(texts, dates), [])
 
 
