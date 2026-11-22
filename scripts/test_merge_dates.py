@@ -36,8 +36,9 @@ def mentions(text):
 
 
 def documents():
-    """The documents whose change requires the script tests (AGENTS.md,
-    "検証コマンド"); plans and ADRs are not checked (plan 0005, D-37)."""
+    """Among the documents whose change requires the script tests (AGENTS.md,
+    "検証コマンド"), those that record merges; the rule documents of the
+    rule-copies table, plans and ADRs are not checked (plan 0005, D-37)."""
     paths = sorted(ROOT.glob("docs/incidents/*.md"))
     paths += sorted(ROOT.glob("docs/development/hardware-check-*.md"))
     return paths + [ROOT / "docs" / "README.md", ROOT / "CHANGELOG.md"]
