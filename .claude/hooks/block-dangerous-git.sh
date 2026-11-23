@@ -114,13 +114,14 @@ fi
 # exit status that of the last command of the pipe, so a failing check
 # ("check | tail -1 && git commit") does not stop the commit. Any single "|"
 # before the first commit stops it unless pipefail is mentioned; "||" is not
-# a pipe. A "|" inside quotes or a here-document stops it as well, and
-# "set -o pipefail" lets it through (the maintainer accepted this).
+# a pipe. A "|" inside quotes or a here-document stops it as well, and so
+# does a command that only searches for the words "git commit" after a pipe;
+# "set -o pipefail" lets both through (the maintainer accepted the first).
 if has "$git_commit"; then
   before=$(printf '%s' "$cmd" | tr '\n' ' ' | sed -E "s/${git_commit}.*//")
   if printf '%s' "$before" | grep -Eq '(^|[^|])\|([^|]|$)' &&
     ! printf '%s' "$before" | grep -q 'pipefail'; then
-    emit deny "git commitより前にパイプ(|)があります。検証の出力をパイプで渡すと、終了の状態はパイプの最後のコマンドのものになり、検証が失敗してもコミットが止まりません。検証とコミットを別の呼び出しにするか、出力をファイルに書くか、先頭にset -o pipefailを付けてください(docs/incidents/0032、計画0005のD-42)。"
+    emit deny "git commitより前にパイプ(|)があります。検証の出力をパイプで渡すと、終了の状態はパイプの最後のコマンドのものになり、検証が失敗してもコミットが止まりません。検証とコミットを別の呼び出しにするか、出力をファイルに書くか、先頭にset -o pipefailを付けてください。コミットをしないコマンド(git commitという語を検索するだけのものなど)や、引用符やヒアドキュメントの中の|で止まったときも、先頭にset -o pipefailを付ければ通ります(docs/incidents/0032、計画0005のD-42)。"
   fi
 fi
 

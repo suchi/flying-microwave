@@ -88,6 +88,10 @@ SAMPLES = {
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "cargo test > log 2>&1 && git commit -m a"}}, None),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "test -f a || git commit -m a"}}, None),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a && git log --oneline | head -1"}}, None),
+        # A search for the words "git commit" after a pipe also stops (a known
+        # false positive), and pipefail lets it through.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git log | grep -c 'git commit'"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "set -o pipefail; git log | grep -c 'git commit'"}}, None),
     ],
     ".claude/hooks/protect-config.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),
