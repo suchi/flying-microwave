@@ -110,6 +110,31 @@ if has "$git_commit"; then
   fi
 fi
 
+# Plan 0005, D-42 (docs/incidents/0032): a pipe before git commit makes the
+# exit status that of the last command of the pipe, so a failing check
+# ("check | tail -1 && git commit") does not stop the commit. Any single "|"
+# before the first commit stops it unless pipefail is mentioned; "||" is not
+# a pipe. A "|" inside quotes or a here-document stops it as well, and so
+# does a command that only searches for the words "git commit" after a pipe;
+# "set -o pipefail" lets both through (the maintainer accepted both; plan
+# 0005, D-42).
+if has "$git_commit"; then
+  before=$(printf '%s' "$cmd" | tr '\n' ' ' | sed -E "s/${git_commit}.*//")
+  if printf '%s' "$before" | grep -Eq '(^|[^|])\|([^|]|$)' &&
+    ! printf '%s' "$before" | grep -q 'pipefail'; then
+    emit deny "git commitより前にパイプ(|)があります。検証の出力をパイプで渡すと、終了の状態はパイプの最後のコマンドのものになり、検証が失敗してもコミットが止まりません。検証とコミットを別の呼び出しにするか、出力をファイルに書くか、先頭にset -o pipefailを付けてください。コミットをしないコマンド(git commitという語を検索するだけのものなど)や、引用符やヒアドキュメントの中の|で止まったときも、先頭にset -o pipefailを付ければ通ります(docs/incidents/0032、計画0005のD-42)。"
+  fi
+fi
+
+# Plan 0005, D-43 (docs/incidents/0034): rule documents are read whole.
+# cut -c cuts Japanese text by bytes, so far less than intended was read. A
+# pipe into cut -c in a command that names a rule document stops it. cut -c
+# given the file directly (no pipe) is not checked.
+if has '\|[[:space:]]*cut[[:space:]]+-c' &&
+  has '(AGENTS\.md|CLAUDE\.md|\.agents/skills/|\.claude/commands/|\.claude/skills/|docs/incidents/README\.md|docs/adr/README\.md|docs/development/)'; then
+  emit deny "規則の文書(AGENTS.md、.claude/commands/、docs/development/など)の行をcut -cで切っています。cut -cは和文をバイト単位で切るため、読んだつもりの範囲よりずっと狭くなります。行の場所や有無はgrep -c、grep -l、grep -o(一致した部分だけ)で探し、中身はReadのツールで切らずに読んでください(docs/incidents/0034、計画0005のD-43)。"
+fi
+
 if has '(^|[;&|[:space:]"])rm[[:space:]]+-[[:alnum:]]*r[[:alnum:]]*[[:space:]]+(/|~/?)([[:space:]"]|$)'; then
   emit deny "ファイルシステムのルートやホームディレクトリの削除は拒否します。"
 fi

@@ -8,12 +8,12 @@
 
 以下は、メンテナーに渡す手順と同じ内容である。
 
-対象: GitHub Releaseの下書き`v0.3.0-alpha.5`の`FlyingMicrowave-0.3.0-alpha.5-windows-x64.zip`。`alpha.4`の確認で、リモートデスクトップのために確かめられなかった項目と、終了の速さの直しを確かめるための確認です。リモートデスクトップではなく、PCの前で、PCに直接つないだモニターで行ってください(計画0005のD-25の(3))。結果は、番号ごとに「OK」「NG(見えたこと)」「できなかった」で返してください。最後に、ログと記録のファイル(手順Z)も送ってください。
+対象: GitHub Releaseのプレリリース`v0.3.0-alpha.5`の`FlyingMicrowave-0.3.0-alpha.5-windows-x64.zip`。`alpha.4`の確認で、リモートデスクトップのために確かめられなかった項目と、終了の速さの直しを確かめるための確認です。リモートデスクトップではなく、PCの前で、PCに直接つないだモニターで行ってください(計画0005のD-25の(3))。結果は、番号ごとに「OK」「NG(見えたこと)」「できなかった」で返してください。最後に、ログと記録のファイル(手順Z)も送ってください。
 
 ## 準備
 
-- P-1. GitHubのリリースの画面で、下書きの`v0.3.0-alpha.5`を開く。公開は、まだしない(確認のあとのZ-4で判断する)。
-- P-2. 下書きからzipをダウンロードし、ハッシュを確かめる。coreutilsの入ったcmdで、ダウンロードしたフォルダで次を実行する。
+- P-1. GitHubのリリースの画面で、`v0.3.0-alpha.5`を開く(確認を先送りして、2026-11-23 21:04(JST)にプレリリースとして公開した。計画0005のD-39の(1))。
+- P-2. リリースからzipをダウンロードし、ハッシュを確かめる。coreutilsの入ったcmdで、ダウンロードしたフォルダで次を実行する。
 
   ```bash
   sha256sum FlyingMicrowave-0.3.0-alpha.5-windows-x64.zip
@@ -80,4 +80,4 @@
   - 画像の取得の遅れ: `window N: surface texture took ... ms`か`preview: surface texture took ... ms`の行(`saver.rs`の`try_draw`、`preview.rs`の`redraw`。100msより長くかかったときだけ、窓ごとに最初の5回まで書く)があるか。
   - 起動の速さ(N-01): 起動の行(`Flying Microwave 0.3.0-alpha.5 started`。`crates/app/src/main.rs`の`run`)から、ウィンドウごとの`first frame presented`の行(`saver.rs`の`try_draw`)までが1秒以内。
   - 設定の反映: 全画面の起動ごとの`settings: Config { ... }`の行(`saver.rs`の`settings: {config:?}`)で、`clock: Clock { enabled: true, format: H12 }`と`food_count: 0`が、手順のとおりに変わっていること(`alpha.4`では、C-3とE-5を行わなかったため、ログに出ていなかった)。
-- Z-4. 確認の結果を見て、下書きを公開するかを判断する。公開するときは、「Set as a pre-release」のまま「Publish release」を押す(計画0001の7.3の手順4)。公開したら、知らせてください。
+- Z-4. 公開は済んでいる(D-39の(1))。確認の結果は、エージェントがCHANGELOGのこの版の節に反映し、リリースノートの差し替えをお願いする(計画0001の7.3の手順5)。
