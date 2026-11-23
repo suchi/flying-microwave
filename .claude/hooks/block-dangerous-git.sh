@@ -116,7 +116,8 @@ fi
 # before the first commit stops it unless pipefail is mentioned; "||" is not
 # a pipe. A "|" inside quotes or a here-document stops it as well, and so
 # does a command that only searches for the words "git commit" after a pipe;
-# "set -o pipefail" lets both through (the maintainer accepted the first).
+# "set -o pipefail" lets both through (the maintainer accepted both; plan
+# 0005, D-42).
 if has "$git_commit"; then
   before=$(printf '%s' "$cmd" | tr '\n' ' ' | sed -E "s/${git_commit}.*//")
   if printf '%s' "$before" | grep -Eq '(^|[^|])\|([^|]|$)' &&
