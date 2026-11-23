@@ -174,7 +174,7 @@ GitHub Actionsは、必要な実行(PRのCI、成果物を作る手動実行)は
 | 規則 | 決まった語 | 写しを置く文書 |
 | --- | --- | --- |
 | スクリプトのテストの条件 | `docs/incidents/`、`docs/README.md`、`CHANGELOG.md`、`docs/development/hardware-check-*.md`、`規則の写し` | `AGENTS.md`、`AGENTS.md`、`.claude/commands/commit.md`、`.claude/commands/babysit-pr.md`、`docs/development/onboarding.md` |
-| 追加した行の日付を比べる段 | `追加した行`、`TZ=Asia/Tokyo date` | `AGENTS.md`、`.claude/commands/commit.md` |
+| 追加した行の日付を比べる段 | `追加した行`、`TZ=Asia/Tokyo date`、`gitのコミットの日時、GitHubの表示、会話の記録` | `AGENTS.md`、`.claude/commands/commit.md` |
 | 個人情報の規則 | `作成者個人の事情` | `AGENTS.md`、`docs/adr/README.md`、`.agents/skills/adr/SKILL.md`、`docs/development/onboarding.md`、`docs/README.md`、`docs/development/review-process.md` |
 
 ## エージェント別の設定ファイル
