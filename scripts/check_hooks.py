@@ -92,6 +92,14 @@ SAMPLES = {
         # false positive), and pipefail lets it through.
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git log | grep -c 'git commit'"}}, "deny"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "set -o pipefail; git log | grep -c 'git commit'"}}, None),
+        # Plan 0005, D-43 (docs/incidents/0034): a rule document is not read
+        # through cut -c, which cuts Japanese text by bytes.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "grep -n x AGENTS.md | cut -c1-80"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "sed -n 1,5p docs/development/onboarding.md | cut -c1-200"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "grep -rn x .claude/commands/ |cut -c 1-40"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "grep -n x crates/app/src/model.rs | cut -c1-80"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "grep -c x AGENTS.md"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "grep -n x AGENTS.md | cut -d: -f1"}}, None),
     ],
     ".claude/hooks/protect-config.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),

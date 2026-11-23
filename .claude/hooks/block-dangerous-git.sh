@@ -125,6 +125,15 @@ if has "$git_commit"; then
   fi
 fi
 
+# Plan 0005, D-43 (docs/incidents/0034): rule documents are read whole.
+# cut -c cuts Japanese text by bytes, so far less than intended was read. A
+# pipe into cut -c in a command that names a rule document stops it. cut -c
+# given the file directly (no pipe) is not checked.
+if has '\|[[:space:]]*cut[[:space:]]+-c' &&
+  has '(AGENTS\.md|CLAUDE\.md|\.agents/skills/|\.claude/commands/|\.claude/skills/|docs/incidents/README\.md|docs/adr/README\.md|docs/development/)'; then
+  emit deny "規則の文書(AGENTS.md、.claude/commands/、docs/development/など)の行をcut -cで切っています。cut -cは和文をバイト単位で切るため、読んだつもりの範囲よりずっと狭くなります。行の場所や有無はgrep -c、grep -l、grep -o(一致した部分だけ)で探し、中身はReadのツールで切らずに読んでください(docs/incidents/0034、計画0005のD-43)。"
+fi
+
 if has '(^|[;&|[:space:]"])rm[[:space:]]+-[[:alnum:]]*r[[:alnum:]]*[[:space:]]+(/|~/?)([[:space:]"]|$)'; then
   emit deny "ファイルシステムのルートやホームディレクトリの削除は拒否します。"
 fi
