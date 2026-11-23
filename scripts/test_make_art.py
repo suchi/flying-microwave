@@ -71,6 +71,21 @@ class MakeArtTest(unittest.TestCase):
         self.assertEqual(make_art.POPCORN_FRONT, face("Face::PopcornFront"))
         self.assertEqual(make_art.BENTO_TOP, face("Face::BentoTop"))
 
+        def other_face(arm, names):
+            # The arm may span lines (Face::Led), so read the first rect
+            # after "other(Sheet::...," rather than within one line.
+            m = re.search(rf"{re.escape(arm)} => other\(\s*Sheet::\w+,\s*\[([^\]]+)\]", model)
+            self.assertIsNotNone(m, arm)
+            values = m.group(1)
+            for name, value in names.items():
+                values = re.sub(rf"\b{name}\b", str(value), values)
+            return tuple(float(v) for v in values.split(","))
+
+        _, _, dw, dh = const("DOOR_RECT", 4)
+        _, _, lw, lh = const("LED_RECT", 4)
+        self.assertEqual(make_art.DOOR_OUTER, other_face("Face::DoorOuter", {"dw": dw, "dh": dh}))
+        self.assertEqual(make_art.LED_FACE, other_face("Face::Led", {"lw": lw, "lh": lh}))
+
     def test_every_id_is_unique_and_every_reference_is_defined(self):
         # Review: an id left without its prefix would make the sheets share
         # it (all four bodies define "body"), and the files would still match.

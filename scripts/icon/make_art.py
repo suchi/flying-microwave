@@ -32,6 +32,10 @@ FACES = {
 CAVITY = (0.0, 0.0, 128.0, 128.0)
 POPCORN_FRONT = (0.0, 202.0, 192.0, 256.0)
 BENTO_TOP = (0.0, 0.0, 256.0, 192.0)
+# The door and LED faces are cut from the origin of their sheets (model.rs:
+# Face::DoorOuter and Face::Led).
+DOOR_OUTER = (0.0, 0.0, DOOR[2], DOOR[3])
+LED_FACE = (0.0, 0.0, LED[2], LED[3])
 
 
 def sheet(root, name, prefix):
@@ -83,16 +87,16 @@ def microwave(color, scale, tilt_deg, ox, oy):
     out.append(shade([p(BW, 0, 0), p(BW, 0, BD), p(BW, BH, BD), p(BW, BH, 0)], 0.28))
     # Front face, then the lit cavity behind the door window, then the door and the LED.
     out.append(face(body, FACES["front"], (X[0], X[1], Y[0], Y[1], O[0], O[1])))
-    dx, dy, dw, dh = DOOR
+    dx, dy = DOOR[:2]
     ox_, oy_, ow, oh = OPENING
     cav = p(ox_, oy_, 0)
     cw, ch = CAVITY[2], CAVITY[3]
     out.append(face("interior", CAVITY, (X[0] * ow / cw, X[1] * ow / cw, Y[0] * oh / ch, Y[1] * oh / ch, cav[0], cav[1])))
     door_o = p(dx, dy, 0)
-    out.append(face("door", (0.0, 0.0, dw, dh), (X[0], X[1], Y[0], Y[1], door_o[0], door_o[1])))
-    lx, ly, lw, lh = LED
+    out.append(face("door", DOOR_OUTER, (X[0], X[1], Y[0], Y[1], door_o[0], door_o[1])))
+    lx, ly = LED[:2]
     led_o = p(lx, ly, 0)
-    out.append(face("led", (0.0, 0.0, lw, lh), (X[0], X[1], Y[0], Y[1], led_o[0], led_o[1])))
+    out.append(face("led", LED_FACE, (X[0], X[1], Y[0], Y[1], led_o[0], led_o[1])))
     return "\n".join(out)
 
 
