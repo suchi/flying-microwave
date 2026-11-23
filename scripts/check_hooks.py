@@ -80,6 +80,14 @@ SAMPLES = {
         # test fails (a record missing from the lists).
         ({"_project": "unlisted", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, "deny"),
         ({"_project": "listed", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, None),
+        # Plan 0005, D-42 (docs/incidents/0032): a pipe before git commit loses
+        # the exit status of the check, unless pipefail is set.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "python3 -I -m unittest discover -s scripts 2>&1 | tail -1 && git commit -m a"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "cargo test | grep ok && git -C . commit -m a"}}, "deny"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "set -o pipefail; cargo test 2>&1 | tail -1 && git commit -m a"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "cargo test > log 2>&1 && git commit -m a"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "test -f a || git commit -m a"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a && git log --oneline | head -1"}}, None),
     ],
     ".claude/hooks/protect-config.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/settings.json"}}, "ask"),
