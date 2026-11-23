@@ -90,7 +90,7 @@ Qiita、Zenn、note、AI生成記事、SEO目的の記事は、特定の記事�
 | コード内コメント                                   | 英語   |
 | 製品のログ・エラーメッセージ・UIラベル             | 英語   |
 
-- メンテナーに示す時刻は、日本標準時(JST)で書く。ツールやGitHubの表示がUTCでも、変換して書く。セッションに示される日付もUTCに沿う(JSTの0時から9時の間は前の日になる)ため、記録や報告に書く日付は、`TZ=Asia/Tokyo date`などでJSTの時計から取る([docs/incidents/0041](docs/incidents/0041-dates-written-in-utc.md))。過去の出来事(マージ、CIの実行、リリースなど)の日付は、覚えから書かず、その出来事の時刻(GitHubの表示、gitのコミットの日時)をJSTに直して書く。「YYYY-MM-DDにPR #NNでマージ」などの形の日付は、スクリプトのテストを実行する条件の文書のうち、`docs/incidents/`、`docs/README.md`、`CHANGELOG.md`、`docs/development/hardware-check-*.md`にあれば、スクリプトのテスト(`scripts/test_merge_dates.py`)が履歴と比べる。計画やADRの日付は比べない。履歴が浅いときは飛ばすので、`git fetch --unshallow`で履歴を取ってから実行する(0041の「その後の再発」、計画0005のD-36とD-37)。
+- メンテナーに示す時刻は、日本標準時(JST)で書く。ツールやGitHubの表示がUTCでも、変換して書く。セッションに示される日付もUTCに沿う(JSTの0時から9時の間は前の日になる)ため、記録や報告に書く日付は、`TZ=Asia/Tokyo date`などでJSTの時計から取る([docs/incidents/0041](docs/incidents/0041-dates-written-in-utc.md))。過去の出来事(マージ、CIの実行、リリースなど)の日付は、覚えから書かず、その出来事の時刻(GitHubの表示、gitのコミットの日時)をJSTに直して書く。すでにある文の日付を写したり書き直したりするときも、その出来事の時刻で確かめる。過去の出来事の日付を書いたコミットでは、確かめたコマンド(`git log`など)をコミットメッセージに書く(0041の「その後の再発(2回目)」、計画0005のD-41)。「YYYY-MM-DDにPR #NNでマージ」などの形の日付は、スクリプトのテストを実行する条件の文書のうち、`docs/incidents/`、`docs/README.md`、`CHANGELOG.md`、`docs/development/hardware-check-*.md`にあれば、スクリプトのテスト(`scripts/test_merge_dates.py`)が履歴と比べる。計画やADRの日付は比べない。履歴が浅いときは飛ばすので、`git fetch --unshallow`で履歴を取ってから実行する(0041の「その後の再発」、計画0005のD-36とD-37)。
 - 図はMermaidで書く。ASCIIアートの図は使わない。図のラベルも日本語で書く(英語のラベルの既存の図は、その図を変えるときに日本語にする)。
 - ドキュメントに絵文字を使わない。
 - 太字を見出しやラベルの代わりに使わない(構造的な意味を書式で表現しない)。ラベル付きの箇条書きは「タイトル: 説明」の形式で書く。
