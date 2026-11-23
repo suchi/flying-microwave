@@ -19,13 +19,19 @@ import re
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 BW, BH, BD = 240.0, 160.0, 210.0
+# Copied from crates/app/src/model.rs (BODY_SVG, DOOR_RECT, OPENING_RECT,
+# LED_RECT and Face::image); scripts/test_make_art.py checks that they match.
 DOOR = (10.0, 10.0, 156.0, 140.0)
+OPENING = (24.0, 24.0, 128.0, 112.0)
 LED = (178.0, 18.0, 48.0, 22.0)
 FACES = {
     "front": (0.0, 0.0, BW, BH),
     "side": (500.0, 0.0, BD, BH),
     "top": (220.0, 220.0, BW, BD),
 }
+CAVITY = (0.0, 0.0, 128.0, 128.0)
+POPCORN_FRONT = (0.0, 202.0, 192.0, 256.0)
+BENTO_TOP = (0.0, 0.0, 256.0, 192.0)
 
 
 def sheet(root, name, prefix):
@@ -78,8 +84,10 @@ def microwave(color, scale, tilt_deg, ox, oy):
     # Front face, then the lit cavity behind the door window, then the door and the LED.
     out.append(face(body, FACES["front"], (X[0], X[1], Y[0], Y[1], O[0], O[1])))
     dx, dy, dw, dh = DOOR
-    cav = p(dx + 14, dy + 14, 0)
-    out.append(face("interior", (0.0, 0.0, 128.0, 128.0), (X[0] * (dw - 28) / 128, X[1] * (dw - 28) / 128, Y[0] * (dh - 28) / 128, Y[1] * (dh - 28) / 128, cav[0], cav[1])))
+    ox_, oy_, ow, oh = OPENING
+    cav = p(ox_, oy_, 0)
+    cw, ch = CAVITY[2], CAVITY[3]
+    out.append(face("interior", CAVITY, (X[0] * ow / cw, X[1] * ow / cw, Y[0] * oh / ch, Y[1] * oh / ch, cav[0], cav[1])))
     door_o = p(dx, dy, 0)
     out.append(face("door", (0.0, 0.0, dw, dh), (X[0], X[1], Y[0], Y[1], door_o[0], door_o[1])))
     lx, ly, lw, lh = LED
@@ -127,9 +135,9 @@ def banner(root):
         stars(W, H, 60, 7),
         # Far to near, along the flight from the upper right to the lower left.
         microwave("mint", 0.26, -16, 1150, 22),
-        food((0.0, 202.0, 192.0, 256.0), 0.20, -18, 1205, 150),  # popcorn bag
+        food(POPCORN_FRONT, 0.20, -18, 1205, 150),  # popcorn bag
         microwave("graphite", 0.40, 12, 1040, 230),
-        food((0.0, 0.0, 256.0, 192.0), 0.20, 14, 960, 40),  # bento
+        food(BENTO_TOP, 0.20, 14, 960, 40),  # bento
         microwave("silver", 0.56, -8, 800, 110),
         '<g font-family="\'Segoe UI\', \'Helvetica Neue\', Arial, sans-serif">',
         '<text x="88" y="168" font-size="76" font-weight="800" fill="#f4f6fb" letter-spacing="-1">Flying Microwave</text>',
