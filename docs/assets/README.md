@@ -4,6 +4,7 @@
 
 | ファイル | 内容 | 作者 | ライセンス | 出典・外部素材 |
 | --- | --- | --- | --- | --- |
-| `banner.svg` | ルートのREADMEの先頭に置くバナー(1280×360) | 本プロジェクトで作成 | MIT(リポジトリと同じ。[LICENSE](../../LICENSE)) | なし。図形と文字は、すべてSVGの要素で新たに描いた。フォントは埋め込まず、見る環境のものを使う |
+| `banner.svg` | ルートのREADMEの先頭に置くバナー(1280×360) | 本プロジェクトで作成 | MIT(リポジトリと同じ。[LICENSE](../../LICENSE)) | 本プロジェクトの面の絵(`assets/sprites`、MIT)から`scripts/icon/make_art.py`で作った。外部の素材は使っていない。文字はSVGの要素で書き、フォントは埋め込まず、見る環境のものを使う |
+| `crates/app/res/icon.svg`(このフォルダの外) | 実行ファイルのアイコンの元の絵(256×256)。`.ico`はここから`scripts/icon/make_ico.py`で作る | 本プロジェクトで作成 | MIT(リポジトリと同じ。[LICENSE](../../LICENSE)) | 本プロジェクトの面の絵(`assets/sprites`、MIT)から`scripts/icon/make_art.py`で作った。外部の素材は使っていない |
 
-作り方と方針は、[ビジュアルデザイン方針](../design/visual-design.md)の「リポジトリのバナー」にある。
+作り方と方針は、[ビジュアルデザイン方針](../design/visual-design.md)の「リポジトリのバナーとアイコン」にある。

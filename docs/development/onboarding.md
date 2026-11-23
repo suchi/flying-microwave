@@ -17,7 +17,7 @@
 | ログの確認 | [5.3](#53-ログとデバッグ) | 整備済み |
 | デバッガによるデバッグ | [5.3](#53-ログとデバッグ) | 整備済み |
 | トラブルシューティング | [5.4](#54-トラブルシューティング) | 整備済み |
-| アイコンの作り直し | [5.5](#55-アイコンの作り直し) | 整備済み |
+| バナーとアイコンの作り直し | [5.5](#55-バナーとアイコンの作り直し) | 整備済み |
 | スプライトの素材(SVG)の変更 | [`assets/sprites/README.md`](../../assets/sprites/README.md)、[見た目の設計](../design/visual-design.md) | 整備済み |
 | 変更の進め方(ブランチ、コミット、レビュー、マージ) | [3](#3-開発の進め方)、[4](#4-レビューとマージ) | 整備済み |
 | リリース | [8](#8-windows実機での確認)、[計画の7.2](../plans/0001-initial-implementation-plan.md#72-リリース手順)(正式なリリース)と[7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順)(プレリリース) | 整備済み(x64だけ。[ADR-0022](../adr/0022-ship-x64-only-for-now.md)) |
@@ -286,9 +286,14 @@ python3 -I scripts/check_hooks.py
 - 設定画面の終了コード: 0が正常、7が開けなかった(初期化の失敗か、GPUの初期化が15秒で終わらなかった)ことを表す。
 - プレビューのプロセスが残る: スクリーンセーバーの設定画面を閉じたあとも、タスクマネージャーに`FlyingMicrowave.scr`が残っていれば、ログの最後の行を添えて報告する。通常は、親のウィンドウが閉じられてから500ミリ秒以内に終了する。
 
-### 5.5 アイコンの作り直し
+### 5.5 バナーとアイコンの作り直し
 
-アイコンは仮のもので、Phase 3で本番の絵にする。元の絵は`crates/app/res/icon.svg`で、実行ファイルに入るのは、そこから作る`crates/app/res/flying-microwave.ico`である。SVGを変えたら、次のコマンドで`.ico`を作り直し、両方をコミットする。
+READMEのバナー(`docs/assets/banner.svg`)とアイコンの元の絵(`crates/app/res/icon.svg`)は、面の絵(`assets/sprites`)から`scripts/icon/make_art.py`が作る(計画0005の作業11)。手で直さない。実行ファイルに入るのは、アイコンのSVGから作る`crates/app/res/flying-microwave.ico`である。面の絵か`make_art.py`を変えたら、次の2つのコマンドで作り直し、できたファイルをすべてコミットする。スクリプトのテスト(`scripts/test_make_art.py`)は、作り直していないと失敗する。
+
+```sh
+python3 -I scripts/icon/make_art.py
+python3 -I scripts/icon/make_ico.py
+```
 
 - 前提: Python 3(標準ライブラリだけを使う)と、SVGを描画するresvgのコマンド。resvgは版を0.49.0に固定する([ADR-0023](../adr/0023-svg-sprites-from-v0.2.0.md)と同じ描画の道具)。`--locked`で、crateに同梱されたロックファイルの版を使う。版を変えるときは、`.crate`を展開してそのロックファイルを取り出し、resvg自身の版と一緒に、公開からの日数の検査にかける(ロックファイルの検査は、ルートのパッケージであるresvg自身を含まないため、`--crate`で加える)。通らない版は使わない。
 
@@ -305,10 +310,11 @@ python3 -I scripts/check_hooks.py
 - 実行(リポジトリのルートで。WindowsではPowerShellで`python`にする):
 
   ```sh
+  python3 -I scripts/icon/make_art.py
   python3 -I scripts/icon/make_ico.py
   ```
 
-- 確かめ方: Windowsでビルドした実行ファイルをエクスプローラーで表示し、表示の大きさ(特大・大・中・小・詳細)を切り替えて、各サイズの見え方を確かめる。
+- 確かめ方: バナーは、ブラウザで`docs/assets/banner.svg`を開いて見る。アイコンは、Windowsでビルドした実行ファイルをエクスプローラーで表示し、表示の大きさ(特大・大・中・小・詳細)を切り替えて、各サイズの見え方を確かめる。2026-11-23に面の絵から作り直したアイコンの、エクスプローラーでの見え方は未確認である(エージェントはWindowsで実行できないため。ChromiumとresvgでPNGに描画して、16〜256ピクセルの見え方を確かめた)。
 
 ## 6. AIエージェントとの協働
 
