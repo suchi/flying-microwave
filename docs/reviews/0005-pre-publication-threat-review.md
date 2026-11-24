@@ -132,7 +132,7 @@
 | S-14 | Settings → Moderation options → Interaction limits | 公開の直後に、一時的にコメントを共同作業者に限るか(最長6か月) |
 | S-15 | Settings → Webhooks | 外部のサービスにイベントを送る設定がないこと |
 | S-16 | ローカルのClaude Code | `~/.claude/settings.json`の`permissions.defaultMode`と、`/hooks`で5つのフックが読み込まれていること |
-| S-17 | claude.ai/codeの3つのセッション | 公開範囲がPrivateであること(J-7) |
+| S-17 | claude.ai/codeの3つのセッション | 公開範囲がPrivateであること(J-7)。2026-11-24に、トレーラー、PRの本文とコメント、それらの編集の履歴に出てくるすべてのセッションに広げた(計画0005のD-46) |
 
 ## 確かめられなかったこと
 
