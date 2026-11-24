@@ -42,7 +42,7 @@
 | [prior-art-and-ip.md](research/prior-art-and-ip.md) | 先行作品と知的財産上の配慮 |
 | [spike-results.md](research/spike-results.md) | 技術スパイクの結果(記録中。残りの項目は製品で確かめる) |
 | [phase1-tooling.md](research/phase1-tooling.md) | Phase 1のビルド・配布用ツール(リソースの埋め込み、ライセンス表記の生成、リリースのワークフロー) |
-| [ci-second-monitor.md](research/ci-second-monitor.md) | CIで2台目のモニターを用意する方法(計画0005の作業13。CIでの確認は見送りを推奨) |
+| [ci-second-monitor.md](research/ci-second-monitor.md) | CIで2台目のモニターを用意する方法(計画0005の作業13。CIでの確認は見送りと決めた。D-45) |
 
 ## 設計
 
@@ -63,7 +63,7 @@
 | --- | --- |
 | [onboarding.md](development/onboarding.md) | 開発参加者向けオンボーディング |
 | [review-process.md](development/review-process.md) | PRのレビュー手順(敵対的レビュー) |
-| [public-repo-migration.md](development/public-repo-migration.md) | 公開用のリポジトリへの移行の手順(計画0005の作業15の2とD-46。実行は手順1の前の承認を待つ) |
+| [public-repo-migration.md](development/public-repo-migration.md) | 公開用のリポジトリへの移行の手順(計画0005の作業15の2。移行はしないと決めたため不採用。D-46) |
 | [hardware-check-v0.1.1.md](development/hardware-check-v0.1.1.md) | v0.1.1の実機での確認の手順 |
 | [hardware-check-v0.2.0-alpha.1.md](development/hardware-check-v0.2.0-alpha.1.md) | v0.2.0-alpha.1(試作版)の実機での確認の手順 |
 | [hardware-check-v0.3.0-alpha.3.md](development/hardware-check-v0.3.0-alpha.3.md) | v0.3.0-alpha.3(試作版)の実機での確認の手順。確認は行わず(計画0005のD-21)、v0.3.0-alpha.4の手順書の元にする |
