@@ -42,6 +42,7 @@
 | [prior-art-and-ip.md](research/prior-art-and-ip.md) | 先行作品と知的財産上の配慮 |
 | [spike-results.md](research/spike-results.md) | 技術スパイクの結果(記録中。残りの項目は製品で確かめる) |
 | [phase1-tooling.md](research/phase1-tooling.md) | Phase 1のビルド・配布用ツール(リソースの埋め込み、ライセンス表記の生成、リリースのワークフロー) |
+| [ci-second-monitor.md](research/ci-second-monitor.md) | CIで2台目のモニターを用意する方法(計画0005の作業13。CIでの確認は見送りを推奨) |
 
 ## 設計
 
