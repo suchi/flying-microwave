@@ -63,6 +63,7 @@
 | --- | --- |
 | [onboarding.md](development/onboarding.md) | 開発参加者向けオンボーディング |
 | [review-process.md](development/review-process.md) | PRのレビュー手順(敵対的レビュー) |
+| [public-repo-migration.md](development/public-repo-migration.md) | 公開用のリポジトリへの移行の手順(案。計画0005の作業15の2。メンテナーの承認を待っている) |
 | [hardware-check-v0.1.1.md](development/hardware-check-v0.1.1.md) | v0.1.1の実機での確認の手順 |
 | [hardware-check-v0.2.0-alpha.1.md](development/hardware-check-v0.2.0-alpha.1.md) | v0.2.0-alpha.1(試作版)の実機での確認の手順 |
 | [hardware-check-v0.3.0-alpha.3.md](development/hardware-check-v0.3.0-alpha.3.md) | v0.3.0-alpha.3(試作版)の実機での確認の手順。確認は行わず(計画0005のD-21)、v0.3.0-alpha.4の手順書の元にする |
