@@ -13,7 +13,7 @@
 
 GitHubの文書「[Removing sensitive data from a repository](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)」は、履歴を書き換えて強制的にプッシュしても、古いコミットがPRの参照やキャッシュされた表示から辿れると書いている("Through any pull requests that reference them")。`refs/pull/`は読み取り専用で、利用者は消せない。消せるのはGitHub Supportだけで、Supportは機密でないデータの削除は引き受けない("GitHub Support won't remove non-sensitive data")。アカウント名とセッションのURLを機密として扱ってもらえるかは、文書に書かれていない。
 
-いまのリポジトリには、`refs/pull/*/head`が95本(PR #1〜#103)ある。書き換えでは根のコミットも変わるので、1005のコミットすべてのSHAが変わる。
+いまのリポジトリには、`refs/pull/*/head`が95本(PR #1〜#103)ある。書き換えでは根のコミットも変わるので、すべてのコミットのSHAが変わる。
 
 また、公開用のリポジトリは、いまのリポジトリのフォークとして作らない。同じネットワークのリポジトリは、Gitのデータを共有するため([文書](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/what-happens-to-forks-when-a-repository-is-deleted-or-changes-visibility))。
 
@@ -36,7 +36,7 @@ GitHubの文書「[Removing sensitive data from a repository](https://docs.githu
 
 | 番号 | 判断していただくこと | 推奨 |
 | --- | --- | --- |
-| M-1 | 置き換えの文字列 | メンテナーのアカウント名にする。名前をメンテナーのものに変えるだけのコミット(2件)は中身が空になるが、`--prune-empty never`で残す(コミットの数と順番を変えず、記録の対応を取りやすくするため) |
+| M-1 | 置き換えの文字列 | メンテナーのアカウント名にする。名前をメンテナーのものに変えるだけのコミット(差分で名前が出入りする5件のうちの2件)は中身が空になるが、`--prune-empty never`で残す(コミットの数と順番を変えず、記録の対応を取りやすくするため) |
 | M-2 | 公開用のリポジトリの名前 | いまのリポジトリの名前を変え、公開用のリポジトリを元の名前(`flying-microwave`)で作る。配布済みのバイナリ(設定画面のリンク)とREADMEのURLが、そのまま公開用のリポジトリを指す。名前を変えたリポジトリへの転送は、同じ名前のリポジトリを作ると働かなくなる([文書](https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository)) |
 | M-3 | いまのリポジトリの扱い | Privateのまま、アーカイブして残す。PRの本文と議論、Actionsの記録を残すため |
 | M-4 | Issue | 開いているもの(5件)を、新しいリポジトリがPrivateのうちに移す。閉じたもの(3件)は移さない |
@@ -53,10 +53,10 @@ GitHubの文書「[Removing sensitive data from a repository](https://docs.githu
 2. 新しい複製を作る(エージェント): `main`とタグだけを持つ複製を作る。`--mirror`は使わない(`refs/pull/*`と古いブランチを移さないため)。
 3. 書き換える(エージェント): `--replace-text`でアカウント名を置き換え、`--replace-message`でトレーラーの行を消す。式の例は、`regex:(?m)^Claude-Session: https://claude\.ai/code/session_[A-Za-z0-9]+\n?==>`。M-1のとおり`--prune-empty never`を付ける。
 4. 確かめる(エージェント): 次のすべてを確かめ、結果をメンテナーに示す。
-   - `git log --all -i -G<アカウント名>`が0件。
+   - 差分(`git log --all -i -G<アカウント名>`)、コミットメッセージ(`git log --all -i --grep=<アカウント名>`)、タグの注釈(`git for-each-ref refs/tags --format='%(contents)'`)、ブランチとタグの名前に、アカウント名が0件。
    - コミットメッセージに`Claude-Session:`の行が0件。
-   - コミットの数が書き換えの前と同じ(1005)。
-   - `commit-map`で、名前を含んでいた28のコミットのほかは、木(tree)が同じ。
+   - コミットの数が、書き換えの前の`main`と同じ(移行の時点に`git rev-list --count main`で取る)。
+   - 差分で名前が出入りするコミットは5件、名前を含むファイルを持つコミットは28件である(2026-11-24の`main`で、`git log -G`と、各コミットへの`git grep -i -F`で数えた)。`commit-map`で、この28件のほかは木(tree)が同じ。移行の時点の`main`で数え直す。
    - 18本のタグが、それぞれ対応するコミットを指している。
    - 書き換えでは、コミットの署名が消える(GitHubの文書の「Lost signatures on commits and tags」)。
 5. リポジトリを用意する(メンテナー): いまのリポジトリの名前を変え(M-2)、元の名前で新しいリポジトリをPrivateで作る。フォークにはしない。押し込む前に、新しいリポジトリのActionsを止める(タグを押し込むと、リリースのワークフローが下書きを作るため)。
