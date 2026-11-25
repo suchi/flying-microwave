@@ -21,6 +21,7 @@
 | [README.md](../README.md) | リポジトリを見る人 |
 | [packaging/windows/README.md](../packaging/windows/README.md) | 配布物の利用者(リリースのzipに`README.md`として同梱する) |
 | [SECURITY.md](../SECURITY.md) | 脆弱性を報告する人(対象の版と、非公開の報告の方法) |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | 貢献する人(ライセンス、素材の出所の条件、PRの流れ) |
 | [AGENTS.md](../AGENTS.md) | 開発に参加する人とAIコーディングエージェント(指示とルールの単一ソース) |
 
 ## 計画
@@ -63,6 +64,7 @@
 | --- | --- |
 | [onboarding.md](development/onboarding.md) | 開発参加者向けオンボーディング |
 | [review-process.md](development/review-process.md) | PRのレビュー手順(敵対的レビュー) |
+| [publication-checklist.md](development/publication-checklist.md) | 公開の手順の一覧(メンテナーが画面で行う作業。計画0005の作業15の2、D-47) |
 | [public-repo-migration.md](development/public-repo-migration.md) | 公開用のリポジトリへの移行の手順(計画0005の作業15の2。移行はしないと決めたため不採用。D-46) |
 | [hardware-check-v0.1.1.md](development/hardware-check-v0.1.1.md) | v0.1.1の実機での確認の手順 |
 | [hardware-check-v0.2.0-alpha.1.md](development/hardware-check-v0.2.0-alpha.1.md) | v0.2.0-alpha.1(試作版)の実機での確認の手順 |
@@ -85,6 +87,7 @@
 | [0003](reviews/0003-roadmap-concerns-to-v1.md) | v1.0.0までの懸念事項の確認(メンテナーの判断を含む) |
 | [0004](reviews/0004-pre-publication-audit.md) | 公開の前の点検(Issue #3) |
 | [0005](reviews/0005-pre-publication-threat-review.md) | 公開の前の脅威の点検(計画0005の作業15。2026-11-19に判断を受け取った。残りは作業15の2) |
+| [0006](reviews/0006-pre-publication-threat-recheck.md) | 公開の前の脅威の再点検(計画0005のD-47。2026-11-25に判断を受け取った) |
 
 ## 異常の記録
 
