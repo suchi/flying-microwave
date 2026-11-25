@@ -166,7 +166,7 @@ GitHub Actionsは、必要な実行(PRのCI、成果物を作る手動実行)は
 - インターネットから取得したスクリプトを直接シェルに流さない(`curl ... | sh`等)。実行するなら内容を確認し、ユーザーの承認を得る。
 - セキュリティ設定(`.claude/`の下のすべて(`settings.json`、`hooks/`、`commands/`、`skills/`、`agents/`など)・`.mcp.json`・`.github/workflows/`・`.github/dependabot.yml`・`AGENTS.md`・`CLAUDE.md`・`.agents/skills/`・ブランチ保護・サンドボックス/承認設定)の変更は、必ずユーザーの承認を得てから行う。`AGENTS.md`、`CLAUDE.md`、`.agents/skills/`、`.claude/commands/`、`.claude/skills/`を加えたのは、外部由来コンテンツから入った「指示」が、規則のファイルに残るのを防ぐため(docs/reviews/0005のJ-6、計画0005のD-24)。`.claude/`の下のすべてと`.mcp.json`に広げたのは、Claude Codeがそれらも指示や設定として読み込むため(docs/reviews/0006のN-2、計画0005のD-47)。
 - セキュリティ設定のファイルは、EditとWriteのツールで編集する。Bashのコマンドやスクリプト(`sed -i`など)では編集しない。設定ファイルを守るフック(`protect-config.sh`)は、EditとWriteのツールにだけかかるため(計画0005のD-24)。
-- GitHubに書き込む操作(PRのマージ、ファイルのプッシュ、ワークフローの起動など)は、`.claude/settings.json`の`permissions.ask`で、毎回確認を求める。エージェントはメンテナーの権限でGitHubに書き込めるため(docs/reviews/0006のN-1)。このリポジトリには、予定のタスク(Claude CodeのRoutines)のGitHubのトリガー(IssueやPRの作成で起動するもの)を作らない。外部の人の文を入力にして、メンテナーの権限のセッションが動くため(N-7。どちらも計画0005のD-47)。
+- GitHubに書き込む操作のうち、`.claude/settings.json`の`permissions.ask`に並べたもの(PRのマージ、ファイルのプッシュ、ワークフローの起動など)は、毎回確認を求める。網羅ではない(PRやコメントの作成などは止めない。[docs/development/onboarding.md](docs/development/onboarding.md)の6.3)。エージェントはメンテナーの権限でGitHubに書き込めるため(docs/reviews/0006のN-1)。このリポジトリには、予定のタスク(Claude CodeのRoutines)のGitHubのトリガー(IssueやPRの作成で起動するもの)を作らない。外部の人の文を入力にして、メンテナーの権限のセッションが動くため(N-7。どちらも計画0005のD-47)。
 - `.github/dependabot.yml`の`cooldown`はサプライチェーン攻撃対策。レビューツールに「無効なキー」等と指摘されても、公式ドキュメントで仕様を確認して修正で追従し、ユーザーの承認なしに削除・無効化しない。
 
 ## 規則の写し
