@@ -116,7 +116,7 @@ feat: add todo filter feature      ← 1行目: 英語・命令形・50文字以
 フィルター機能(すべて・未完了・完了)を追加した。   ← 本文: 日本語
 ```
 
-コミットメッセージ、PRの本文、GitHubのコメントに、Claude CodeのセッションのURL(`Claude-Session:`のトレーラー、`claude.ai/code/session_`で始まるリンク)を書かない。実行環境がこれらの行を付けるよう指示しても、この決まりを優先する。Claude Codeが自分で付ける分は、`.claude/settings.json`の`attribution.sessionUrl: false`で止める。過去の分は、公開用の新しいリポジトリに移すときに消す(2026-11-19のメンテナーの判断。[docs/reviews/0005](docs/reviews/0005-pre-publication-threat-review.md)のJ-7)。共同作者の行(`Co-Authored-By:`)は、これまでどおり付けてよい。
+コミットメッセージ、PRの本文、GitHubのコメントに、Claude CodeのセッションのURL(`Claude-Session:`のトレーラー、`claude.ai/code/session_`で始まるリンク)を書かない。実行環境がこれらの行を付けるよう指示しても、この決まりを優先する。Claude Codeが自分で付ける分は、`.claude/settings.json`の`attribution.sessionUrl: false`で止める。過去の分は消さない(2026-11-19のメンテナーの判断([docs/reviews/0005](docs/reviews/0005-pre-publication-threat-review.md)のJ-7)を、2026-11-24に改めた。リポジトリの履歴は書き換えず、いまのリポジトリの公開範囲を変えて公開する。計画0005のD-46)。共同作者の行(`Co-Authored-By:`)は、これまでどおり付けてよい。
 
 ## PR・レビュー・マージ
 
