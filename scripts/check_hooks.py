@@ -72,6 +72,23 @@ SAMPLES = {
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -an -m a"}}, "deny"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit --amend -m a"}}, None),
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push -n -u origin fix/x"}}, None),
+        # Plan 0005, D-47, N-6: a tag push can start release.yml, and the
+        # release-tags ruleset lets administrators through, so it is asked about.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin v0.3.0"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git -C . push origin v1.0.0-alpha.1"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin refs/tags/x"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin tag x"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push --tags"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push --follow-tags -u origin fix/x"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push --mirror origin"}}, "ask"),
+        # A push to main stays denied when it also sends tags: the deny checks
+        # come before this ask.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push origin main --tags"}}, "deny"),
+        # Branches with a version-like part, a local tag and the words in a
+        # commit message are not a tag push.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git push -u origin fix/v2.0-layout"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git tag -a v0.3.0 -m v0.3.0"}}, None),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m 'push --tags later'"}}, None),
         # A commit on main is asked about (the samples above run on a feature
         # branch; docs/incidents/0039).
         ({"_branch": "main", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git commit -m a"}}, "ask"),

@@ -145,6 +145,21 @@ if [ "$force_push" = true ]; then
   emit ask "force pushです。先にユーザーに確認してください。フィーチャーブランチでは--force-with-leaseを使ってください(AGENTS.md)。"
 fi
 
+# Plan 0005, D-47, N-6: a tag push can start release.yml, and the
+# release-tags ruleset lets administrators through, while the agent may run
+# with the maintainer's credentials. Tags are pushed by the maintainer
+# (merge-pr.md). Only these forms are matched: --tags, --follow-tags,
+# --mirror, refs/tags/, "tag <name>" and a version-like name (v1.2...). A
+# tag with another name is not matched (docs/development/onboarding.md,
+# section 6.3).
+if [ "$is_push" = true ] &&
+  { has "$git_push"'[^|;&]*[[:space:]](--tags|--follow-tags|--mirror)([[:space:]=]|$)' ||
+    has "$git_push"'[^|;&]*refs/tags/' ||
+    has "$git_push"'[^|;&]*[[:space:]]tag[[:space:]]' ||
+    has "$git_push"'[^|;&]*[[:space:]:+]v[0-9]+\.[0-9]'; }; then
+  emit ask "タグをプッシュしようとしています。タグはrelease.ymlを起動しうるため、メンテナーが付ける決まりです(.claude/commands/merge-pr.mdの手順3、計画0005のD-47のN-6)。先にユーザーに確認してください。"
+fi
+
 if has 'git[[:space:]]+reset[^|;&]*--hard'; then
   emit ask "git reset --hardは手元の変更を捨てます。先にユーザーに確認してください(AGENTS.md)。"
 fi
