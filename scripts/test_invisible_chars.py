@@ -21,7 +21,8 @@ import check_invisible_chars  # noqa: E402
 
 class FindTest(unittest.TestCase):
     def test_finds_each_kind_of_invisible_character(self):
-        for ch in ["\u202e", "\u2066", "\u200b", "\u200d", "\u2060", "\ufeff", "\U000e0041"]:
+        for ch in ["\u202e", "\u2066", "\u200b", "\u200d", "\u2060", "\ufeff", "\U000e0041",
+                   "\u061c", "\ufe0f", "\U000e0100", "\u2062", "\u00ad", "\u180e", "\u3164", "\u115f", "\u1160", "\uffa0"]:
             text = f"line one\nab{ch}cd\n"
             self.assertEqual(check_invisible_chars.find(text), [(2, 3, ch)], repr(ch))
 

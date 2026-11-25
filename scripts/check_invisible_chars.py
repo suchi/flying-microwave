@@ -4,7 +4,8 @@ Run: python3 -I scripts/check_invisible_chars.py   (checks the tracked and the n
 
 The characters are the bidirectional controls, the zero-width characters,
 the word joiner, a byte order mark that is not at the start of the text,
-and the tag characters (plan 0005, D-47, N-2; docs/reviews/0006). Files
+the tag characters, the variation selectors, the invisible operators, the
+soft hyphen and the Hangul and Mongolian fillers (plan 0005, D-47, N-2; docs/reviews/0006). Files
 that are not UTF-8 text (images, icons) are skipped.
 """
 
@@ -17,6 +18,10 @@ INVISIBLE = (
     | set(range(0x2066, 0x206A))  # LRI, RLI, FSI, PDI
     | {0x200B, 0x200C, 0x200D, 0x200E, 0x200F, 0x2060, 0xFEFF}
     | set(range(0xE0000, 0xE0080))  # tag characters
+    | {0x061C}  # ARABIC LETTER MARK, a bidirectional control
+    | set(range(0xFE00, 0xFE10)) | set(range(0xE0100, 0xE01F0))  # variation selectors
+    | set(range(0x2061, 0x2065))  # invisible operators
+    | {0x00AD, 0x180E, 0x3164, 0x115F, 0x1160, 0xFFA0}  # soft hyphen, fillers
 )
 
 
