@@ -113,6 +113,11 @@ SAMPLES = {
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": ".claude/commands/merge-pr.md"}}, "ask"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": ".claude/skills/adr/SKILL.md"}}, "ask"),
         ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "docs/development/commands.md"}}, None),
+        # Plan 0005, D-47, N-2 (docs/reviews/0006): everything Claude Code
+        # reads from .claude/, and the MCP servers of the project.
+        ({"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": ".claude/agents/reviewer.md"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": ".mcp.json"}}, "ask"),
+        ({"hook_event_name": "PreToolUse", "tool_name": "Edit", "tool_input": {"file_path": "docs/mcp.json.md"}}, None),
     ],
     ".claude/hooks/require-japanese-description.sh": [
         ({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls", "description": "List files"}}, "deny"),
