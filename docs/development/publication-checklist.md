@@ -7,20 +7,21 @@
 
 ## 0. 始める前の前提
 
-- [ ] 再点検の対策(N-1〜N-4、N-6〜N-8、N-10)を入れたPRが、`main`にマージされている。エージェントが行う。
+- [ ] 再点検の対策(N-1〜N-4、N-6の文書の直し、N-7、N-8、N-10)を入れたPRが、`main`にマージされている。エージェントが行う。
+- [ ] N-6のうち、タグのプッシュに確認を求めるフックの変更を入れるか、入れないかを決めている。エージェントの編集が自動の権限の判定で止められたため、まだ入っていない。入れるときは、メンテナーの承認を得てエージェントが入れる。
 
 ## 1. 公開の前
 
 ### 1.1 Actionsの設定(Settings → Actions → General)
 
-- [ ] 「Actions permissions」で、使えるアクションを限る(J-10、点検の記録のS-2)。「Allow suchi, and select non-suchi, actions and reusable workflows」を選び、次の3つだけを許す。
+- [ ] 「Actions permissions」で、使えるアクションを限る(J-10、点検の記録のS-2)。「Allow <オーナー名>, and select non-<オーナー名>, actions and reusable workflows」を選び、次の3つだけを許す。
   - `actions/checkout`
   - `actions/upload-artifact`
   - `Swatinem/rust-cache`
 - [ ] 同じ画面で、「Require actions to be pinned to a full-length commit SHA」を有効にする(J-10)。
 - [ ] 「Workflow permissions」を「Read repository contents and packages permissions」にする(S-3)。
 - [ ] 同じ画面で、「Allow GitHub Actions to create and approve pull requests」を無効にする(S-3)。
-- [ ] 「Artifact and log retention」の値を見て、メモしておく(S-5)。変えなくてよい。
+- [ ] 「Check, workflow run, status, artifact and log retention」の値を見て、メモしておく(S-5)。変えなくてよい。この値は、実行の履歴の保存の期間にも効く。
 
 ### 1.2 空であること、余計なものがないことを確かめる
 
