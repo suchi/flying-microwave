@@ -17,7 +17,7 @@ $ARGUMENTS の第1引数で指定されたPRを、最終チェックのうえマ
 
 1. `gh pr merge <PR番号> --merge --delete-branch`。GitHubのツールで直接マージするときは、この手順を同等のマージの操作(マージのコミットを作る方法)に読み替え、手順2以降を行う。そのときの前提条件3の承認は、ユーザーがマージを明示して承認したことを指す。
 2. `git checkout main && git pull`
-3. バージョンタグ指定があれば: エージェントはタグを付けない(タグはメンテナーだけが付けられる。ルールセット`release-tags`)。マージのコミットのSHAと件名を`git log -1 --no-decorate --oneline <SHA>`で確かめ、期待する件名(例: `Merge pull request #56 ...`)と一致することを確かめる。一致しないときは、依頼を書かずにメンテナーに知らせる。一致したら、最後の報告に、メンテナーに依頼するコマンドを書く(AGENTS.mdの「進め方」、[docs/incidents/0016](../../docs/incidents/0016-tag-before-merge.md))。コマンドは次の形にする。
+3. バージョンタグ指定があれば: エージェントはタグを付けない(タグはメンテナーが付ける決まりである。ルールセット`release-tags`は管理者を例外にしていて、エージェントはメンテナーの資格情報で動くことがあるため、ルールセットだけでは止まらない。計画0005のD-47のN-6)。マージのコミットのSHAと件名を`git log -1 --no-decorate --oneline <SHA>`で確かめ、期待する件名(例: `Merge pull request #56 ...`)と一致することを確かめる。一致しないときは、依頼を書かずにメンテナーに知らせる。一致したら、最後の報告に、メンテナーに依頼するコマンドを書く(AGENTS.mdの「進め方」、[docs/incidents/0016](../../docs/incidents/0016-tag-before-merge.md))。コマンドは次の形にする。
    - 件名の確認: `git log -1 --no-decorate --oneline <SHA>`(期待する表示: `<短いSHA> Merge pull request #<番号> ...`。`--no-decorate`は、端末でブランチ名やタグの括弧が付かないようにするため。一致しないときはタグを付けずに知らせてもらう)。引用符の要らない形にする(メンテナーはcmdで実行する。AGENTS.mdの「進め方」、[docs/incidents/0023](../../docs/incidents/0023-tag-check-command-failed-in-cmd.md))
    - タグ付け: `git tag -a <タグ> <SHA> -m "<タグ>"`(対象のコミットを必ず指定する)
    - 送信: `git push origin <タグ>`(`--tags`は使わない)
