@@ -210,7 +210,11 @@ jobs:
           $left = Select-String -Path dist/THIRD-PARTY-LICENSES.txt -Pattern '<(copyright holders|year|owner|name of author)>'
           if ($left) { throw "Unfilled license placeholders: $left" }
 
+      # Why the condition: a pull request from a fork builds code an outside
+      # person wrote, and its artifact would be offered under the same name as
+      # the maintainer's builds (plan 0005, D-47, N-4; docs/reviews/0006).
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         with:
           name: flying-microwave-${{ matrix.target }}
           path: dist/
