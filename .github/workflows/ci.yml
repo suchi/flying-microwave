@@ -5,7 +5,8 @@
 # - the workflow token is read-only and checkout does not persist credentials,
 # - every cargo command uses --locked so Cargo.lock is not changed silently.
 #
-# Artifacts: every run keeps FlyingMicrowave.scr for checks on real hardware.
+# Artifacts: every run keeps FlyingMicrowave.scr for checks on real hardware,
+# except a pull request from a fork (plan 0005, D-47, N-4).
 # A manual run (workflow_dispatch) builds from scratch without the cache and
 # adds the license notices, for checks on real hardware. Releases are built
 # by release.yml (plan 0001, section 7.3).
