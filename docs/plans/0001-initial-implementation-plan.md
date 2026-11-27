@@ -157,7 +157,7 @@ flowchart LR
 
 ### 7.2 リリース手順
 
-1. バージョンを上げるPRを作る(`Cargo.toml`のバージョンとCHANGELOGの`## vX.Y.Z (日付)`の節。実行ファイルのバージョン情報は`build.rs`で`Cargo.toml`から生成し、二重管理しない)。利用者向けREADMEを確定し、冒頭の下書きの印と注記を消す(作業13)。
+1. バージョンを上げるPRを作る(`Cargo.toml`のバージョンとCHANGELOGの`## vX.Y.Z (日付)`の節。実行ファイルのバージョン情報は`build.rs`で`Cargo.toml`から生成し、二重管理しない)。利用者向けREADMEを確定し、冒頭の下書きの印と注記を消す(作業13)。前の版のタグからの変更(`git log <前のタグ>..main`と、`Cargo.lock`の差分)を一覧にしてCHANGELOGの節と照らし、メンテナーに判断を仰ぐときは、その一覧を示す(2026-11-27にメンテナーが承認した。[incidents 0046](../incidents/0046-release-premise-without-diffing-the-last-tag.md))。
 2. 共通のリリース条件を満たし、メンテナーの承認を得てからマージする。
 3. メンテナーが、`main`のそのコミットに`vX.Y.Z`のタグを付ける(タグはルールセットで保護されている)。
 4. タグのプッシュで、リリースのワークフロー(`release.yml`)が動く。検査のジョブは、タグと`Cargo.toml`のバージョン、CHANGELOGの節、利用者向けREADMEに下書きの印がないことを確かめる。ビルドのジョブがx64の実行ファイルを作り(v0.1.0ではarm64も作った。D-32)、それと並行してライセンスのジョブが`THIRD-PARTY-LICENSES.txt`を作る。zipのジョブが、x64のzip(実行ファイル、`README.md`、`LICENSE.txt`、`THIRD-PARTY-LICENSES.txt`、SBOMの`.spdx.json`)を作り(D-31)、下書きを作るジョブが`SHA256SUMS.txt`とGitHub Releaseの下書きを作る。失敗したときは、7.3の手順3と同じく、エージェントが`main`から手動実行する(D-23)。
