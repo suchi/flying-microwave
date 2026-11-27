@@ -41,7 +41,7 @@ TAGS = {
 }
 ATTRS = {
     "lang", "charset", "name", "content", "rel", "href", "hreflang", "type",
-    "class", "aria-label", "aria-hidden", "title", "src", "alt", "viewbox", "d",
+    "class", "aria-label", "aria-hidden", "title", "src", "alt", "viewbox", "d", "fill",
 }
 META_NAMES = {"viewport", "description"}
 LINK_RELS = {"icon", "stylesheet", "alternate"}
@@ -216,6 +216,20 @@ class SiteTest(unittest.TestCase):
             for value in re.findall(r"url\(\s*['\"]?([^'\")]+)", css.read_text(encoding="utf-8")):
                 if not value.startswith("#"):
                     self.assertTrue((css.parent / value).resolve().is_file(), f"{css} の {value} がない")
+
+    def test_the_github_mark_is_white_and_not_recolored(self):
+        # Plan 0006, D-6: the official mark, white on the dark page, never
+        # recolored by CSS (no currentColor, no fill, no filter or opacity).
+        for rel in PAGES.values():
+            svgs = [dict(a) for t, a in parse(SITE / rel).tags if t == "svg"]
+            self.assertEqual(len(svgs), 1, rel)
+            self.assertEqual(svgs[0].get("fill"), "#ffffff", f"{rel} の GitHub のマークが白でない")
+        css = (SITE / "style.css").read_text(encoding="utf-8")
+        self.assertNotIn("currentColor", css)
+        self.assertNotRegex(css, r"(?i)\bfill\s*:")
+        m = re.search(r"\.bar svg\s*\{([^}]*)\}", css)
+        self.assertIsNotNone(m, ".bar svg の指定がない")
+        self.assertNotRegex(m.group(1), r"(?i)opacity|filter|color")
 
     def test_motion_stops_for_reduced_motion(self):
         text = (SITE / "style.css").read_text(encoding="utf-8")

@@ -70,11 +70,23 @@ a {
   color: var(--ink);
 }
 
+/* The GitHub mark is the official one, white on the dark page and never
+   recolored here (plan 0006, D-6). It has no backing shape, and shows focus
+   with an outline around it only. */
+.bar .gh {
+  padding: 0.3rem;
+  background: none;
+}
+
+.bar .gh:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 2px;
+}
+
 .bar svg {
   display: block;
   width: 26px;
   height: 26px;
-  fill: currentColor;
 }
 
 /* The microwaves fly from the upper right to the lower left, behind the
