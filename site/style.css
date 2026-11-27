@@ -52,12 +52,16 @@ a {
   padding: 1.25rem 1.5rem;
 }
 
+/* A dark backing keeps the links readable when a microwave flies behind
+   them (review of plan 0006, M-1). */
 .bar a {
-  color: var(--muted);
+  display: block;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(6, 8, 18, 0.72);
+  color: #aab3cb;
   font-size: 0.85rem;
   text-decoration: none;
-  text-shadow: 0 1px 6px rgba(6, 8, 18, 0.9);
-  filter: drop-shadow(0 1px 4px rgba(6, 8, 18, 0.8));
   transition: color 0.2s;
 }
 
@@ -104,11 +108,14 @@ a {
 }
 
 /* --sx and --sy: where each one stays when motion is reduced. */
-.f1 { --w: clamp(150px, 22vw, 260px); --t: 28s; --d: -6s; --x: 120vw; --r: -8deg; --sx: 66vw; --sy: 6vh; }
-.f2 { --w: clamp(110px, 15vw, 180px); --t: 36s; --d: -27s; --x: 60vw; --r: 10deg; --o: 0.9; --sx: 6vw; --sy: 64vh; }
-.f3 { --w: clamp(80px, 10vw, 120px); --t: 46s; --d: -14s; --x: 150vw; --r: -14deg; --o: 0.75; --sx: 82vw; --sy: 66vh; }
-.f4 { --w: clamp(60px, 7vw, 90px); --t: 56s; --d: -40s; --x: 30vw; --r: 6deg; --o: 0.6; --sx: 14vw; --sy: 12vh; }
-.f5 { --w: clamp(120px, 17vw, 200px); --t: 32s; --d: -21s; --x: 90vw; --r: 12deg; --o: 0.95; --sx: 44vw; --sy: 74vh; }
+/* The delays put each one part way along its line, so that several are on
+   the screen when the page opens (a line is on screen for about a quarter
+   to five eighths of its time; the top is reached at a quarter). */
+.f1 { --w: clamp(150px, 22vw, 260px); --t: 28s; --d: -10s; --x: 120vw; --r: -8deg; --sx: 66vw; --sy: 6vh; }
+.f2 { --w: clamp(110px, 15vw, 180px); --t: 36s; --d: -13s; --x: 75vw; --r: 10deg; --o: 0.9; --sx: 6vw; --sy: 64vh; }
+.f3 { --w: clamp(80px, 10vw, 120px); --t: 46s; --d: -25s; --x: 150vw; --r: -14deg; --o: 0.75; --sx: 82vw; --sy: 66vh; }
+.f4 { --w: clamp(60px, 7vw, 90px); --t: 56s; --d: -39s; --x: 135vw; --r: 6deg; --o: 0.6; --sx: 14vw; --sy: 12vh; }
+.f5 { --w: clamp(120px, 17vw, 200px); --t: 32s; --d: -14s; --x: 90vw; --r: 12deg; --o: 0.95; --sx: 44vw; --sy: 74vh; }
 
 .hero {
   position: relative;
@@ -120,6 +127,9 @@ a {
   min-height: 100svh;
   padding: 4rem 1.5rem;
   text-align: center;
+  /* A soft shade behind the text, so a microwave flying behind it does not
+     make it hard to read (review of plan 0006, M-1). */
+  background: radial-gradient(ellipse 46rem 17rem at 50% 50%, rgba(6, 8, 18, 0.78), rgba(6, 8, 18, 0) 100%);
 }
 
 h1 {
@@ -206,4 +216,14 @@ code {
   .dl {
     transition: none;
   }
+}
+
+/* On a narrow screen the text fills the middle, so the still microwaves
+   keep to the bands above and below it. */
+@media (prefers-reduced-motion: reduce) and (max-width: 600px) {
+  .f1 { --sx: 52vw; --sy: 11vh; }
+  .f2 { --sx: 4vw; --sy: 80vh; }
+  .f3 { --sx: 70vw; --sy: 84vh; }
+  .f4 { --sx: 8vw; --sy: 13vh; }
+  .f5 { --sx: 38vw; --sy: 88vh; }
 }
