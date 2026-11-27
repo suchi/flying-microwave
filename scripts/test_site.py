@@ -57,6 +57,19 @@ URL_ATTRS = {"href", "src"}
 # and no backslash, as CSS escapes can spell any of them.
 CSS_REFUSED = re.compile(r"url\(|image-set\(|@import|@font-face|\\|[a-z][a-z0-9+.-]*:\s*//", re.I)
 SVG_NS = 'xmlns="http://www.w3.org/2000/svg"'
+# Plan 0006, D-8: the faces of the food sheet that the page shows (the bento
+# and the mug and the bun from above, the popcorn bag from the front).
+SITE_FOOD_FACES = {
+    "bento": (0.0, 0.0, 256.0, 192.0),
+    "popcorn": (0.0, 202.0, 192.0, 256.0),
+    "mug": (446.0, 340.0, 128.0, 128.0),
+    "bun": (266.0, 478.0, 128.0, 128.0),
+}
+# The rules of style.css that may set display, with their values.
+DISPLAY_RULES = {
+    (".bar", "flex"), (".bar a", "block"), (".bar svg", "block"), (".hero", "grid"),
+    (".dl", "inline-block"), ("footer ul", "flex"), (".food", "none"),
+}
 
 
 class Page(html.parser.HTMLParser):
@@ -237,6 +250,15 @@ class SiteTest(unittest.TestCase):
         self.assertIsNotNone(m, "prefers-reduced-motion: reduce の指定がない")
         self.assertRegex(m.group(1), r"animation\s*:\s*none")
 
+    def test_every_picture_is_a_microwave_or_a_food(self):
+        # Each kind of picture has its own check below; a picture of neither
+        # kind would pass both (review of the D-8 change, M-1).
+        for path in sorted((SITE / "img").iterdir()):
+            self.assertTrue(
+                re.fullmatch(r"(microwave|food)-[a-z]+\.svg", path.name),
+                f"{path} は電子レンジの絵でも食べ物の絵でもない",
+            )
+
     def test_the_microwave_pictures_hold_only_the_microwave_sheets(self):
         # Review: other sheets (food) may get pictures of features the
         # offered release lacks, or of hidden features later (N-01).
@@ -252,29 +274,51 @@ class SiteTest(unittest.TestCase):
 
     def test_the_food_pictures_hold_one_face_each(self):
         # Plan 0006, D-8: each food picture copies only its own face of the
-        # food sheet, never the whole sheet (N-01).
+        # food sheet, never the whole sheet (N-01). The faces are written
+        # here, not taken from make_art.py, so that a change there is caught
+        # (review of the D-8 change, M-2 and L-1).
+        self.assertEqual({name: rect for name, (rect, _) in make_art.SITE_FOOD.items()}, SITE_FOOD_FACES)
         pictures = sorted((SITE / "img").glob("food-*.svg"))
-        self.assertEqual(
-            sorted(p.name for p in pictures),
-            sorted(f"food-{name}.svg" for name in make_art.SITE_FOOD),
-        )
+        self.assertEqual(sorted(p.name for p in pictures), sorted(f"food-{name}.svg" for name in SITE_FOOD_FACES))
         for path in pictures:
             text = path.read_text(encoding="utf-8")
+            x, y, w, h = SITE_FOOD_FACES[path.stem.removeprefix("food-")]
+            self.assertIn(f'viewBox="{x:g} {y:g} {w:g} {h:g}"', text, f"{path} の面が決めたものと違う")
             self.assertNotRegex(text, r'<g id="', f"{path} にシートの全体がある")
-            self.assertEqual(len(re.findall(r"<g transform=\"translate\(", text)), 1, f"{path} に面が1つだけではない")
+            groups = re.findall(r'<g transform="translate\(([^)]*)\)">', text)
+            self.assertEqual(groups, [f"{x:g} {y:g}"], f"{path} に決めた面が1つだけではない")
             self.assertNotRegex(text, r"<!--(?! Made by)", f"{path} にシートの注記が残っている")
             self.assertNotRegex(text, r"[ \t]+\n", f"{path} に行末の空白がある")
 
     def test_the_food_flies_but_is_not_shown_for_reduced_motion(self):
-        # Plan 0006, D-8 (1) and (2).
+        # Plan 0006, D-8 (1) and (2). Every picture of food on a page counts,
+        # whatever its class, and each must have the class "food".
         for rel in PAGES.values():
             imgs = [dict(a) for t, a in parse(SITE / rel).tags if t == "img"]
-            food = sorted(a.get("src", "").rsplit("/", 1)[-1] for a in imgs if "food" in a.get("class", "").split())
-            self.assertEqual(food, sorted(f"food-{name}.svg" for name in make_art.SITE_FOOD), rel)
+            food = [a for a in imgs if a.get("src", "").rsplit("/", 1)[-1].startswith("food-")]
+            self.assertEqual(
+                sorted(a["src"].rsplit("/", 1)[-1] for a in food),
+                sorted(f"food-{name}.svg" for name in SITE_FOOD_FACES),
+                rel,
+            )
+            for a in food:
+                self.assertIn("food", (a.get("class") or "").split(), f"{rel} の {a['src']} に food のクラスがない")
         text = (SITE / "style.css").read_text(encoding="utf-8")
         m = re.search(r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{(.*?)\n\}", text, re.S)
         self.assertIsNotNone(m, "prefers-reduced-motion: reduce の指定がない")
         self.assertRegex(m.group(1), r"\.food\s*\{\s*display\s*:\s*none")
+
+    def test_only_known_rules_set_display(self):
+        # An allow list of the rules that may set display, so that no later
+        # rule shows the food again when motion is reduced (review of the D-8
+        # change, L-2). The page has no style attribute or <style> element
+        # (TAGS and ATTRS), so the stylesheet is the only place to look.
+        css = re.sub(r"(?s)/\*.*?\*/", "", (SITE / "style.css").read_text(encoding="utf-8"))
+        found = set()
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+            for value in re.findall(r"(?i)\bdisplay\s*:\s*([^;]+)", body):
+                found.add((" ".join(selector.split()), value.strip()))
+        self.assertLessEqual(found, DISPLAY_RULES, "display を指定してよい規則のほかに、display の指定がある")
 
     def test_the_pictures_are_the_ones_make_art_makes(self):
         with tempfile.TemporaryDirectory() as d:
