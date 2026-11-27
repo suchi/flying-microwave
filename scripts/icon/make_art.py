@@ -45,6 +45,8 @@ def sheet(root, name, prefix):
     body = re.sub(r"(?s)^.*?<svg[^>]*>", "", text, count=1)
     body = re.sub(r"(?s)</svg>\s*$", "", body)
     body = re.sub(r"(?s)<!--.*?-->", "", body)
+    # Removing a comment may leave a line of indentation only.
+    body = re.sub(r"[ \t]+\n", "\n", body)
     body = re.sub(r'id="([^"]+)"', lambda m: f'id="{prefix}-{m.group(1)}"', body)
     body = re.sub(r"url\(#([^)]+)\)", lambda m: f"url(#{prefix}-{m.group(1)})", body)
     body = re.sub(r'href="#([^"]+)"', lambda m: f'href="#{prefix}-{m.group(1)}"', body)
@@ -107,12 +109,13 @@ def food(rect, scale, tilt_deg, ox, oy):
     return face("food", rect, (a, b, -b, a, ox, oy))
 
 
-def defs(root, colors):
+def defs(root, colors, with_food=True):
     parts = [sheet(root, f"microwave-body-{c}.svg", f"body-{c}") for c in colors]
     parts.append(sheet(root, "microwave-door.svg", "door"))
     parts.append(sheet(root, "microwave-interior.svg", "interior"))
     parts.append(sheet(root, "microwave-led.svg", "led"))
-    parts.append(sheet(root, "food.svg", "food"))
+    if with_food:
+        parts.append(sheet(root, "food.svg", "food"))
     return "<defs>" + "\n".join(parts) + "</defs>"
 
 
@@ -182,7 +185,10 @@ def standalone(root, colors, width, height, minx, miny, body):
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width:.0f}" height="{height:.0f}" '
         f'viewBox="{minx:.2f} {miny:.2f} {width:.2f} {height:.2f}">',
         "<!-- Made by scripts/icon/make_art.py from assets/sprites. Do not edit by hand. -->",
-        defs(root, colors),
+        # Why without food: the page is a user document, and the food sheet
+        # may hold pictures of features the offered release lacks, or of
+        # hidden features later (plan 0006, F-01 and N-01).
+        defs(root, colors, with_food=False),
         body,
         "</svg>",
     ])

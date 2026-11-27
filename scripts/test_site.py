@@ -106,6 +106,17 @@ class SiteTest(unittest.TestCase):
         self.assertIsNotNone(m, "prefers-reduced-motion: reduce の指定がない")
         self.assertRegex(m.group(1), r"animation\s*:\s*none")
 
+    def test_the_pictures_hold_only_the_microwave_sheets(self):
+        # Review: other sheets (food) may get pictures of features the
+        # offered release lacks, or of hidden features later (N-01).
+        allowed = {"door", "interior", "led"} | {f"body-{c}" for c in make_art.SITE_COLORS}
+        for path in sorted((SITE / "img").glob("*.svg")):
+            text = path.read_text(encoding="utf-8")
+            sheets = set(re.findall(r'<g id="([a-z-]+)">', text))
+            self.assertTrue(sheets, path)
+            self.assertLessEqual(sheets, allowed, f"{path} に電子レンジのほかのシートがある")
+            self.assertNotRegex(text, r"[ \t]+\n", f"{path} に行末の空白がある")
+
     def test_the_pictures_are_the_ones_make_art_makes(self):
         with tempfile.TemporaryDirectory() as d:
             made = pathlib.Path(d)
