@@ -65,11 +65,68 @@ SITE_FOOD_FACES = {
     "mug": (446.0, 340.0, 128.0, 128.0),
     "bun": (266.0, 478.0, 128.0, 128.0),
 }
-# The rules of style.css that may set display, with their values.
+# The rules of style.css that may set display: the selectors around the
+# declaration, from the outermost (an @media too), and the value. The food
+# may be hidden only when motion is reduced (plan 0006, D-8).
+REDUCED = "@media (prefers-reduced-motion: reduce)"
 DISPLAY_RULES = {
-    (".bar", "flex"), (".bar a", "block"), (".bar svg", "block"), (".hero", "grid"),
-    (".dl", "inline-block"), ("footer ul", "flex"), (".food", "none"),
+    ((".bar",), "flex"), ((".bar a",), "block"), ((".bar svg",), "block"), ((".hero",), "grid"),
+    ((".dl",), "inline-block"), (("footer ul",), "flex"), ((REDUCED, ".food"), "none"),
 }
+
+
+def css_declarations(text):
+    """The declarations of a stylesheet as (the selectors around it, from
+    the outermost, and the declaration). Comments are dropped first, and
+    nested rules are followed, so a declaration after a nested rule still
+    belongs to the rule around it (re-review of the D-8 change, L-A)."""
+    text = re.sub(r"(?s)/\*.*?\*/", "", text)
+    stack, buf, out = [], "", []
+
+    def flush():
+        decl = " ".join(buf.split())
+        if decl and stack:
+            out.append((tuple(stack), decl))
+
+    for ch in text:
+        if ch == "{":
+            stack.append(" ".join(buf.split()))
+            buf = ""
+        elif ch == "}":
+            flush()
+            if stack:
+                stack.pop()
+            buf = ""
+        elif ch == ";":
+            flush()
+            buf = ""
+        else:
+            buf += ch
+    return out
+
+
+def display_problems(text):
+    """Declarations that may show or hide something the page does not
+    expect: a display outside DISPLAY_RULES, or the shorthand all, which
+    resets display too."""
+    found = []
+    for where, decl in css_declarations(text):
+        prop, _, value = decl.partition(":")
+        prop = prop.strip().lower()
+        if prop == "all" or (prop == "display" and (where, value.strip()) not in DISPLAY_RULES):
+            found.append((where, decl))
+    return found
+
+
+def unexpected_files(site):
+    """Files in the site that are not the two pages, the stylesheet or a
+    picture that make_art.py makes; all of site/ is published (pages.yml),
+    so a file anywhere in it counts (re-review of the D-8 change, M-A)."""
+    with tempfile.TemporaryDirectory() as d:
+        pictures = {pathlib.Path("img") / name for name in make_art.write_site(ROOT, pathlib.Path(d))}
+    expected = set(PAGES.values()) | {pathlib.Path("style.css")} | pictures
+    present = {p.relative_to(site) for p in site.rglob("*") if p.is_file()}
+    return sorted(str(p) for p in present - expected)
 
 
 class Page(html.parser.HTMLParser):
@@ -250,14 +307,24 @@ class SiteTest(unittest.TestCase):
         self.assertIsNotNone(m, "prefers-reduced-motion: reduce の指定がない")
         self.assertRegex(m.group(1), r"animation\s*:\s*none")
 
-    def test_every_picture_is_a_microwave_or_a_food(self):
-        # Each kind of picture has its own check below; a picture of neither
-        # kind would pass both (review of the D-8 change, M-1).
-        for path in sorted((SITE / "img").iterdir()):
-            self.assertTrue(
-                re.fullmatch(r"(microwave|food)-[a-z]+\.svg", path.name),
-                f"{path} は電子レンジの絵でも食べ物の絵でもない",
-            )
+    def test_the_site_holds_only_the_pages_the_stylesheet_and_the_pictures(self):
+        # An allow list of the files of the whole site, as all of it is
+        # published: a picture anywhere else would pass the checks of the
+        # pictures below (review of the D-8 change, M-1, and its re-review,
+        # M-A).
+        self.assertEqual(unexpected_files(SITE), [])
+        tries = [
+            pathlib.Path("sheet.svg"), pathlib.Path("en") / "img" / "sky.svg",
+            pathlib.Path("img") / "sky.svg", pathlib.Path("extra.html"), pathlib.Path("en") / "style.css",
+        ]
+        sheet = (ROOT / "assets" / "sprites" / "food.svg").read_text(encoding="utf-8")
+        for rel in tries:
+            with self.subTest(file=str(rel)), tempfile.TemporaryDirectory() as d:
+                copy = pathlib.Path(d) / "site"
+                shutil.copytree(SITE, copy)
+                (copy / rel).parent.mkdir(parents=True, exist_ok=True)
+                (copy / rel).write_text(sheet, encoding="utf-8")
+                self.assertEqual(unexpected_files(copy), [str(rel)], "見つけられなかった")
 
     def test_the_microwave_pictures_hold_only_the_microwave_sheets(self):
         # Review: other sheets (food) may get pictures of features the
@@ -302,23 +369,38 @@ class SiteTest(unittest.TestCase):
                 rel,
             )
             for a in food:
-                self.assertIn("food", (a.get("class") or "").split(), f"{rel} の {a['src']} に food のクラスがない")
-        text = (SITE / "style.css").read_text(encoding="utf-8")
-        m = re.search(r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{(.*?)\n\}", text, re.S)
-        self.assertIsNotNone(m, "prefers-reduced-motion: reduce の指定がない")
-        self.assertRegex(m.group(1), r"\.food\s*\{\s*display\s*:\s*none")
+                # "f" makes it fly (the animation of .f), "food" hides it
+                # when motion is reduced (re-review of the D-8 change, L-B).
+                classes = (a.get("class") or "").split()
+                self.assertIn("f", classes, f"{rel} の {a['src']} に f のクラスがない")
+                self.assertIn("food", classes, f"{rel} の {a['src']} に food のクラスがない")
+        decls = css_declarations((SITE / "style.css").read_text(encoding="utf-8"))
+        self.assertIn(((REDUCED, ".food"), "display: none"), decls, "動きを減らす設定で食べ物を隠す指定がない")
 
     def test_only_known_rules_set_display(self):
-        # An allow list of the rules that may set display, so that no later
-        # rule shows the food again when motion is reduced (review of the D-8
-        # change, L-2). The page has no style attribute or <style> element
-        # (TAGS and ATTRS), so the stylesheet is the only place to look.
-        css = re.sub(r"(?s)/\*.*?\*/", "", (SITE / "style.css").read_text(encoding="utf-8"))
-        found = set()
-        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
-            for value in re.findall(r"(?i)\bdisplay\s*:\s*([^;]+)", body):
-                found.add((" ".join(selector.split()), value.strip()))
-        self.assertLessEqual(found, DISPLAY_RULES, "display を指定してよい規則のほかに、display の指定がある")
+        # An allow list of where display may be set, with the @media around
+        # it, so that no other rule shows the food again or hides it always
+        # (review of the D-8 change, L-2, and its re-review, L-A and L-B).
+        # The page has no style attribute or <style> element (TAGS and
+        # ATTRS), so the stylesheet is the only place to look. What a browser
+        # does with the rules is not run here; this reads the text only.
+        self.assertEqual(display_problems((SITE / "style.css").read_text(encoding="utf-8")), [])
+        css = (SITE / "style.css").read_text(encoding="utf-8")
+        tries = [
+            "@media (prefers-reduced-motion: reduce) { .f6, .f7, .f8, .f9 { display: block; } }",
+            "@media (prefers-reduced-motion: reduce) { .flock img { display: inline; } }",
+            ".flock img { all: revert; }",
+            "@media (prefers-reduced-motion: reduce) { .f6 { all: unset; } }",
+            ".f { & .z { color: red; } display: block; }",
+            ".food { display: none; }",
+            "@media (prefers-reduced-motion: reduce) { .food { display: none !important; } }",
+        ]
+        for extra in tries:
+            with self.subTest(css=extra):
+                self.assertTrue(display_problems(css + "\n" + extra + "\n"), "見つけられなかった")
+        commented = css.replace("  .food {\n    display: none;\n  }", "  /* .food { display: none } */")
+        self.assertNotEqual(commented, css, "試しの置き換えが当たらない")
+        self.assertNotIn(((REDUCED, ".food"), "display: none"), css_declarations(commented))
 
     def test_the_pictures_are_the_ones_make_art_makes(self):
         with tempfile.TemporaryDirectory() as d:
