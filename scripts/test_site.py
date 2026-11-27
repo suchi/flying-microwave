@@ -47,7 +47,15 @@ META_NAMES = {"viewport", "description"}
 LINK_RELS = {"icon", "stylesheet", "alternate"}
 # A scheme (https:, javascript:, data: ...) or a path to another host (//, \\).
 OUTSIDE = re.compile(r"^\s*([a-z][a-z0-9+.-]*:|[/\\]{2})", re.I)
-CSS_OUTSIDE = re.compile(r"@import|[a-z][a-z0-9+.-]*:\s*//|url\(\s*['\"]?\s*([a-z][a-z0-9+.-]*:|[/\\]{2})", re.I)
+# Why an allow list for links: a browser drops tabs and new lines from a URL
+# and C0 controls and spaces at its ends, so a deny pattern can be passed
+# around (re-review of plan 0006, M-A; docs/incidents/0044). A local href or
+# src is a relative path of these characters only, with no "//".
+LOCAL_PATH = re.compile(r"(?!.*//)[a-z0-9._-][a-z0-9._/-]*")
+URL_ATTRS = {"href", "src"}
+# The stylesheet loads nothing: no url(), image-set(), @import or @font-face,
+# and no backslash, as CSS escapes can spell any of them.
+CSS_REFUSED = re.compile(r"url\(|image-set\(|@import|@font-face|\\|[a-z][a-z0-9+.-]*:\s*//", re.I)
 SVG_NS = 'xmlns="http://www.w3.org/2000/svg"'
 
 
@@ -84,14 +92,18 @@ def html_problems(path):
             if name not in ATTRS:
                 out.append(f"{path}: <{tag}> の許可していない属性 {name}")
             value = value or ""
-            if OUTSIDE.match(value) and not (tag == "a" and name == "href" and value in (REPO, LATEST)):
-                out.append(f"{path}: <{tag}> の {name} がほかのサイトかスキームを指す: {value}")
+            if name in URL_ATTRS:
+                github = tag == "a" and name == "href" and value in (REPO, LATEST)
+                if not github and not LOCAL_PATH.fullmatch(value):
+                    out.append(f"{path}: <{tag}> の {name} が相対のパスでない: {value!r}")
+            elif OUTSIDE.match(re.sub(r"[\t\n\r]", "", value).strip("\x00- ")):
+                out.append(f"{path}: <{tag}> の {name} がほかのサイトかスキームを指す: {value!r}")
     return out
 
 
 def css_problems(path):
     text = path.read_text(encoding="utf-8")
-    return [f"{path}: ほかのサイトを読み込む指定: {m.group(0)}" for m in CSS_OUTSIDE.finditer(text)]
+    return [f"{path}: 読み込みに使える指定: {m.group(0)}" for m in CSS_REFUSED.finditer(text)]
 
 
 def svg_problems(path):
@@ -148,6 +160,14 @@ class SiteTest(unittest.TestCase):
             (pathlib.Path("style.css"), ":root {", '.x { background: URL(https://example.com/a.png); }\n:root {'),
             (pathlib.Path("style.css"), ":root {", '.x { background: image-set("https://example.com/a.png" 1x); }\n:root {'),
             (pathlib.Path("img") / "microwave-white.svg", "</svg>", '<image href="https://example.com/a.png"/></svg>'),
+            # Re-review of plan 0006, M-A: a browser drops tabs and new lines
+            # from a URL and reads CSS escapes (docs/incidents/0044).
+            (page, 'href="style.css"', 'href="ht&#9;tps://example.com/a.css"'),
+            (page, 'href="style.css"', 'href="ht\ntps://example.com/b.css"'),
+            (page, 'src="img/microwave-white.svg"', 'src="/&#9;/example.com/c.svg"'),
+            (pathlib.Path("style.css"), ":root {", '.x { background: url(\\68ttps\\3a//example.com/f.png); }\n:root {'),
+            (pathlib.Path("style.css"), ":root {", '.x { background: url("\\2f/example.com/g.png"); }\n:root {'),
+            (pathlib.Path("style.css"), ":root {", '@\\69mport "\\68ttps\\3a//example.com/h.css";\n:root {'),
         ]
         for rel, old, new in cases:
             with self.subTest(file=str(rel), change=new), tempfile.TemporaryDirectory() as d:
