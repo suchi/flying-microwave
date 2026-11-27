@@ -14,10 +14,14 @@
 
 ### 1.1 Actionsの設定(Settings → Actions → General)
 
-- [ ] 「Actions permissions」で、使えるアクションを限る(J-10、点検の記録のS-2)。「Allow <オーナー名>, and select non-<オーナー名>, actions and reusable workflows」を選び、次の3つだけを許す。
-  - `actions/checkout`
-  - `actions/upload-artifact`
-  - `Swatinem/rust-cache`
+- [ ] 「Actions permissions」で、使えるアクションを限る(J-10、点検の記録のS-2)。「Allow <オーナー名>, and select non-<オーナー名>, actions and reusable workflows」を選び、許可するアクションの欄に、次の1行をそのまま貼る。パターンはコンマで区切り、アクションは`OWNER/REPOSITORY@TAG-OR-SHA`の形で書く(GitHubの文書「Managing GitHub Actions settings for a repository」の「Allow or block specified actions and reusable workflows」)。改行で区切ると全体が1つのパターンになり、どのアクションも動かない([incident 0045](../incidents/0045-actions-allow-list-entered-without-separators.md))。
+
+  ```text
+  actions/checkout@*, actions/upload-artifact@*, Swatinem/rust-cache@*, actions/configure-pages@*, actions/upload-pages-artifact@*, actions/deploy-pages@*
+  ```
+
+  - 後ろの3つは、ランディングページ(計画0006)の公開に使う。
+- [ ] 設定を保存したら、Actionsの画面でCIのワークフローを手動で実行し(「CI」→「Run workflow」→ブランチ`main`)、実行が`startup_failure`にならず、ジョブが始まることを確かめる。設定の誤りは、次のCIの実行まで分からないため(0045)。
 - [ ] 同じ画面で、「Require actions to be pinned to a full-length commit SHA」を有効にする(J-10)。
 - [ ] 「Workflow permissions」を「Read repository contents and packages permissions」にする(S-3)。
 - [ ] 同じ画面で、「Allow GitHub Actions to create and approve pull requests」を無効にする(S-3)。
@@ -26,7 +30,7 @@
 ### 1.2 空であること、余計なものがないことを確かめる
 
 - [ ] Settings → Secrets and variables の Actions、Dependabot、Codespaces が、どれも空(S-6)。
-- [ ] Settings → Environments が空(S-6)。
+- [ ] Settings → Environments が空(S-6)。ランディングページ(計画0006)を公開するようになってからは、Pagesが作る`github-pages`の環境だけがある。消さない。
 - [ ] Settings → Collaborators に、知らない人や招待がない(S-9)。
 - [ ] Settings → Webhooks が空(S-15)。
 - [ ] Settings → GitHub Apps(Integrations)で、入っているアプリと、それぞれの権限を確かめる(S-11)。Claude GitHub Appは、使うリポジトリだけに限る。

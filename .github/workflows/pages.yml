@@ -1,0 +1,71 @@
+# Publishes the landing page in site/ to GitHub Pages (plan 0006, D-1).
+#
+# Security (plan 0001, R-08; plan 0006, N-05):
+# - third-party actions are pinned by full commit SHA (Dependabot updates them),
+# - the workflow token is read-only; only the deploy job may write Pages and
+#   ask for the OIDC token that deploy-pages needs,
+# - checkout does not persist credentials.
+# Runs only for main (a push that changes the page or this file) and by hand,
+# never for a pull request, so nothing from a pull request is published.
+# The page is plain HTML with no site generator; configure-pages only checks
+# that Pages is set to be published by GitHub Actions, in the deploy job
+# where the token may read Pages.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "scripts/test_site.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer one waits instead of cancelling a running one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The same checks as the CI: nothing loaded from other sites, the links
+      # and the pictures (plan 0006, N-02, F-02, F-03).
+      - name: Check the page
+        run: python3 -I -m unittest discover -s scripts -p test_site.py
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/
+
+  deploy:
+    name: Deploy
+    needs: build
+    # Why: a manual run may start from any branch or tag; only main is
+    # published (plan 0006, D-1), whatever the github-pages environment
+    # allows.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -18,6 +18,7 @@
 | デバッガによるデバッグ | [5.3](#53-ログとデバッグ) | 整備済み |
 | トラブルシューティング | [5.4](#54-トラブルシューティング) | 整備済み |
 | バナーとアイコンの作り直し | [5.5](#55-バナーとアイコンの作り直し) | 整備済み |
+| ランディングページの変更と公開 | [5.6](#56-ランディングページ) | 整備済み |
 | スプライトの素材(SVG)の変更 | [`assets/sprites/README.md`](../../assets/sprites/README.md)、[見た目の設計](../design/visual-design.md) | 整備済み |
 | 変更の進め方(ブランチ、コミット、レビュー、マージ) | [3](#3-開発の進め方)、[4](#4-レビューとマージ) | 整備済み |
 | リリース | [8](#8-windows実機での確認)、[計画の7.2](../plans/0001-initial-implementation-plan.md#72-リリース手順)(正式なリリース)と[7.3](../plans/0001-initial-implementation-plan.md#73-プレリリースの手順)(プレリリース) | 整備済み(x64だけ。[ADR-0022](../adr/0022-ship-x64-only-for-now.md)) |
@@ -288,7 +289,7 @@ python3 -I scripts/check_hooks.py
 
 ### 5.5 バナーとアイコンの作り直し
 
-READMEのバナー(`docs/assets/banner.svg`)とアイコンの元の絵(`crates/app/res/icon.svg`)は、面の絵(`assets/sprites`)から`scripts/icon/make_art.py`が作る(計画0005の作業11)。手で直さない。実行ファイルに入るのは、アイコンのSVGから作る`crates/app/res/flying-microwave.ico`である。面の絵か`make_art.py`を変えたら、次の2つのコマンドで作り直し、できたファイルをすべてコミットする。スクリプトのテスト(`scripts/test_make_art.py`)は、作り直していないと失敗する。
+READMEのバナー(`docs/assets/banner.svg`)とアイコンの元の絵(`crates/app/res/icon.svg`)、ランディングページで飛ぶ電子レンジの絵(`site/img/microwave-*.svg`)は、面の絵(`assets/sprites`)から`scripts/icon/make_art.py`が作る(計画0005の作業11、計画0006)。手で直さない。実行ファイルに入るのは、アイコンのSVGから作る`crates/app/res/flying-microwave.ico`である。面の絵か`make_art.py`を変えたら、次の2つのコマンドで作り直し、できたファイルをすべてコミットする。スクリプトのテスト(`scripts/test_make_art.py`、`scripts/test_site.py`)は、作り直していないと失敗する。
 
 ```sh
 python3 -I scripts/icon/make_art.py
@@ -315,6 +316,15 @@ python3 -I scripts/icon/make_ico.py
   ```
 
 - 確かめ方: バナーは、ブラウザで`docs/assets/banner.svg`を開いて見る。アイコンは、Windowsでビルドした実行ファイルをエクスプローラーで表示し、表示の大きさ(特大・大・中・小・詳細)を切り替えて、各サイズの見え方を確かめる。2026-11-23に面の絵から作り直したアイコンの、エクスプローラーでの見え方は未確認である(エージェントはWindowsで実行できないため。ChromiumとresvgでPNGに描画して、16〜256ピクセルの見え方を確かめた)。
+
+### 5.6 ランディングページ
+
+利用者向けのランディングページ(計画0006)は`site/`にある。依存もビルドの道具もない、素のHTMLとCSSで、JavaScriptとほかのサイトからの読み込みは使わない。ローカルでは、ブラウザで`site/index.html`を開いて見る。`main`の`site/`を変えたPRをマージすると、`.github/workflows/pages.yml`がGitHub Pagesに公開する(PRでは公開しない)。
+
+- 隠し要素は書かない(AGENTS.mdの「ドキュメント」。ページのソースも利用者が読む文書に含む)。着想元にも触れない(方針IP-1)。
+- 載せる機能は、入手のボタンが指す版(`/releases/latest`。プレリリースを除いた最新のリリース)にあるものだけにする(計画0006のF-01)。
+- 飛ぶ電子レンジの絵は、5.5の`make_art.py`が作る。食べ物のシートは入れない(計画0006のN-01)。
+- `scripts/test_site.py`が、許可した一覧の形で、ほかのサイトから読み込まないことを確かめる(ファイルの種類、HTMLの要素と属性、CSSとSVGの値)。あわせて、外へのリンクがリポジトリと最新のリリースだけであること、両方の言語のページ、動きを減らす設定、絵が最新であることも確かめる。新しい要素や属性を使うときは、テストの一覧に加える。
 
 ## 6. AIエージェントとの協働
 

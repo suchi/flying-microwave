@@ -33,6 +33,7 @@
 | [0003](plans/0003-v0.1.1-smoke-test.md) | v0.1.1 スモークテストと実機での確認 | 完了(v0.1.1) |
 | [0004](plans/0004-v0.2.0-settings.md) | v0.2.0 設定画面(Phase 2) | 完了(v0.2.0) |
 | [0005](plans/0005-v0.3.0-visuals-and-clock.md) | v0.3.0 見た目と時計(Phase 3) | 合意済み |
+| [0006](plans/0006-landing-page.md) | 利用者向けのランディングページ(GitHub Pages) | 合意済み |
 
 ## 調査
 
@@ -136,3 +137,5 @@
 | [0041](incidents/0041-dates-written-in-utc.md) | 記録の日付を、JSTに直さずにUTCの日付で書いた |
 | [0042](incidents/0042-rule-change-not-reflected-in-other-docs.md) | 規則を変えたときに、同じ説明を書いたほかの文書を直し漏らした(再発) |
 | [0043](incidents/0043-delegated-implementation-skipped-tdd-red.md) | 実装を任せたサブエージェントが、先に失敗するテストを書かなかった |
+| [0044](incidents/0044-site-check-fix-left-the-same-holes.md) | ページの読み込みの検査の抜け道を直したあとも、同じ種類の抜け道が残った |
+| [0045](incidents/0045-actions-allow-list-entered-without-separators.md) | 公開の手順の一覧が許可するアクションの書き方を示さず、CIが始まらなくなった |

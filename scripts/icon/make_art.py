@@ -1,5 +1,6 @@
-"""Makes the README banner (docs/assets/banner.svg) and the app icon
-(crates/app/res/icon.svg) from the sprite sheets in assets/sprites.
+"""Makes the README banner (docs/assets/banner.svg), the app icon
+(crates/app/res/icon.svg) and the pictures of the landing page (site/img;
+plan 0006) from the sprite sheets in assets/sprites.
 
 Each face of a sheet is cut out with a nested <svg viewBox> and mapped onto a
 parallelogram, so that the microwaves look like the boxes the screensaver
@@ -44,6 +45,8 @@ def sheet(root, name, prefix):
     body = re.sub(r"(?s)^.*?<svg[^>]*>", "", text, count=1)
     body = re.sub(r"(?s)</svg>\s*$", "", body)
     body = re.sub(r"(?s)<!--.*?-->", "", body)
+    # Removing a comment may leave a line of indentation only.
+    body = re.sub(r"[ \t]+\n", "\n", body)
     body = re.sub(r'id="([^"]+)"', lambda m: f'id="{prefix}-{m.group(1)}"', body)
     body = re.sub(r"url\(#([^)]+)\)", lambda m: f"url(#{prefix}-{m.group(1)})", body)
     body = re.sub(r'href="#([^"]+)"', lambda m: f'href="#{prefix}-{m.group(1)}"', body)
@@ -106,12 +109,13 @@ def food(rect, scale, tilt_deg, ox, oy):
     return face("food", rect, (a, b, -b, a, ox, oy))
 
 
-def defs(root, colors):
+def defs(root, colors, with_food=True):
     parts = [sheet(root, f"microwave-body-{c}.svg", f"body-{c}") for c in colors]
     parts.append(sheet(root, "microwave-door.svg", "door"))
     parts.append(sheet(root, "microwave-interior.svg", "interior"))
     parts.append(sheet(root, "microwave-led.svg", "led"))
-    parts.append(sheet(root, "food.svg", "food"))
+    if with_food:
+        parts.append(sheet(root, "food.svg", "food"))
     return "<defs>" + "\n".join(parts) + "</defs>"
 
 
@@ -172,12 +176,61 @@ def write(root, out):
     (out / "icon.svg").write_text(icon(root) + "\n", encoding="utf-8")
 
 
+SITE_COLORS = ["silver", "graphite", "white", "mint"]
+
+
+def standalone(root, colors, width, height, minx, miny, body):
+    """One picture with a transparent background, cut to its bounding box."""
+    return "\n".join([
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width:.0f}" height="{height:.0f}" '
+        f'viewBox="{minx:.2f} {miny:.2f} {width:.2f} {height:.2f}">',
+        "<!-- Made by scripts/icon/make_art.py from assets/sprites. Do not edit by hand. -->",
+        # Why without food: the page is a user document, and the food sheet
+        # may hold pictures of features the offered release lacks, or of
+        # hidden features later (plan 0006, F-01 and N-01).
+        defs(root, colors, with_food=False),
+        body,
+        "</svg>",
+    ])
+
+
+def site_microwave(root, color):
+    """A microwave for the landing page (plan 0006), seen as in the banner."""
+    # The corners of the box, with the same axes as microwave() at scale 1
+    # and no tilt; the viewBox is their bounding box.
+    X, Y, Z = (1.0, 0.10), (-0.06, 1.0), (0.42, -0.30)
+    xs, ys = [], []
+    for u in (0, BW):
+        for v in (0, BH):
+            for w in (0, BD):
+                xs.append(X[0] * u + Y[0] * v + Z[0] * w)
+                ys.append(X[1] * u + Y[1] * v + Z[1] * w)
+    minx, miny = min(xs), min(ys)
+    return standalone(root, [color], max(xs) - minx, max(ys) - miny, minx, miny, microwave(color, 1.0, 0, 0, 0))
+
+
+def write_site(root, out):
+    """Writes the pictures of the landing page into `out`; returns their names.
+    Only microwaves: the release the page offers (v0.2.0) has no flying food
+    (plan 0006, F-01)."""
+    out.mkdir(parents=True, exist_ok=True)
+    names = []
+    for color in SITE_COLORS:
+        name = f"microwave-{color}.svg"
+        (out / name).write_text(site_microwave(root, color) + "\n", encoding="utf-8")
+        names.append(name)
+    return names
+
+
 def main():
     made = ROOT / "target" / "make-art"
     write(ROOT, made)
     (ROOT / "docs" / "assets" / "banner.svg").write_text((made / "banner.svg").read_text(encoding="utf-8"), encoding="utf-8")
     (ROOT / "crates" / "app" / "res" / "icon.svg").write_text((made / "icon.svg").read_text(encoding="utf-8"), encoding="utf-8")
-    print("docs/assets/banner.svg と crates/app/res/icon.svg を作った。続けて python3 -I scripts/icon/make_ico.py で .ico を作り直す。")
+    for name in write_site(ROOT, made / "site"):
+        (ROOT / "site" / "img").mkdir(parents=True, exist_ok=True)
+        (ROOT / "site" / "img" / name).write_text((made / "site" / name).read_text(encoding="utf-8"), encoding="utf-8")
+    print("docs/assets/banner.svg、crates/app/res/icon.svg、site/img/ の絵を作った。続けて python3 -I scripts/icon/make_ico.py で .ico を作り直す。")
 
 
 if __name__ == "__main__":
