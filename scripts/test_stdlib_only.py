@@ -4,12 +4,17 @@ Run: python3 -I -m unittest discover -s scripts
 
 Why: the Python scripts of the repository use the standard library only, so
 no package from a registry comes in without the cooldown of 7 days (AGENTS.md,
-Security). The check covers everything that runs Python from the repository:
-every .py file, and the workflows and hooks that start Python or a package
-manager (docs/incidents/0044: the whole protected target, not one place).
+Security). The check is an allow list (AGENTS.md, Security; docs/incidents/
+0044 and its second recurrence): in Python files, the modules, the builtins,
+the attributes of the modules that start programs or change where modules
+come from, and the programs started; in the files that start Python
+(workflows, hooks, the hook commands of .claude/settings.json, composite
+actions), the forms of a Python start. The rest of a shell script is left to
+the approval and review that those files need (ADR-0030).
 """
 
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -20,91 +25,107 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import check_stdlib_only  # noqa: E402
 
 
-def write(root, rel, text):
-    path = root / rel
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+def repo(files):
+    """A git repository in a new folder with the given files, untracked."""
+    d = tempfile.TemporaryDirectory()
+    root = pathlib.Path(d.name)
+    subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
+    for rel, text in files.items():
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    return d, root
 
 
 class StdlibOnlyTest(unittest.TestCase):
-    def test_the_repository_uses_the_standard_library_only(self):
+    def test_the_repository_passes(self):
         self.assertEqual(check_stdlib_only.problems(ROOT), [])
+
+    def test_it_accepts_what_the_scripts_do(self):
+        d, root = repo({
+            "scripts/helper.py": "from __future__ import annotations\nimport json, os.path\n",
+            "scripts/a.py": (
+                "import helper\nfrom helper import x\nfrom unittest import mock\nimport os, pathlib, subprocess, sys\n"
+                "ROOT = pathlib.Path(__file__).resolve().parent.parent\n"
+                "sys.path.insert(0, str(ROOT / 'scripts'))\n"
+                "subprocess.run(['git', 'status'], check=True)\n"
+                "print(os.environ.get('PATH', ''), sys.argv)\n"
+                "env = dict(os.environ, PATH='/bin', TMPDIR='/tmp')\n"
+            ),
+            ".github/workflows/x.yml": (
+                "jobs:\n  a:\n    steps:\n      - run: python3 -I scripts/a.py --x\n"
+                "      - run: |\n          python3 -I -m unittest discover -s scripts\n          python -I -m zipfile -l x.zip\n"
+            ),
+        })
+        with d:
+            self.assertEqual(check_stdlib_only.problems(root), [])
 
     def test_it_finds_the_ways_in(self):
         tries = {
+            # Python files: modules, names, programs.
             "an import": ("scripts/a.py", "import requests\n"),
             "a from import": ("scripts/a.py", "from yaml import safe_load\n"),
-            "a dotted import": ("scripts/a.py", "import google.protobuf\n"),
             "an import in a function": ("scripts/a.py", "def f():\n    import numpy\n"),
-            "a file outside scripts": ("tools/b.py", "import rich\n"),
-            "__import__": ("scripts/a.py", "__import__('requests')\n"),
-            "importlib": ("scripts/a.py", "import importlib\nimportlib.import_module('requests')\n"),
-            "importlib from": ("scripts/a.py", "from importlib import import_module\nimport_module('x')\n"),
-            "a computed name": ("scripts/a.py", "import importlib\nname = 'os'\nimportlib.import_module(name)\n"),
-            "python -m in a workflow": (".github/workflows/x.yml", "run: python3 -I -m pytest\n"),
-            "python -m in a hook": (".claude/hooks/x.sh", "python -m black .\n"),
-            "pip in a workflow": (".github/workflows/x.yml", "run: pip install requests\n"),
-            "python -m pip": (".github/workflows/x.yml", "run: python3 -m pip install x\n"),
-            "uv in a hook": (".claude/hooks/x.sh", "uv pip install x\n"),
-            "pipx in a script": ("scripts/a.py", "import subprocess\nsubprocess.run(['pipx', 'run', 'x'])\n"),
-            "npm in a workflow": (".github/workflows/x.yml", "run: npx some-tool\n"),
-            "a file that does not parse": ("scripts/a.py", "import (\n"),
-            # Ways to load code that an import list does not see: the modules
-            # and builtins that load code are refused as a whole.
+            "a module not on the list": ("scripts/a.py", "import importlib\n"),
+            "runpy": ("scripts/a.py", "import runpy\n"),
+            "ctypes": ("scripts/a.py", "import ctypes\n"),
             "exec": ("scripts/a.py", "exec('import requests')\n"),
             "eval": ("scripts/a.py", "eval('1')\n"),
-            "compile": ("scripts/a.py", "compile('x', 'x', 'exec')\n"),
-            "runpy": ("scripts/a.py", "import runpy\nrunpy.run_module('pytest')\n"),
-            "importlib.util": ("scripts/a.py", "import importlib.util\n"),
-            "from importlib": ("scripts/a.py", "from importlib.util import spec_from_file_location\n"),
-            "site": ("scripts/a.py", "import site\nsite.addsitedir('/opt/x')\n"),
-            "pkgutil": ("scripts/a.py", "import pkgutil\n"),
-            "zipimport": ("scripts/a.py", "import zipimport\n"),
-            "sys.path with a path outside": ("scripts/a.py", "import sys\nsys.path.insert(0, '/opt/site-packages')\n"),
-            "sys.path from the environment": ("scripts/a.py", "import os, sys\nsys.path.append(os.environ['X'])\n"),
+            "getattr": ("scripts/a.py", "getattr(__builtins__, 'exec')\n"),
+            "__import__": ("scripts/a.py", "__import__('requests')\n"),
+            "os.system": ("scripts/a.py", "import os\nos.system('pip install x')\n"),
+            "os.execvp": ("scripts/a.py", "import os\nos.execvp('pip', ['pip'])\n"),
+            "subprocess.Popen": ("scripts/a.py", "import subprocess\nsubprocess.Popen(['git'])\n"),
+            "a program not on the list": ("scripts/a.py", "import subprocess\nsubprocess.run(['pip', 'install', 'x'])\n"),
+            "sh -c": ("scripts/a.py", "import subprocess\nsubprocess.run(['sh', '-c', 'pip install x'])\n"),
+            "shell=True": ("scripts/a.py", "import subprocess\nsubprocess.run('git status', shell=True)\n"),
+            "a command in a variable": ("scripts/a.py", "import subprocess\ncmd = ['pip']\nsubprocess.run(cmd)\n"),
+            "a split string": ("scripts/a.py", "import subprocess\nsubprocess.run('pip install x'.split())\n"),
+            "an alias": ("scripts/a.py", "import subprocess as sp\nsp.Popen(['pip'])\n"),
+            "a from import of subprocess": ("scripts/a.py", "from subprocess import Popen\nPopen(['pip'])\n"),
+            "a module in a variable": ("scripts/a.py", "import os\nx = os\nx.system('pip')\n"),
+            "sys.path outside": ("scripts/a.py", "import sys\nsys.path.insert(0, '/opt/site-packages')\n"),
             "sys.path assigned": ("scripts/a.py", "import sys\nsys.path = ['/opt']\n"),
-            "sys.path extended": ("scripts/a.py", "import sys\nsys.path += ['/opt']\n"),
-            "PYTHONPATH in a workflow": (".github/workflows/x.yml", "env:\n  PYTHONPATH: /opt/x\n"),
-            "builtins.exec": ("scripts/a.py", "import builtins\nbuiltins.exec('import x')\n"),
-            "__builtins__": ("scripts/a.py", "__builtins__['exec']('import x')\n"),
-            "getattr": ("scripts/a.py", "getattr(__builtins__, 'exec')('import x')\n"),
-            "os.execvp": ("scripts/a.py", "import os\nos.execvp('pip', ['pip', 'install', 'x'])\n"),
-            "os.spawnlp": ("scripts/a.py", "import os\nos.spawnlp(os.P_WAIT, 'pip', 'pip', 'install', 'x')\n"),
-            "ctypes": ("scripts/a.py", "import ctypes\nctypes.CDLL('/tmp/x.so')\n"),
+            "sys.modules": ("scripts/a.py", "import sys\nsys.modules['x'] = None\n"),
+            "a file that does not parse": ("scripts/a.py", "import (\n"),
+            "subprocess.run kept in a name": ("scripts/a.py", "import subprocess\nr = subprocess.run\nr(['pip'])\n"),
+            "os.environ written": ("scripts/a.py", "import os\nos.environ['PYTHONPATH'] = '/opt'\n"),
+            "os.environ updated": ("scripts/a.py", "import os\nos.environ.update(PYTHONPATH='/opt')\n"),
+            "an environment key not on the list": ("scripts/a.py", "import os\nenv = dict(os.environ, PYTHONPATH='/opt')\n"),
+            "a file outside scripts": ("tools/b.py", "import rich\n"),
+            "a .pyw file": ("tools/b.pyw", "import rich\n"),
+            "a python shebang without .py": ("tools/run", "#!/usr/bin/env python3\nimport rich\n"),
+            "a deep target folder": ("scripts/target/a.py", "import rich\n"),
+            # Files that start Python.
+            "python -c": (".github/workflows/x.yml", "run: python3 -c 'import yaml'\n"),
+            "python from stdin": (".github/workflows/x.yml", "run: |\n  python3 - <<'PY'\n  import yaml\n  PY\n"),
+            "python -m not on the list": (".github/workflows/x.yml", "run: python3 -I -m pytest\n"),
+            "python -m pip": (".github/workflows/x.yml", "run: python3 -m pip install x\n"),
+            "python without -I": (".github/workflows/x.yml", "run: python3 scripts/a.py\n"),
+            "flags together": (".github/workflows/x.yml", "run: python3 -Im pytest\n"),
+            "py launcher": (".github/workflows/x.yml", "run: py -m pytest\n"),
+            "a path outside scripts": (".github/workflows/x.yml", "run: python3 -I /tmp/get-pip.py\n"),
+            "after a hash in a string": (".github/workflows/x.yml", "run: echo 'a #1'; python3 -m pytest\n"),
+            "a hook": (".claude/hooks/x.sh", "python3 -c 'import yaml'\n"),
+            "a hook in a variable": (".claude/hooks/x.sh", "py=python3\n\"$py\" -c 'import yaml'\n"),
+            "a hook command in settings": (".claude/settings.json", '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "python3 -c x"}]}]}}\n'),
+            "a composite action": (".github/actions/a/action.yml", "runs:\n  using: composite\n  steps:\n    - run: python3 -m pytest\n"),
         }
         for name, (rel, text) in tries.items():
-            with self.subTest(name), tempfile.TemporaryDirectory() as d:
-                root = pathlib.Path(d)
-                write(root, "scripts/ok.py", "import os\n")
-                write(root, rel, text)
-                self.assertTrue(check_stdlib_only.problems(root), "見つけられなかった")
+            with self.subTest(name):
+                d, root = repo({"scripts/ok.py": "import os\n", rel: text})
+                with d:
+                    self.assertTrue(check_stdlib_only.problems(root), "見つけられなかった")
 
-    def test_it_accepts_the_standard_library_and_local_modules(self):
-        with tempfile.TemporaryDirectory() as d:
-            root = pathlib.Path(d)
-            write(root, "scripts/icon/make_art.py", "import math\n")
-            write(root, "scripts/helper.py", "from __future__ import annotations\nimport json, os.path\n")
-            write(root, "scripts/a.py", "import helper\nimport make_art\nfrom . import helper\n")
-            # The ways the tests of the repository find their modules.
-            write(
-                root,
-                "scripts/test_a.py",
-                "import pathlib, re, sys\n"
-                "ROOT = pathlib.Path(__file__).resolve().parent.parent\n"
-                "sys.path.insert(0, str(ROOT / 'scripts' / 'icon'))\n"
-                "sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))\n"
-                "re.compile('x')\n",
-            )
-            write(root, ".github/workflows/x.yml", "run: python3 -I -m unittest discover -s scripts\nrun: python3 -m zipfile -l x.zip\n")
+    def test_ignored_files_are_left_out(self):
+        # Build output that git ignores is not the repository's code.
+        d, root = repo({".gitignore": "/target\n", "target/x/a.py": "import requests\n"})
+        with d:
             self.assertEqual(check_stdlib_only.problems(root), [])
 
-    def test_the_directories_of_tools_are_skipped(self):
-        # Build output and git data are not the repository's code.
+    def test_a_folder_that_is_not_a_repository_fails(self):
         with tempfile.TemporaryDirectory() as d:
-            root = pathlib.Path(d)
-            write(root, "target/x/a.py", "import requests\n")
-            write(root, ".git/hooks/a.py", "import requests\n")
-            self.assertEqual(check_stdlib_only.problems(root), [])
+            self.assertTrue(check_stdlib_only.problems(pathlib.Path(d)))
 
 
 if __name__ == "__main__":
