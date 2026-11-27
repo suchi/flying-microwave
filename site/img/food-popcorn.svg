@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="256" viewBox="0 202 192 256">
+<!-- Made by scripts/icon/make_art.py from assets/sprites. Do not edit by hand. -->
+<g transform="translate(0 202)">
+    <rect width="192" height="256" fill="#f6f1e6"/>
+    <rect x="0" y="0" width="16" height="256" fill="#d64545"/>
+    <rect x="32" y="0" width="16" height="256" fill="#d64545"/>
+    <rect x="64" y="0" width="16" height="256" fill="#d64545"/>
+    <rect x="96" y="0" width="16" height="256" fill="#d64545"/>
+    <rect x="128" y="0" width="16" height="256" fill="#d64545"/>
+    <rect x="160" y="0" width="16" height="256" fill="#d64545"/>
+    <rect x="36" y="78" width="120" height="100" rx="14" fill="#f6f1e6"/>
+    <circle cx="72" cy="118" r="14" fill="#f5d36b"/>
+    <circle cx="96" cy="108" r="16" fill="#f5d36b"/>
+    <circle cx="120" cy="120" r="14" fill="#f5d36b"/>
+    <circle cx="84" cy="140" r="15" fill="#f5d36b"/>
+    <circle cx="108" cy="142" r="15" fill="#f5d36b"/>
+    <circle cx="96" cy="128" r="13" fill="#f5d36b"/>
+    <rect x="0" y="0" width="192" height="18" fill="#c23a3a"/>
+  </g>
+</svg>

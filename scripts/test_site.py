@@ -237,16 +237,44 @@ class SiteTest(unittest.TestCase):
         self.assertIsNotNone(m, "prefers-reduced-motion: reduce の指定がない")
         self.assertRegex(m.group(1), r"animation\s*:\s*none")
 
-    def test_the_pictures_hold_only_the_microwave_sheets(self):
+    def test_the_microwave_pictures_hold_only_the_microwave_sheets(self):
         # Review: other sheets (food) may get pictures of features the
         # offered release lacks, or of hidden features later (N-01).
         allowed = {"door", "interior", "led"} | {f"body-{c}" for c in make_art.SITE_COLORS}
-        for path in sorted((SITE / "img").glob("*.svg")):
+        pictures = sorted((SITE / "img").glob("microwave-*.svg"))
+        self.assertTrue(pictures, "電子レンジの絵がない")
+        for path in pictures:
             text = path.read_text(encoding="utf-8")
             sheets = set(re.findall(r'<g id="([a-z-]+)">', text))
             self.assertTrue(sheets, path)
             self.assertLessEqual(sheets, allowed, f"{path} に電子レンジのほかのシートがある")
             self.assertNotRegex(text, r"[ \t]+\n", f"{path} に行末の空白がある")
+
+    def test_the_food_pictures_hold_one_face_each(self):
+        # Plan 0006, D-8: each food picture copies only its own face of the
+        # food sheet, never the whole sheet (N-01).
+        pictures = sorted((SITE / "img").glob("food-*.svg"))
+        self.assertEqual(
+            sorted(p.name for p in pictures),
+            sorted(f"food-{name}.svg" for name in make_art.SITE_FOOD),
+        )
+        for path in pictures:
+            text = path.read_text(encoding="utf-8")
+            self.assertNotRegex(text, r'<g id="', f"{path} にシートの全体がある")
+            self.assertEqual(len(re.findall(r"<g transform=\"translate\(", text)), 1, f"{path} に面が1つだけではない")
+            self.assertNotRegex(text, r"<!--(?! Made by)", f"{path} にシートの注記が残っている")
+            self.assertNotRegex(text, r"[ \t]+\n", f"{path} に行末の空白がある")
+
+    def test_the_food_flies_but_is_not_shown_for_reduced_motion(self):
+        # Plan 0006, D-8 (1) and (2).
+        for rel in PAGES.values():
+            imgs = [dict(a) for t, a in parse(SITE / rel).tags if t == "img"]
+            food = sorted(a.get("src", "").rsplit("/", 1)[-1] for a in imgs if "food" in a.get("class", "").split())
+            self.assertEqual(food, sorted(f"food-{name}.svg" for name in make_art.SITE_FOOD), rel)
+        text = (SITE / "style.css").read_text(encoding="utf-8")
+        m = re.search(r"@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{(.*?)\n\}", text, re.S)
+        self.assertIsNotNone(m, "prefers-reduced-motion: reduce の指定がない")
+        self.assertRegex(m.group(1), r"\.food\s*\{\s*display\s*:\s*none")
 
     def test_the_pictures_are_the_ones_make_art_makes(self):
         with tempfile.TemporaryDirectory() as d:

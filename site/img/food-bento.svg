@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="192" viewBox="0 0 256 192">
+<!-- Made by scripts/icon/make_art.py from assets/sprites. Do not edit by hand. -->
+<g transform="translate(0 0)">
+    <rect width="256" height="192" fill="#1d1f24"/>
+    <rect x="10" y="10" width="236" height="172" rx="6" fill="#2a2d33"/>
+    <rect x="16" y="16" width="120" height="160" rx="6" fill="#f4f1e8"/>
+    <circle cx="76" cy="96" r="9" fill="#c0392b"/>
+    <rect x="144" y="16" width="96" height="76" rx="6" fill="#f08a4b"/>
+    <rect x="152" y="30" width="80" height="10" rx="4" fill="#f6b78a"/>
+    <rect x="152" y="52" width="80" height="10" rx="4" fill="#f6b78a"/>
+    <rect x="144" y="100" width="96" height="76" rx="6" fill="#3f8f3a"/>
+    <circle cx="170" cy="126" r="12" fill="#5fb055"/>
+    <circle cx="212" cy="150" r="14" fill="#f2c94c"/>
+    <rect x="10" y="10" width="236" height="60" rx="6" fill="#ffffff" opacity="0.12"/>
+  </g>
+</svg>

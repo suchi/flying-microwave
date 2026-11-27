@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="446 340 128 128">
+<!-- Made by scripts/icon/make_art.py from assets/sprites. Do not edit by hand. -->
+<clipPath id="c"><circle cx="510" cy="404" r="64"/></clipPath><g clip-path="url(#c)"><g transform="translate(446 340)">
+    <rect width="128" height="128" fill="#4fa3a5"/>
+    <circle cx="64" cy="64" r="58" fill="#3b8385"/>
+    <circle cx="64" cy="64" r="52" fill="#7a4a2a"/>
+    <circle cx="52" cy="52" r="14" fill="#a26a40" opacity="0.6"/>
+  </g></g>
+</svg>

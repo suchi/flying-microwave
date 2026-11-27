@@ -129,6 +129,13 @@ a {
 .f4 { --w: clamp(60px, 7vw, 90px); --t: 56s; --d: -39s; --x: 135vw; --r: 6deg; --o: 0.6; --sx: 14vw; --sy: 12vh; }
 .f5 { --w: clamp(120px, 17vw, 200px); --t: 32s; --d: -14s; --x: 90vw; --r: 12deg; --o: 0.95; --sx: 44vw; --sy: 74vh; }
 
+/* The food flies with them, about as large as the smallest microwave
+   (plan 0006, D-8). It is not shown when motion is reduced (below). */
+.f6 { --w: clamp(42px, 5vw, 64px); --t: 44s; --d: -20s; --x: 105vw; --r: -18deg; --o: 0.85; }
+.f7 { --w: clamp(60px, 7vw, 88px); --t: 50s; --d: -16s; --x: 60vw; --r: 14deg; --o: 0.8; }
+.f8 { --w: clamp(44px, 5vw, 64px); --t: 40s; --d: -22s; --x: 140vw; --r: 0deg; --o: 0.95; }
+.f9 { --w: clamp(44px, 5vw, 64px); --t: 54s; --d: -33s; --x: 120vw; --r: 0deg; --o: 0.95; }
+
 .hero {
   position: relative;
   z-index: 1;
@@ -223,6 +230,11 @@ code {
   .f {
     animation: none;
     transform: translate(var(--sx), var(--sy)) rotate(var(--r));
+  }
+
+  /* Only the five microwaves stay still (plan 0006, D-8 (2)). */
+  .food {
+    display: none;
   }
 
   .dl {

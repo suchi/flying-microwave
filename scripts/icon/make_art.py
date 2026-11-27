@@ -209,15 +209,61 @@ def site_microwave(root, color):
     return standalone(root, [color], max(xs) - minx, max(ys) - miny, minx, miny, microwave(color, 1.0, 0, 0, 0))
 
 
+# The food of the landing page (plan 0006, D-8): one face of the food sheet
+# each, as (rect, whether it is cut to a circle). The mug and the bun are
+# seen from above, so their square faces are cut to their round outline.
+SITE_FOOD = {
+    "bento": (BENTO_TOP, False),
+    "popcorn": (POPCORN_FRONT, False),
+    "mug": ((446.0, 340.0, 128.0, 128.0), True),
+    "bun": ((266.0, 478.0, 128.0, 128.0), True),
+}
+
+
+def sheet_face(root, name, rect):
+    """The one group of a sprite sheet that is drawn at the corner of `rect`,
+    without the comments; the rest of the sheet is left out."""
+    text = (root / "assets" / "sprites" / name).read_text(encoding="utf-8")
+    x, y = rect[0], rect[1]
+    m = re.search(rf'(?s)<g transform="translate\({x:g} {y:g}\)">.*?</g>', text)
+    if m is None:
+        raise ValueError(f"{name} に ({x:g}, {y:g}) の面がない")
+    return re.sub(r"(?s)<!--.*?-->", "", m.group(0))
+
+
+def site_food(root, name):
+    """A food for the landing page: only its face, with a transparent
+    background outside a round one."""
+    rect, round_ = SITE_FOOD[name]
+    x, y, w, h = rect
+    body = sheet_face(root, "food.svg", rect)
+    if round_:
+        r = min(w, h) / 2
+        body = (
+            f'<clipPath id="c"><circle cx="{x + w / 2:g}" cy="{y + h / 2:g}" r="{r:g}"/></clipPath>'
+            f'<g clip-path="url(#c)">{body}</g>'
+        )
+    return "\n".join([
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w:g}" height="{h:g}" viewBox="{x:g} {y:g} {w:g} {h:g}">',
+        "<!-- Made by scripts/icon/make_art.py from assets/sprites. Do not edit by hand. -->",
+        body,
+        "</svg>",
+    ])
+
+
 def write_site(root, out):
     """Writes the pictures of the landing page into `out`; returns their names.
-    Only microwaves: the release the page offers (v0.2.0) has no flying food
-    (plan 0006, F-01)."""
+    The food is in it because the release the page offers (v0.3.0) has flying
+    food (plan 0006, F-01 and D-8)."""
     out.mkdir(parents=True, exist_ok=True)
     names = []
     for color in SITE_COLORS:
         name = f"microwave-{color}.svg"
         (out / name).write_text(site_microwave(root, color) + "\n", encoding="utf-8")
+        names.append(name)
+    for food_name in SITE_FOOD:
+        name = f"food-{food_name}.svg"
+        (out / name).write_text(site_food(root, food_name) + "\n", encoding="utf-8")
         names.append(name)
     return names
 
