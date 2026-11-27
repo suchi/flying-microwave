@@ -18,6 +18,7 @@
   - `actions/checkout`
   - `actions/upload-artifact`
   - `Swatinem/rust-cache`
+  - ランディングページ(計画0006)を公開するようになってからは、`actions/configure-pages`、`actions/upload-pages-artifact`、`actions/deploy-pages`の3つも許す。
 - [ ] 同じ画面で、「Require actions to be pinned to a full-length commit SHA」を有効にする(J-10)。
 - [ ] 「Workflow permissions」を「Read repository contents and packages permissions」にする(S-3)。
 - [ ] 同じ画面で、「Allow GitHub Actions to create and approve pull requests」を無効にする(S-3)。
@@ -26,7 +27,7 @@
 ### 1.2 空であること、余計なものがないことを確かめる
 
 - [ ] Settings → Secrets and variables の Actions、Dependabot、Codespaces が、どれも空(S-6)。
-- [ ] Settings → Environments が空(S-6)。
+- [ ] Settings → Environments が空(S-6)。ランディングページ(計画0006)を公開するようになってからは、Pagesが作る`github-pages`の環境だけがある。消さない。
 - [ ] Settings → Collaborators に、知らない人や招待がない(S-9)。
 - [ ] Settings → Webhooks が空(S-15)。
 - [ ] Settings → GitHub Apps(Integrations)で、入っているアプリと、それぞれの権限を確かめる(S-11)。Claude GitHub Appは、使うリポジトリだけに限る。
