@@ -52,6 +52,10 @@ jobs:
   deploy:
     name: Deploy
     needs: build
+    # Why: a manual run may start from any branch or tag; only main is
+    # published (plan 0006, D-1), whatever the github-pages environment
+    # allows.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
