@@ -32,7 +32,7 @@
 | [0002](plans/0002-phase1-tooling-proposal.md) | Phase 1のビルド・配布用ツールの提案 | 合意済み |
 | [0003](plans/0003-v0.1.1-smoke-test.md) | v0.1.1 スモークテストと実機での確認 | 完了(v0.1.1) |
 | [0004](plans/0004-v0.2.0-settings.md) | v0.2.0 設定画面(Phase 2) | 完了(v0.2.0) |
-| [0005](plans/0005-v0.3.0-visuals-and-clock.md) | v0.3.0 見た目と時計(Phase 3) | 合意済み |
+| [0005](plans/0005-v0.3.0-visuals-and-clock.md) | v0.3.0 見た目と時計(Phase 3) | 完了(v0.3.0) |
 | [0006](plans/0006-landing-page.md) | 利用者向けのランディングページ(GitHub Pages) | 合意済み |
 
 ## 調査
