@@ -33,6 +33,7 @@
 同じ日に、実装を見て、メンテナーが次を決めた(どれも推奨の案)。
 
 - D-4: AGENTS.mdの「セキュリティ」に、D-1の規則の1行を加える。AGENTS.mdの検証コマンドの表の「依存の公開からの日数」を、ツールチェーンも確かめる形(`--rust-toolchain rust-toolchain.toml`)にする。CIとリリースのワークフローの「Check dependency cooldown」の段に、同じ引数を加える。
+- D-6: `scripts/check_stdlib_only.py`の範囲。Pythonのファイルは許可の一覧で確かめ、ワークフローとフックは、Pythonの起動の形だけを許可の一覧で確かめる。シェルのそのほかの中身は、それらのファイルの変更に要るメンテナーの承認と本格的なレビューに頼る(PRの前のレビューの指摘M-1を受けて決めた。[ADR-0030](../adr/0030-cooldown-on-everything-brought-in.md)の「決定」)。
 - D-5(E-1を決めた): ワークフローのロックファイルは、いまは採らず、調べた結果と見直す条件を[ADR-0030](../adr/0030-cooldown-on-everything-brought-in.md)に記録する。
 
 ## 実装の方式(エージェントの案)
