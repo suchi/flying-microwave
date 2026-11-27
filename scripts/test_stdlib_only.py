@@ -110,12 +110,31 @@ class StdlibOnlyTest(unittest.TestCase):
             "a hook in a variable": (".claude/hooks/x.sh", "py=python3\n\"$py\" -c 'import yaml'\n"),
             "a hook command in settings": (".claude/settings.json", '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "python3 -c x"}]}]}}\n'),
             "a composite action": (".github/actions/a/action.yml", "runs:\n  using: composite\n  steps:\n    - run: python3 -m pytest\n"),
+            # Slips that can happen without meaning to (re-review of plan
+            # 0007, M-A and M-B; the check guards against slips, D-7).
+            "an absolute path to python": (".github/workflows/x.yml", "run: /usr/bin/python3 -c 'import yaml'\n"),
+            "Python in capitals": (".github/workflows/x.yml", "run: Python -c 'import yaml'\n"),
+            "an escaped new line in YAML": (".github/workflows/x.yml", "run: \"echo a\\npython3 -c 'import yaml'\"\n"),
+            "a second line in a settings command": (".claude/settings.json", '{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "# x\\npython3 -c x"}]}]}}\n'),
+            "a script path leaving scripts": (".github/workflows/x.yml", "run: python3 -I scripts/../tmp/get-pip.py\n"),
+            "a script git does not list": (".github/workflows/x.yml", "run: python3 -I scripts/missing.py\n"),
+            "unittest with a module name": (".github/workflows/x.yml", "run: python3 -I -m unittest yaml\n"),
+            "env as a dict literal": ("scripts/a.py", "import subprocess\nsubprocess.run(['git'], env={'PYTHONPATH': '/opt'})\n"),
+            "env changed after the copy": ("scripts/a.py", "import os, subprocess\nenv = dict(os.environ)\nenv['PYTHONPATH'] = '/opt'\nsubprocess.run(['git'], env=env)\n"),
+            "a private attribute of a module": ("scripts/a.py", "import tempfile\ntempfile._os.system('pip install x')\n"),
         }
         for name, (rel, text) in tries.items():
             with self.subTest(name):
                 d, root = repo({"scripts/ok.py": "import os\n", rel: text})
                 with d:
                     self.assertTrue(check_stdlib_only.problems(root), "見つけられなかった")
+
+    def test_a_file_outside_scripts_does_not_make_a_module_local(self):
+        # python3 -I puts only the script's own folder on sys.path, so a
+        # .py elsewhere does not stand in for a package (re-review, M-A).
+        d, root = repo({"docs/requests.py": "x = 1\n", "scripts/a.py": "import requests\n"})
+        with d:
+            self.assertTrue(check_stdlib_only.problems(root))
 
     def test_ignored_files_are_left_out(self):
         # Build output that git ignores is not the repository's code.

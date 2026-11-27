@@ -15,6 +15,16 @@ check is an allow list over everything that runs Python from the repository
   and the hook commands of .claude/settings.json): every Python start must be
   "python3 -I scripts/<file>.py" or "python3 -I -m <module on the list>".
 
+The check guards against slips: a script that comes to need a package from a
+registry without anyone meaning it (plan 0007, D-7). It does not stand
+against code written to get around it, which can as well change this check;
+that is left to the pull request and its review that every change to scripts/
+and the workflows goes through. Not reproduced here, so not guarded: how
+Python resolves a name (a module reached through another module's attribute,
+a builtin rebound in one scope), what the arguments of an allowed program do
+(git -c alias, cargo install, the sh -c of check_hooks.py), unittest loading
+a module by name, and where ROOT and __file__ point.
+
 What else a shell script runs is not read here: a shell has no grammar the
 standard library can parse, so a list of commands would be wrong in many
 places. Those files need the maintainer's approval and a full review to
@@ -84,8 +94,19 @@ PATH_ATTRS = {"Path", "resolve", "parent", "parents"}
 RUNNERS = re.compile(r"\.github/workflows/[^/]+\.ya?ml|\.github/actions/.+|\.claude/hooks/[^/]+|\.claude/settings(\.local)?\.json")
 # A word that starts Python in a shell: python, python3, python3.12, py,
 # with .exe, or a variable named py ($py, "$py", ${py}).
-PYTHON_WORD = re.compile(r"""(?<![\w./$-])(?:python(?:[0-9.]+)?|py)(?:\.exe)?(?![\w.-])|"?\$\{?py\}?"?(?![\w])""")
-PYTHON_ARGS = re.compile(r"\s+-I\s+(?:-m\s+([A-Za-z_][\w.]*)|scripts/[\w./-]+\.py)(?:\s|$|[;&|)])")
+# A path before the word (/usr/bin/python3) still starts Python, and Windows
+# finds Python in any case.
+PYTHON_WORD = re.compile(r"""(?<![\w.$-])(?:python(?:[0-9.]+)?|py)(?:\.exe)?(?![\w.-])|"?\$\{?py\}?"?(?![\w])""", re.I)
+# The forms a Python start may take: a script of scripts/ that git lists
+# (checked in runner_problems), or one of the module runs the workflows and
+# hooks use, with their arguments (unittest discover over scripts/, zipfile).
+PYTHON_ARGS = re.compile(
+    r"\s+-I\s+(?:"
+    r"(?P<script>scripts/(?:[\w-]+/)*[\w-]+\.py)"
+    r"|-m\s+unittest\s+discover\s+-s\s+scripts(?:\s+-p\s+[\w.*-]+)?"
+    r"|-m\s+zipfile\s+-[cl]"
+    r")(?=\s|$|[;&|)])"
+)
 # Lines that name Python without starting it with arguments, as they are.
 # Why: block-dangerous-git.sh looks for the first Python that runs (for c in
 # python3 python, then "$c" -c '' to see that it starts), keeps it in py and
@@ -166,6 +187,29 @@ def python_problems(rel, text, local):
     for n in ast.walk(tree):
         if isinstance(n, (ast.Import, ast.ImportFrom)):
             imported |= {(a.asname or a.name).split(".")[0] for a in n.names}
+    # Names that only ever hold a copy of os.environ with allowed keys, and
+    # names changed through a subscript (env["X"] = ...).
+    assigned = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Assign):
+            for target in n.targets:
+                if isinstance(target, ast.Name):
+                    assigned.setdefault(target.id, []).append(n.value)
+    environ_names = set()
+    while True:
+        more = {name for name, values in assigned.items() if all(is_environ_copy(v, environ_names) for v in values)}
+        if more <= environ_names:
+            break
+        environ_names |= more
+    changed = {
+        n.value.id for n in ast.walk(tree)
+        if isinstance(n, ast.Subscript) and isinstance(n.ctx, (ast.Store, ast.Del)) and isinstance(n.value, ast.Name)
+    }
+    changed |= {
+        n.func.value.id for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and isinstance(n.func.value, ast.Name)
+        and n.func.attr in ("update", "setdefault", "pop", "popitem", "clear", "__setitem__")
+    }
     found = []
 
     def say(node, message):
@@ -238,11 +282,45 @@ def python_problems(rel, text, local):
             for k in node.keywords:
                 if k.arg == "shell" and not (isinstance(k.value, ast.Constant) and k.value.value is False):
                     say(node, "shell= を使っている")
+                if k.arg == "env" and not (
+                    is_environ_copy(k.value, environ_names)
+                    or (isinstance(k.value, ast.Name) and k.value.id in environ_names and k.value.id not in changed)
+                ):
+                    # The environment of a child is os.environ with keys on
+                    # the list, and nothing else (re-review of plan 0007, M-A).
+                    say(node, "env= に、os.environ に許可したキーだけを足して写したもののほかを渡している")
+        if (
+            isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
+            and node.value.id in imported and node.attr.startswith("_")
+        ):
+            say(node, f"取り込んだモジュールの内側の名前 {node.value.id}.{node.attr} を使っている")
     return found
 
 
+def is_environ_copy(node, copies=()):
+    """dict(os.environ, KEY=...), or dict(<a name in copies>, KEY=...), with
+    keys on ENVIRONMENT_KEYS only."""
+    if not (
+        isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "dict"
+        and len(node.args) == 1 and all(k.arg in ENVIRONMENT_KEYS for k in node.keywords)
+    ):
+        return False
+    base = node.args[0]
+    if isinstance(base, ast.Name):
+        return base.id in copies
+    return (
+        isinstance(base, ast.Attribute) and isinstance(base.value, ast.Name)
+        and base.value.id == "os" and base.attr == "environ"
+    )
+
+
 def runner_lines(rel, text):
-    """The lines of a file that starts Python, to look for Python starts."""
+    """The lines of a file that starts Python, to look for Python starts.
+
+    A hook command of settings.json is split into its lines, as sh -c runs
+    each. In a workflow, the escapes \\n and \\t of a YAML double-quoted
+    string are read as a new line and a space, as YAML reads them (re-review
+    of plan 0007, M-B)."""
     if rel.name.startswith("settings") and rel.suffix == ".json":
         commands = []
 
@@ -257,11 +335,15 @@ def runner_lines(rel, text):
                     walk(v)
 
         walk(json.loads(text))
-        return [(0, c) for c in commands]
-    return [(n, line) for n, line in enumerate(text.splitlines(), 1)]
+        return [(0, line) for c in commands for line in c.splitlines()]
+    lines = []
+    for n, line in enumerate(text.splitlines(), 1):
+        for part in line.replace("\\n", "\n").replace("\\t", " ").split("\n"):
+            lines.append((n, part))
+    return lines
 
 
-def runner_problems(rel, text):
+def runner_problems(rel, text, files):
     found = []
     allowed = RUNNER_LINES.get(str(rel), set())
     for n, line in runner_lines(rel, text):
@@ -271,9 +353,9 @@ def runner_problems(rel, text):
         for m in PYTHON_WORD.finditer(line):
             args = PYTHON_ARGS.match(line, m.end())
             if args is None:
-                found.append(f"{rel}:{n}: Pythonを、-I scripts/<ファイル>.py か -I -m <モジュール> のほかの形で起動している")
-            elif args.group(1) and args.group(1).split(".")[0] not in MODULES:
-                found.append(f"{rel}:{n}: python -m で許可の一覧にないモジュール {args.group(1)}")
+                found.append(f"{rel}:{n}: Pythonを、-I scripts/<ファイル>.py か、一覧にある -I -m の形のほかの形で起動している")
+            elif args.group("script") and pathlib.PurePosixPath(args.group("script")) not in files:
+                found.append(f"{rel}:{n}: gitが一覧にしないスクリプト {args.group('script')} を起動している")
     return found
 
 
@@ -283,7 +365,11 @@ def problems(root):
         files = listed_files(root)
     except (OSError, subprocess.CalledProcessError) as e:
         return [f"gitでファイルの一覧を作れないため、確かめられない: {e}"]
-    local = {p.stem for p in files if p.suffix in (".py", ".pyw")}
+    # Only the .py files of scripts/ stand in for a module: python3 -I puts
+    # the script's own folder on sys.path, and the tests add scripts/ and
+    # scripts/icon/ (re-review of plan 0007, M-A).
+    local = {p.stem for p in files if p.suffix in (".py", ".pyw") and p.parts[0] == "scripts"}
+    listed = set(files)
     found = []
     for rel in files:
         path = root / rel
@@ -292,7 +378,7 @@ def problems(root):
         if is_python(root, rel):
             found += python_problems(rel, path.read_text(encoding="utf-8"), local)
         elif RUNNERS.fullmatch(str(rel)):
-            found += runner_problems(rel, path.read_text(encoding="utf-8"))
+            found += runner_problems(rel, path.read_text(encoding="utf-8"), listed)
     return found
 
 
