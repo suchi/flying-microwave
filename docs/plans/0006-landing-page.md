@@ -67,7 +67,7 @@ D-1〜D-4は、2026-11-27に、メンテナーが推奨の案で決めた(メン
    - Settings → Pages の Source を「GitHub Actions」にする。
    - Settings → Actions → General の許可するアクションに、`actions/configure-pages`、`actions/upload-pages-artifact`、`actions/deploy-pages`を加える。
    - 公開の手順の一覧の「空であること」の確認(Environments)は、Pagesが作る`github-pages`の環境を除いて読む。
-6. マージのあと、ワークフローの成功と、公開されたページの表示を確かめる。
+6. マージのあと、ワークフローの成功と、公開されたページの表示を確かめる。2026-11-27にPR #108でマージし、Pagesのワークフローの実行(45954516816)が成功した。同じ日に、`https://suchi.github.io/flying-microwave/`の日本語と英語のページ、絵、CSSが応答200で届き、ブラウザーで開いてほかのサイトへの要求が0件であることと、見た目を確かめた(エージェントの環境から`suchi.github.io`へ接続するため、メンテナーが環境の許可するホストに加えた)。
 7. 実機のスクリーンショットの撮り方をメンテナーに依頼し、受け取ったら差し替える(D-4)。
 
 ## あとで決めること
