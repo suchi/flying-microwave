@@ -34,7 +34,7 @@
 | [0004](plans/0004-v0.2.0-settings.md) | v0.2.0 設定画面(Phase 2) | 完了(v0.2.0) |
 | [0005](plans/0005-v0.3.0-visuals-and-clock.md) | v0.3.0 見た目と時計(Phase 3) | 完了(v0.3.0) |
 | [0006](plans/0006-landing-page.md) | 利用者向けのランディングページ(GitHub Pages) | 合意済み |
-| [0007](plans/0007-supply-chain-cooldown.md) | 外部から取り込むものすべてに、公開から7日の待ち(cooldown)をかける | 案 |
+| [0007](plans/0007-supply-chain-cooldown.md) | 外部から取り込むものすべてに、公開から7日の待ち(cooldown)をかける | 合意済み |
 
 ## 調査
 

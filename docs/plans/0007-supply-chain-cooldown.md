@@ -1,6 +1,6 @@
 # 0007: 外部から取り込むものすべてに、公開から7日の待ち(cooldown)をかける
 
-- ステータス: 案(2026-11-27)
+- ステータス: 合意済み(2026-11-27。メンテナーが案のとおりと判断した)
 - 日付: 2026-11-27
 - 関連: AGENTS.mdの「セキュリティ」(公開から7日以上たった版だけを使う)、[incident 0007](../incidents/0007-dependencies-inside-cooldown.md)、[ADR-0001](../adr/0001-use-rust.md)、`.github/dependabot.yml`、`scripts/check_publish_age.py`
 
