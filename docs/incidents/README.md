@@ -75,3 +75,4 @@
 | [0043](0043-delegated-implementation-skipped-tdd-red.md) | 実装を任せたサブエージェントが、先に失敗するテストを書かなかった | 2026-11-21 |
 | [0044](0044-site-check-fix-left-the-same-holes.md) | ページの読み込みの検査の抜け道を直したあとも、同じ種類の抜け道が残った | 2026-11-27 |
 | [0045](0045-actions-allow-list-entered-without-separators.md) | 公開の手順の一覧が許可するアクションの書き方を示さず、CIが始まらなくなった | 2026-11-27 |
+| [0046](0046-release-premise-without-diffing-the-last-tag.md) | 前の版のタグからの変更を確かめずに、正式なリリースの中身を「試作版と同じ機能」と書いた | 2026-11-27 |

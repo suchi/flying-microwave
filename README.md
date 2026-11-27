@@ -10,6 +10,7 @@
 
 ## 開発
 
+- [CONTRIBUTING.md](CONTRIBUTING.md): 貢献のしかた
 - [開発参加者向けオンボーディング](docs/development/onboarding.md)
 - [AGENTS.md](AGENTS.md): 開発の規則
 - [docs/](docs/README.md): 計画、設計、判断の記録(ADR)
