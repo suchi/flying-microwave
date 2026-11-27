@@ -137,3 +137,4 @@
 | [0041](incidents/0041-dates-written-in-utc.md) | 記録の日付を、JSTに直さずにUTCの日付で書いた |
 | [0042](incidents/0042-rule-change-not-reflected-in-other-docs.md) | 規則を変えたときに、同じ説明を書いたほかの文書を直し漏らした(再発) |
 | [0043](incidents/0043-delegated-implementation-skipped-tdd-red.md) | 実装を任せたサブエージェントが、先に失敗するテストを書かなかった |
+| [0044](incidents/0044-site-check-fix-left-the-same-holes.md) | ページの読み込みの検査の抜け道を直したあとも、同じ種類の抜け道が残った |
