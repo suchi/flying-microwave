@@ -239,3 +239,15 @@ code {
   .f4 { --sx: 8vw; --sy: 13vh; }
   .f5 { --sx: 38vw; --sy: 88vh; }
 }
+
+/* On a low screen (a low window, a phone on its side) the text fills the
+   height, so the still microwaves are made small and kept to the left and
+   right edges (re-review of plan 0006, L-1; the maintainer chose this). */
+@media (prefers-reduced-motion: reduce) and (max-height: 720px) and (min-width: 601px) {
+  .f { --w: clamp(56px, 8vw, 104px); }
+  .f1 { --sx: calc(98vw - var(--w)); --sy: 22vh; }
+  .f2 { --sx: 2vw; --sy: 62vh; }
+  .f3 { --sx: calc(98vw - var(--w)); --sy: 66vh; }
+  .f4 { --sx: 2vw; --sy: 12vh; }
+  .f5 { --sx: 2vw; --sy: 37vh; }
+}
