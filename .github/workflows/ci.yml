@@ -50,10 +50,11 @@ jobs:
       - name: Check Claude Code hooks
         run: python3 -I scripts/check_hooks.py
 
-      # Supply-chain defense: every crates.io version in the lock files, and the
-      # tools installed below, must have been public for at least 7 days, the
-      # same cooldown as .github/dependabot.yml. Local cargo runs are not
-      # covered by Dependabot's cooldown (docs/incidents/0007).
+      # Supply-chain defense: every crates.io version in the lock files, the
+      # tools installed below and the Rust toolchain must have been public for
+      # at least 7 days, the same cooldown as .github/dependabot.yml. Local
+      # cargo runs are not covered by Dependabot's cooldown
+      # (docs/incidents/0007; the toolchain: plan 0007, D-2).
       - name: Check dependency cooldown
         run: |
           python3 -I -m unittest discover -s scripts
@@ -62,6 +63,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$tool.crate" -C "$RUNNER_TEMP" "$tool/Cargo.lock"
           python3 -I scripts/check_publish_age.py \
             --crate "cargo-about@${CARGO_ABOUT_VERSION}" \
+            --rust-toolchain rust-toolchain.toml \
             Cargo.lock \
             "$RUNNER_TEMP/$tool/Cargo.lock"
 
