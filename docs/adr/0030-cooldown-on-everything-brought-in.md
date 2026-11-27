@@ -16,6 +16,8 @@ AGENTS.mdの「セキュリティ」は、依存(間接の依存とCIで入れ�
 | Rustのツールチェーン(`rust-toolchain.toml`) | `check_publish_age.py`の`--rust-toolchain`(計画0007のD-2で加えた) |
 | GitHub Actionsのアクション | Dependabotの`cooldown`(7日)と、完全なコミットのSHAでの固定 |
 | Pythonのパッケージ | 使わない。`scripts/check_stdlib_only.py`が確かめる(計画0007のD-1) |
+| resvg(`.ico`を作るときに手元で使う。`scripts/icon/make_ico.py`の`RESVG_VERSION`で版を固定) | 版を変えるときに、手で`check_publish_age.py --crate`を実行する(onboardingの手順) |
+| actionlint(ワークフローの検査に手元で使う。onboardingで版を示す) | 版を変えるときに、人が公開日を確かめる |
 | GitHubのランナーの中の道具(Python、jq、curl、rustup、ghなど) | なし(下の「決定」) |
 | 手元の道具(メンテナーとエージェントの環境のPython、jq、Claude Code、ブラウザーなど) | なし(下の「決定」) |
 
@@ -41,9 +43,9 @@ AGENTS.mdの「セキュリティ」は、依存(間接の依存とCIで入れ�
 
 ## 結果
 
-- メリット: リポジトリが版を選ぶものは、すべて7日の待ちを機械で確かめる(GitHub Actionsは、Dependabotの更新に限る)。
+- メリット: CIとリリースで使うもの(Rustの依存、cargo-about、ツールチェーン)は、7日の待ちを機械で確かめる。GitHub Actionsは、Dependabotの更新に待ちがかかる。Pythonは外部のパッケージを使わない。
 - デメリット・受け入れたトレードオフ:
   - ランナーと手元の道具の版は、7日の待ちの外にある。
-  - 手で加えるアクションの版は、人の確認だけになる。
+  - 手で加えるアクションの版と、手元で使う道具(resvg、actionlint)の版は、人の確認だけになる。
   - `check_publish_age.py`は`tomllib`を使うため、Python 3.11以上が要る。
 - 将来の見直し条件: タグで中のアクションを呼ぶアクションを加えるとき。`gh actions-lock`が1.0になるときか、待ちを強制できるようになるとき。手で加えたアクションの版の誤りが起きたとき。Pythonの外部のパッケージが必要になったとき。

@@ -150,9 +150,9 @@ def check_toolchain(version, now, cooldown, toolchain_date):
 
     Why the end of the day: the manifest gives a day, not a time, so the day
     is counted as ending at 24:00 UTC and the wait is never shorter than the
-    cooldown. The manifest date can be later than the announced release
-    (1.99.1: manifest 2026-10-15, announced 2026-10-13), which only makes the
-    wait longer."""
+    cooldown. The manifest also has a date in its version strings (1.99.1:
+    "1.99.1 (58cf8f9c3 2026-10-13)", next to git_commit_hash), which is not
+    used: the manifest date (2026-10-15) is the later of the two."""
     date = toolchain_date(version)
     if date is None:
         return [f"Rust {version}: 配布の情報(channel-rust-{version}.toml)に日付が見つからない"]

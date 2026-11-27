@@ -18,6 +18,7 @@
 | Pythonのスクリプト(`scripts/`の20本) | 標準ライブラリだけを使い、外部のパッケージを入れていない。ただし、それを保つ決まりと検査はない | すべての`.py`のimportを抜き出して確かめた。`requirements.txt`や`pyproject.toml`はない。ワークフローにpipなどはない |
 | Rustのツールチェーン(`rust-toolchain.toml`の1.99.1) | 版を固定している。公開からの日数の検査はない | `rust-toolchain.toml`、ADR-0001 |
 | GitHubのランナーに入っているもの(Python、jq、curl、rustup、ghなど) | 対策できない(GitHubが更新する) | ワークフローは`setup-python`などを使わず、ランナーの`python3`を使う |
+| 手元で使う道具のうち、リポジトリが版を示すもの(resvg、actionlint) | 版を変えるときの手作業の確認だけ(resvgは`check_publish_age.py --crate`) | `scripts/icon/make_ico.py`の`RESVG_VERSION`、onboardingのactionlintの版(レビューの指摘L-3で加えた) |
 
 ## 判断していただいたこと
 
