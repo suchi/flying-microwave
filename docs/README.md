@@ -36,6 +36,7 @@
 | [0006](plans/0006-landing-page.md) | 利用者向けのランディングページ(GitHub Pages) | 合意済み |
 | [0007](plans/0007-supply-chain-cooldown.md) | 外部から取り込むものすべてに、公開から7日の待ち(cooldown)をかける | 完了 |
 | [0008](plans/0008-agents-md-reorganization.md) | AGENTS.mdを原則だけにし、手順を文書へ移す | 合意済み |
+| [0009](plans/0009-v0.4.0-standalone-and-one-space.md) | v0.4.0 単独アプリと、複数の画面を1つの空間にする機能 | 案 |
 
 ## 調査
 
