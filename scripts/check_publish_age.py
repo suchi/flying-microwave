@@ -23,6 +23,7 @@ import json
 import pathlib
 import re
 import sys
+import tomllib
 import urllib.error
 import urllib.request
 
@@ -111,6 +112,59 @@ def check(packages, now, cooldown, fetch):
     return problems
 
 
+TOOLCHAIN_MANIFEST_URL = "https://static.rust-lang.org/dist/channel-rust-{}.toml"
+EXACT_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+
+
+def toolchain_version(path):
+    """The channel of a rust-toolchain.toml, which must be an exact version
+    (plan 0007, D-2). A channel name or a version without its patch number
+    moves, so its age cannot be known: it raises ValueError (fail closed)."""
+    with open(path, "rb") as f:
+        channel = tomllib.load(f).get("toolchain", {}).get("channel")
+    if not isinstance(channel, str) or not EXACT_VERSION.fullmatch(channel):
+        raise ValueError(f"{path} の channel が正確な版(X.Y.Z)でない: {channel!r}")
+    return channel
+
+
+def manifest_date(text):
+    """The date at the top of a Rust channel manifest, or None."""
+    date = tomllib.loads(text).get("date")
+    return date if isinstance(date, str) else None
+
+
+def fetch_toolchain_date(version):
+    """The date of a Rust release in its channel manifest on
+    static.rust-lang.org, or None when there is no such release."""
+    try:
+        with urllib.request.urlopen(TOOLCHAIN_MANIFEST_URL.format(version), timeout=60) as response:
+            return manifest_date(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+
+
+def check_toolchain(version, now, cooldown, toolchain_date):
+    """Problems with the age of a Rust toolchain (empty when it passes).
+
+    Why the end of the day: the manifest gives a day, not a time, so the day
+    is counted as ending at 24:00 UTC and the wait is never shorter than the
+    cooldown. The manifest also has a date in its version strings (1.99.1:
+    "1.99.1 (58cf8f9c3 2026-10-13)", next to git_commit_hash), which is not
+    used: the manifest date (2026-10-15) is the later of the two."""
+    date = toolchain_date(version)
+    if date is None:
+        return [f"Rust {version}: 配布の情報(channel-rust-{version}.toml)に日付が見つからない"]
+    published = dt.datetime.fromisoformat(date).replace(tzinfo=dt.timezone.utc) + dt.timedelta(days=1)
+    if published > now - cooldown:
+        return [
+            f"Rust {version}: 配布の情報の日付は{date}で、その日の終わりから{cooldown.days}日たつのは"
+            f"{(published + cooldown).isoformat()}"
+        ]
+    return []
+
+
 def use_utf8_output():
     """Write the Japanese messages as UTF-8 on every platform.
 
@@ -124,13 +178,23 @@ def use_utf8_output():
             stream.reconfigure(encoding="utf-8")
 
 
-def main(argv=None, now=None, fetch=fetch_index):
+def main(argv=None, now=None, fetch=fetch_index, toolchain_date=fetch_toolchain_date):
     use_utf8_output()
     parser = argparse.ArgumentParser(description="依存の版の公開からの日数を確かめる")
     parser.add_argument("lockfiles", nargs="*", help="確かめるCargo.lock")
     parser.add_argument("--crate", action="append", default=[], metavar="NAME@VERSION")
+    parser.add_argument("--rust-toolchain", metavar="PATH", help="版を確かめるrust-toolchain.toml")
     parser.add_argument("--days", type=int, default=DEFAULT_DAYS)
     args = parser.parse_args(argv)
+    now = now or dt.datetime.now(dt.timezone.utc)
+    cooldown = dt.timedelta(days=args.days)
+
+    toolchain_problems = []
+    if args.rust_toolchain:
+        try:
+            toolchain_problems = check_toolchain(toolchain_version(args.rust_toolchain), now, cooldown, toolchain_date)
+        except (OSError, ValueError) as e:
+            toolchain_problems = [f"Rustのツールチェーンの公開日を確かめられない: {e}"]
 
     packages = []
     others = []
@@ -145,17 +209,16 @@ def main(argv=None, now=None, fetch=fetch_index):
         packages += registry_packages(text)
         others += [f"{n} {v}: crates.io以外の依存({s})で、公開日時を確かめられない({lock})" for n, v, s in other_sources(text)]
 
-    now = now or dt.datetime.now(dt.timezone.utc)
     try:
-        problems = check(packages, now, dt.timedelta(days=args.days), fetch)
+        problems = check(packages, now, cooldown, fetch)
     except (OSError, ValueError) as e:
         # Fail closed: an unverified version must not pass.
         print(f"crates.ioの索引を読めなかったため、確かめられない: {e}", file=sys.stderr)
         return 1
-    problems = others + problems
+    problems = others + toolchain_problems + problems
     for problem in problems:
         print(problem, file=sys.stderr)
-    count = len(set(packages)) + len(others)
+    count = len(set(packages)) + len(others) + (1 if args.rust_toolchain else 0)
     if problems:
         print(f"公開から{args.days}日たっていない版、または確かめられない版がある({len(problems)}件 / {count}件)", file=sys.stderr)
         return 1

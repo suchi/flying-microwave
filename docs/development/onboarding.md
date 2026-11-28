@@ -187,10 +187,10 @@ CIと同じ手順で、ローカルでビルドとテストを行う方法であ
    Copy-Item target\x86_64-pc-windows-msvc\release\flying-microwave.exe FlyingMicrowave.scr
    ```
 
-5. 依存の7日の検査。`Cargo.lock`を変えたときは、コミットの前に必ず実行する(AGENTS.md)。
+5. 依存の7日の検査。`Cargo.lock`か`rust-toolchain.toml`を変えたときは、コミットの前に必ず実行する(AGENTS.md)。
 
    ```powershell
-   python -I scripts/check_publish_age.py Cargo.lock
+   python -I scripts/check_publish_age.py --rust-toolchain rust-toolchain.toml Cargo.lock
    ```
 
 6. フックの検査。LinuxとmacOSでのフックの起動(`sh -c`と実行権限)を確かめるもので、LinuxかmacOS(WindowsではWSL)で実行する。`sh`と`jq`を使う。Windowsのpythonで実行すると、対象外と表示して終わる。CIのLinuxのジョブが毎回実行するので、フックを変えないときは、ローカルで実行しなくてよい。
@@ -204,7 +204,7 @@ Linux と macOS では、手順2・5・6と型チェックを実行できる。P
 ```bash
 cargo test --workspace --locked
 cargo check --workspace --all-targets --locked --target x86_64-pc-windows-msvc
-python3 -I scripts/check_publish_age.py Cargo.lock
+python3 -I scripts/check_publish_age.py --rust-toolchain rust-toolchain.toml Cargo.lock
 python3 -I scripts/check_hooks.py
 ```
 
@@ -372,7 +372,7 @@ python3 -I scripts/icon/make_ico.py
 
 `.claude/`の下のすべて(`settings.json`、`hooks/`、`commands/`、`skills/`、`agents/`など)、`.mcp.json`、`.github/workflows/`、`.github/dependabot.yml`、`AGENTS.md`、`CLAUDE.md`、`.agents/skills/`の変更は、メンテナーの承認を得てから行う(AGENTS.mdの「セキュリティ」)。Dependabotの`cooldown`はサプライチェーン攻撃への対策なので、承認なしに削除・無効化しない。
 
-依存の公開からの日数: Dependabotの`cooldown`(7日)は、ローカルでの`cargo`の解決には効かない。cargo 1.99の安定版には、同じ設定もない(`min-publish-age`は`-Zmin-publish-age`が必要)。そのため、`scripts/check_publish_age.py`で、ロックファイルのcrates.ioのすべての版と、CIで入れるツール(cargo-about)の版とそのロックファイルが、公開から7日以上たっているかを確かめる。公開日時は、crates.ioの索引の`pubtime`を使う。索引に版が見つからない場合、公開日時のない版、crates.io以外から来る依存(gitなど)、索引を読めない場合も失敗にする。CIのLinuxのジョブが毎回実行し、配布物を作るWindowsのジョブはその成功を待つ(`needs: linux`)。GitHub Actionsの版とRustのツールチェーンは、この検査の対象外である(incidents 0007の対策5)。ローカルで`Cargo.lock`を変えたときは、コミットの前に実行する(AGENTS.mdの検証コマンド)。新しい依存を加えたいのに検査を通らないときは、7日以上前に公開された版を選ぶか、7日たつまで待つ([incidents 0007](../incidents/0007-dependencies-inside-cooldown.md))。
+依存の公開からの日数: Dependabotの`cooldown`(7日)は、ローカルでの`cargo`の解決には効かない。cargo 1.99の安定版には、同じ設定もない(`min-publish-age`は`-Zmin-publish-age`が必要)。そのため、`scripts/check_publish_age.py`で、ロックファイルのcrates.ioのすべての版と、CIで入れるツール(cargo-about)の版とそのロックファイルが、公開から7日以上たっているかを確かめる。公開日時は、crates.ioの索引の`pubtime`を使う。索引に版が見つからない場合、公開日時のない版、crates.io以外から来る依存(gitなど)、索引を読めない場合も失敗にする。CIのLinuxのジョブが毎回実行し、配布物を作るWindowsのジョブはその成功を待つ(`needs: linux`)。Rustのツールチェーン(`rust-toolchain.toml`の版)も、`--rust-toolchain`で確かめる。公開日は、Rustの公式の配布の情報(`static.rust-lang.org`の`channel-rust-<版>.toml`の`date`)を使い、その日の終わりから数える。`channel`が正確な版(X.Y.Z)でないときも失敗にする([計画0007](../plans/0007-supply-chain-cooldown.md)のD-2)。GitHub Actionsの版は、この検査の対象外で、Dependabotの`cooldown`とコミットのSHAでの固定で守る(incidents 0007の対策5、計画0007のE-1)。Pythonのスクリプトは標準ライブラリだけを使い、`scripts/check_stdlib_only.py`(スクリプトのテストで動く)が確かめる(計画0007のD-1)。ローカルで`Cargo.lock`か`rust-toolchain.toml`を変えたときは、コミットの前に実行する(AGENTS.mdの検証コマンド)。新しい依存を加えたいのに検査を通らないときは、7日以上前に公開された版を選ぶか、7日たつまで待つ([incidents 0007](../incidents/0007-dependencies-inside-cooldown.md))。
 
 ### 6.4 モデルの使い分け
 

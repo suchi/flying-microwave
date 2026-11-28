@@ -29,7 +29,7 @@ GitHub Copilot・Claude Code・Codexすべてに対する指示の単一ソー�
 | リント・フォーマット | `cargo fmt --all --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`                                         |
 | 型チェック           | `cargo check --workspace --all-targets --locked`(Windows固有のコードはLinuxでも`--target x86_64-pc-windows-msvc`を付けて確認できる) |
 | ビルド               | `cargo build --release --locked`                                                                                                    |
-| 依存の公開からの日数 | `python3 -I scripts/check_publish_age.py Cargo.lock`                                                                                |
+| 依存の公開からの日数 | `python3 -I scripts/check_publish_age.py --rust-toolchain rust-toolchain.toml Cargo.lock`(`Cargo.lock`か`rust-toolchain.toml`を変えたとき) |
 | スクリプトのテスト   | `python3 -I -m unittest discover -s scripts`(`scripts/`のPythonのスクリプト、`docs/incidents/`、`docs/README.md`、`CHANGELOG.md`、`docs/development/hardware-check-*.md`、「規則の写し」の表の文書を変えたとき) |
 | ワークフローの検査   | `actionlint`(`.github/workflows/`を変えたとき)                                                                                      |
 | フックの動作         | `python3 -I scripts/check_hooks.py`(`.claude/settings.json`に登録したすべてのフックを、LinuxとmacOSでの起動(`sh -c`)のとおりに起動して確かめる)            |
@@ -155,7 +155,9 @@ GitHub Actionsは、必要な実行(PRのCI、成果物を作る手動実行)は
 - シークレット・トークン・認証情報をハードコードしない。`.env`等のシークレットファイルをコミットしない。シークレットの値を会話・ログ・PR本文に貼らない。
 - 外部入力は検証し、ファイルパス・利用者の入力をサニタイズする。
 - 依存関係は安定版・メンテナンスされているものを使う。追加前にレジストリで実在・正確な名前を確認する(タイポスクワッティング対策)。
-- 依存関係(間接の依存とCIで入れるツールを含む)は、公開から7日以上たった版だけを使う(サプライチェーン攻撃対策。Dependabotの`cooldown`と同じ日数)。Dependabotの`cooldown`は、ローカルでの`cargo`の解決には効かない。`Cargo.lock`を作ったり変えたりしたとき、CIで入れるツールの版を変えたときは、コミットの前に検証コマンドの表の「依存の公開からの日数」を実行し、通らない版は使わない。CIでも同じ検査を行う([docs/incidents/0007](docs/incidents/0007-dependencies-inside-cooldown.md))。
+- 依存関係(間接の依存とCIで入れるツールを含む)は、公開から7日以上たった版だけを使う(サプライチェーン攻撃対策。Dependabotの`cooldown`と同じ日数)。Dependabotの`cooldown`は、ローカルでの`cargo`の解決には効かない。`Cargo.lock`を作ったり変えたりしたとき、`rust-toolchain.toml`の版を変えたとき、CIで入れるツールの版を変えたときは、コミットの前に検証コマンドの表の「依存の公開からの日数」を実行し、通らない版は使わない。CIでも同じ検査を行う([docs/incidents/0007](docs/incidents/0007-dependencies-inside-cooldown.md)、計画0007のD-2)。
+- Pythonのスクリプトは、標準ライブラリだけを使う。外部のパッケージを加えるときは、メンテナーの承認を得て、版をハッシュ付きで固定し、Dependabotの`cooldown`と公開からの日数の検査をそろえる(`scripts/check_stdlib_only.py`がCIで確かめる。計画0007のD-1)。
+- 安全のための検査(読み込み、権限、入力、依存の検査など)を新しく作るときや広げるときは、設計の段で、検査が守る相手(うっかり、外部の人の入力、わざとの書き換えなど)を決めて守らないものを書き、守る対象の全体(一次情報で確かめた範囲)と許可の一覧を決め、許可の一覧にできない部分があれば、その部分と代わりに頼るもの(承認、レビューなど)を、設計の報告と敵対的レビューの依頼文に書く。自分で試して見つけた抜け道も、`docs/development/review-process.md`の「対応」の行と同じに扱う(2026-11-27にメンテナーが承認した。[docs/incidents/0044](docs/incidents/0044-site-check-fix-left-the-same-holes.md)の「その後の再発(2回目)」)。
 - 生成コードも通常の検証フローを通す。セキュリティに影響する変更(認証・権限・入力処理・暗号)はPR本文で明示する。
 
 エージェントの振る舞いについて:

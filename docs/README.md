@@ -34,6 +34,7 @@
 | [0004](plans/0004-v0.2.0-settings.md) | v0.2.0 設定画面(Phase 2) | 完了(v0.2.0) |
 | [0005](plans/0005-v0.3.0-visuals-and-clock.md) | v0.3.0 見た目と時計(Phase 3) | 完了(v0.3.0) |
 | [0006](plans/0006-landing-page.md) | 利用者向けのランディングページ(GitHub Pages) | 合意済み |
+| [0007](plans/0007-supply-chain-cooldown.md) | 外部から取り込むものすべてに、公開から7日の待ち(cooldown)をかける | 合意済み |
 
 ## 調査
 
@@ -140,3 +141,4 @@
 | [0044](incidents/0044-site-check-fix-left-the-same-holes.md) | ページの読み込みの検査の抜け道を直したあとも、同じ種類の抜け道が残った |
 | [0045](incidents/0045-actions-allow-list-entered-without-separators.md) | 公開の手順の一覧が許可するアクションの書き方を示さず、CIが始まらなくなった |
 | [0046](incidents/0046-release-premise-without-diffing-the-last-tag.md) | 前の版のタグからの変更を確かめずに、正式なリリースの中身を「試作版と同じ機能」と書いた |
+| [0047](incidents/0047-exchange-written-into-decision-records.md) | 決定の記録に、会話のやり取りを書いた |

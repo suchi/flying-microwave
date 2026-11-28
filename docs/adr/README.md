@@ -58,3 +58,4 @@
 | [0027](0027-settings-file-handling-from-v0.3.0.md) | 設定ファイルの場所と扱いを決める(v0.3.0から。項目を加えた版ではschema_versionを上げる) | 採用 | 2026-11-11 |
 | [0028](0028-wait-for-swap-chain-at-most-one-frame.md) | スワップチェーンの待機オブジェクトを、製品が最大1フレームだけ待ってから描く | 採用 | 2026-11-14 |
 | [0029](0029-leave-gpu-resources-to-process-exit.md) | 終了するときは、描画先とGPUを破棄せずにプロセスの終わりに任せる | 採用 | 2026-11-22 |
+| [0030](0030-cooldown-on-everything-brought-in.md) | 外から取り込むものに公開から7日の待ちをかける範囲と、残るリスク | 採用 | 2026-11-27 |

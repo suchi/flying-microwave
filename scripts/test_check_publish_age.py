@@ -147,5 +147,69 @@ class MainTest(unittest.TestCase):
         self.assertEqual(self.run_main(["--crate", "no-version"]), 2)
 
 
+# The date of each Rust release in its channel manifest (plan 0007, D-2).
+MANIFESTS = {"1.90.0": "2026-09-18", "1.99.1": "2026-11-05", "1.99.2": "2026-11-04"}
+
+
+def fake_toolchain_date(version):
+    return MANIFESTS.get(version)
+
+
+def toolchain_file(d, channel):
+    path = pathlib.Path(d, "rust-toolchain.toml")
+    path.write_text(f'[toolchain]\nchannel = "{channel}"\nprofile = "minimal"\n', encoding="utf-8")
+    return path
+
+
+class ToolchainTest(unittest.TestCase):
+    def check(self, version):
+        return cpa.check_toolchain(version, NOW, dt.timedelta(days=7), fake_toolchain_date)
+
+    def test_the_channel_is_read_from_rust_toolchain_toml(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(cpa.toolchain_version(toolchain_file(d, "1.99.1")), "1.99.1")
+
+    def test_a_channel_that_is_not_an_exact_version_is_refused(self):
+        # A channel name (stable, nightly) or a version without the patch
+        # number moves, so its age cannot be known (it fails closed).
+        for channel in ("stable", "nightly-2026-11-01", "1.99", "beta"):
+            with self.subTest(channel), tempfile.TemporaryDirectory() as d:
+                with self.assertRaises(ValueError):
+                    cpa.toolchain_version(toolchain_file(d, channel))
+
+    def test_an_old_toolchain_passes(self):
+        self.assertEqual(self.check("1.90.0"), [])
+
+    def test_a_toolchain_newer_than_the_cooldown_fails(self):
+        self.assertEqual(len(self.check("1.99.1")), 1)
+
+    def test_the_date_counts_from_the_end_of_that_day(self):
+        # The manifest gives a day, not a time: the day is counted as ending
+        # at 24:00 UTC, so the wait is never shorter than 7 days. 2026-11-04
+        # ends at 11-05 00:00, which is 7 days before 11-12 00:00.
+        day = dt.timedelta(days=1)
+        self.assertEqual(len(cpa.check_toolchain("1.99.2", NOW, dt.timedelta(days=7), fake_toolchain_date)), 1)
+        end = dt.datetime(2026, 11, 12, 0, 0, tzinfo=dt.timezone.utc)
+        self.assertEqual(cpa.check_toolchain("1.99.2", end, dt.timedelta(days=7), fake_toolchain_date), [])
+        self.assertEqual(len(cpa.check_toolchain("1.99.2", end - day / 24, dt.timedelta(days=7), fake_toolchain_date)), 1)
+
+    def test_an_unknown_toolchain_fails(self):
+        self.assertEqual(len(self.check("9.9.9")), 1)
+
+    def test_the_date_is_read_from_the_manifest(self):
+        text = 'manifest-version = "2"\ndate = "2026-10-15"\n[pkg.rust]\nversion = "1.99.1 (abc 2026-10-13)"\n'
+        self.assertEqual(cpa.manifest_date(text), "2026-10-15")
+        self.assertIsNone(cpa.manifest_date('manifest-version = "2"\n'))
+
+    def test_main_checks_the_toolchain(self):
+        with tempfile.TemporaryDirectory() as d:
+            old = str(toolchain_file(d, "1.90.0"))
+            self.assertEqual(cpa.main(["--rust-toolchain", old], now=NOW, fetch=fake_fetch, toolchain_date=fake_toolchain_date), 0)
+            new = str(toolchain_file(d, "1.99.1"))
+            self.assertEqual(cpa.main(["--rust-toolchain", new], now=NOW, fetch=fake_fetch, toolchain_date=fake_toolchain_date), 1)
+            moving = str(toolchain_file(d, "stable"))
+            self.assertEqual(cpa.main(["--rust-toolchain", moving], now=NOW, fetch=fake_fetch, toolchain_date=fake_toolchain_date), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
