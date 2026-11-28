@@ -9,7 +9,7 @@
 | `assets/` | 文書で使う画像(READMEのバナーなど)。作者とライセンスは[assets/README.md](assets/README.md)、作り方は[ビジュアルデザイン方針](design/visual-design.md)の「リポジトリのバナーとアイコン」 |
 | `design/` | 設計。合意前は「提案」として書く |
 | `adr/` | ADR(アーキテクチャ決定記録)。運用は[adr/README.md](adr/README.md)に従う |
-| `development/` | 開発の進め方(オンボーディング、レビュー手順) |
+| `development/` | 開発の進め方(オンボーディング、レビュー手順、リリースの手順、エージェントの作業の手順) |
 | `ideas/` | 将来のアイデア。採用したものは計画・設計に移す |
 | `reviews/` | 敵対的レビューの指摘と対応の記録 |
 | `incidents/` | 開発の中で起きた異常の、なぜなぜ分析と対策の記録。手順は[incidents/README.md](incidents/README.md) |
@@ -68,6 +68,8 @@
 | --- | --- |
 | [onboarding.md](development/onboarding.md) | 開発参加者向けオンボーディング |
 | [review-process.md](development/review-process.md) | PRのレビュー手順(敵対的レビュー) |
+| [release.md](development/release.md) | リリースの手順(正式なリリース、プレリリース、実機での確認。計画0008で計画0001の7.1〜7.3から移した) |
+| [agent-procedures.md](development/agent-procedures.md) | エージェントの作業の手順(AGENTS.mdの原則を実行するときの細かい手順。計画0008) |
 | [publication-checklist.md](development/publication-checklist.md) | 公開の手順の一覧(メンテナーが画面で行う作業。計画0005の作業15の2、D-47) |
 | [public-repo-migration.md](development/public-repo-migration.md) | 公開用のリポジトリへの移行の手順(計画0005の作業15の2。移行はしないと決めたため不採用。D-46) |
 | [hardware-check-v0.1.1.md](development/hardware-check-v0.1.1.md) | v0.1.1の実機での確認の手順 |
